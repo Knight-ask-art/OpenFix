@@ -1,7 +1,7 @@
 {
-  "name": "OpenFic",
-  "short_name": "OpenFic",
-  "description": "AI Agent时代专为小说创作打造的一站式Vibe Wrting平台",
+  "name": "OpenFix",
+  "short_name": "OpenFix",
+  "description": "Windows AI 长篇小说写作工作台",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

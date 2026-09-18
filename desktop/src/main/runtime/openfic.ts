@@ -322,15 +322,15 @@ export async function inspectOpenFicRuntime(
   if (installedVersion !== expectedVersion) {
     return {
       complete: false,
-      message: installedVersion ? "OpenFic 后端版本不匹配" : "未找到 OpenFic 后端",
+      message: installedVersion ? "OpenFix 后端版本不匹配" : "未找到 OpenFix 后端",
     };
   }
   const openFicCliPath = resolveOpenFicCliPath(venvPythonPath);
   if (!(await pathExists(openFicCliPath)) || !(await succeeds(openFicCliPath, ["--help"], runtimeDir))) {
-    return { complete: false, message: "OpenFic 命令行程序缺失或不可用" };
+    return { complete: false, message: "OpenFix 命令行程序缺失或不可用" };
   }
 
-  return { complete: true, message: "OpenFic 运行环境已完整安装" };
+  return { complete: true, message: "OpenFix 运行环境已完整安装" };
 }
 
 export async function ensureOpenFicRuntime(
@@ -358,7 +358,7 @@ export async function ensureOpenFicRuntime(
   if (!venvIsUsable) {
     appendLog("runtime", "虚拟环境不存在或不可用，开始创建");
     await rm(venvDir, { recursive: true, force: true });
-    onProgress("create-venv", "创建 OpenFic 运行环境");
+    onProgress("create-venv", "创建 OpenFix 运行环境");
     await run(python.pythonPath, ["-m", "venv", venvDir], runtimeDir);
   }
 
@@ -386,9 +386,9 @@ export async function ensureOpenFicRuntime(
   if (installedVersion !== expectedVersion || !openFicCliIsUsable) {
     appendLog(
       "runtime",
-      installedVersion ? `OpenFic 后端需要更新：${installedVersion} -> ${expectedVersion}` : "OpenFic 后端尚未安装",
+      installedVersion ? `OpenFix 后端需要更新：${installedVersion} -> ${expectedVersion}` : "OpenFix 后端尚未安装",
     );
-    onProgress("install-openfic", installedVersion ? "更新 OpenFic 后端" : "安装 OpenFic 后端");
+    onProgress("install-openfic", installedVersion ? "更新 OpenFix 后端" : "安装 OpenFix 后端");
     const packageIndexEnvironments = await getPypiEnvironments();
     const installCommand = createOpenFicInstallCommand(
       venvPythonPath,
@@ -404,7 +404,7 @@ export async function ensureOpenFicRuntime(
   return { uvPath, venvPythonPath };
 }
 
-const STARTUP_TITLE = "启动 OpenFic 服务";
+const STARTUP_TITLE = "启动 OpenFix 服务";
 
 type StartupLogProgress = Omit<ProgressUpdate, "title">;
 
@@ -428,7 +428,7 @@ const STARTUP_LOG_RULES: StartupLogRule[] = [
     match: /Starting OpenFic/,
     toProgress: () => ({
       step: "initialize-backend",
-      message: "正在启动 OpenFic 服务...",
+      message: "正在启动 OpenFix 服务...",
       progress: 0.7,
     }),
   },
@@ -528,7 +528,7 @@ const STARTUP_LOG_RULES: StartupLogRule[] = [
     match: /Application startup complete/,
     toProgress: () => ({
       step: "complete-backend-startup",
-      message: "OpenFic 服务已完成初始化",
+      message: "OpenFix 服务已完成初始化",
       progress: 0.97,
     }),
   },
@@ -584,7 +584,7 @@ export async function startLocalOpenFicBackend(
   throwIfAborted(signal);
   startupProgress?.begin({
     step: "start-backend",
-    title: "启动 OpenFic 服务",
+    title: "启动 OpenFix 服务",
     message: "正在分配本地服务端口",
     progress: 0.6,
   });
@@ -620,7 +620,7 @@ export async function startLocalOpenFicBackend(
     });
     startupProgress?.begin({
       step: "check-health",
-      title: "启动 OpenFic 服务",
+      title: "启动 OpenFix 服务",
       message: "服务已响应，正在验证版本",
       progress: 0.98,
     });

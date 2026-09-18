@@ -45,7 +45,7 @@ export async function verifyBackupManifest(dir: string): Promise<void> {
   try {
     manifest = JSON.parse(await readFile(path.join(dir, BACKUP_MANIFEST_NAME), "utf8")) as BackupManifest;
   } catch {
-    throw new Error(`备份缺少有效清单（${BACKUP_MANIFEST_NAME}），可能不是 OpenFic 备份或文件已损坏`);
+    throw new Error(`备份缺少有效清单（${BACKUP_MANIFEST_NAME}），可能不是有效备份或文件已损坏`);
   }
   if (manifest.version !== BACKUP_MANIFEST_VERSION || typeof manifest.entries !== "object" || manifest.entries === null) {
     throw new Error(`备份清单版本不受支持（${BACKUP_MANIFEST_NAME}）`);

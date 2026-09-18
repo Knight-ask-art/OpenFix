@@ -56,7 +56,7 @@
     ClearErrors
     CopyFiles /SILENT "$PLUGINSDIR\openfic-update-uninstaller.exe" "$INSTDIR\${UNINSTALL_FILENAME}"
     ${if} ${Errors}
-      MessageBox MB_ICONSTOP "OpenFic cannot prepare the updater to protect the runtime directory."
+      MessageBox MB_ICONSTOP "OpenFix cannot prepare the updater to protect the runtime directory."
       Abort
     ${endif}
   ${endif}
@@ -246,7 +246,7 @@ FunctionEnd
       Call un.restoreFiles
       Pop $R0
     ${endif}
-    MessageBox MB_ICONSTOP "OpenFic cannot clean the installation directory while preserving runtime. Failed path: $R4"
+    MessageBox MB_ICONSTOP "OpenFix cannot clean the installation directory while preserving runtime. Failed path: $R4"
     Abort
   ${endif}
   ${ifNot} ${isUpdated}
@@ -260,7 +260,7 @@ FunctionEnd
         Call un.restoreFiles
         Pop $R0
       ${endif}
-      MessageBox MB_ICONSTOP "OpenFic cannot remove the runtime during uninstall. Failed path: $R4"
+      MessageBox MB_ICONSTOP "OpenFix cannot remove the runtime during uninstall. Failed path: $R4"
       Abort
     ${endif}
     RMDir /r "$INSTDIR"

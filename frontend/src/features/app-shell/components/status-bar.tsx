@@ -207,6 +207,7 @@ function IndexProgressStatusItem({
 }
 
 export function StatusBar({ version }: StatusBarProps) {
+  const { t } = useTranslation();
   const { data: indexStatus } = useOverallIndexStatus();
   const indexProgressState = useMemo(
     () => getIndexProgressState(indexStatus?.projects ?? []),
@@ -216,11 +217,15 @@ export function StatusBar({ version }: StatusBarProps) {
     () => [
       {
         id: "version",
-        content: <span data-slot="app-version">OpenFic v{version}</span>,
+        content: (
+          <span data-slot="app-version">
+            {t("common.appName")} v{version}
+          </span>
+        ),
         isVisible: Boolean(version),
       },
     ],
-    [version],
+    [t, version],
   );
 
   const rightItems = useMemo<StatusBarItem[]>(

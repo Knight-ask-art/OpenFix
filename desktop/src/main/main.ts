@@ -19,6 +19,9 @@ import { captureException, captureExceptionImmediate, startErrorTelemetry, syncT
 import type { InitializeAppResult } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
+app.setName("OpenFix");
+app.setAppUserModelId("com.openfix.app");
+
 function writeStartupLog(message: string): void {
   appendLog("startup", message);
 }
@@ -41,7 +44,7 @@ function setBackend(handle: BackendProcessHandle): void {
     const wasActiveHandle = backendHandle === handle;
     if (wasActiveHandle) backendHandle = null;
     if (!isQuitting && wasActiveHandle) {
-      dialog.showErrorBox("OpenFic 后端已退出", `后端服务异常退出。日志路径：${handle.logPath}`);
+      dialog.showErrorBox("OpenFix 后端已退出", `后端服务异常退出。日志路径：${handle.logPath}`);
       app.quit();
     }
   });
@@ -122,7 +125,7 @@ async function startLocalBackend(
   startupProgress.begin({
     step: "check-runtime",
     title: "检查运行环境",
-    message: "正在检查 Python 与 OpenFic 运行环境",
+    message: "正在检查 Python 与 OpenFix 运行环境",
     progress: 0.15,
   });
   let pythonWasUpdated = false;
@@ -162,7 +165,7 @@ async function startLocalBackend(
     runtimeWasUpdated = true;
     startupProgress.begin({
       step: "update-openfic",
-      title: step === "install-openfic" ? "更新 OpenFic 后端" : "更新本地运行环境",
+      title: step === "install-openfic" ? "更新 OpenFix 后端" : "更新本地运行环境",
       message,
       progress: step === "install-openfic" ? 0.45 : 0.38,
     });
@@ -206,7 +209,7 @@ async function activateInstance(
     if (!instance.remoteUrl) throw new Error("远程实例缺少后端地址");
     startupProgress.begin({
       step: "connect-remote",
-      title: "连接 OpenFic 服务",
+      title: "连接 OpenFix 服务",
       message: `正在连接 ${instance.remoteUrl}`,
       progress: 0.3,
     });
@@ -267,7 +270,7 @@ async function switchInstance(instanceId: string): Promise<InitializeAppResult> 
       startupProgress.begin({
         step: "ready",
         title: "开发模式",
-        message: "OpenFic 开发后端已就绪",
+        message: "OpenFix 开发后端已就绪",
         progress: 1,
       });
       startupProgress.complete();
@@ -289,12 +292,12 @@ async function switchInstance(instanceId: string): Promise<InitializeAppResult> 
   startupProgress.begin({
     step: "load-config",
     title: "读取实例配置",
-    message: "正在查找目标 OpenFic 实例",
+    message: "正在查找目标 OpenFix 实例",
     progress: 0.1,
   });
   try {
     const config = await readDesktopConfig();
-    if (!config) throw new Error("未找到 OpenFic 实例配置");
+    if (!config) throw new Error("未找到 OpenFix 实例配置");
     const instance = config.instances.find((item) => item.id === instanceId);
     if (!instance) throw new Error("实例不存在");
     startupProgress.update({
@@ -310,7 +313,7 @@ async function switchInstance(instanceId: string): Promise<InitializeAppResult> 
     startupProgress.begin({
       step: "ready",
       title: "服务已就绪",
-      message: "OpenFic 已准备完成",
+      message: "OpenFix 已准备完成",
       progress: 1,
     });
     startupProgress.complete();
@@ -367,7 +370,7 @@ async function initializeDevApp(): Promise<InitializeAppResult> {
     startupProgress.begin({
       step: "ready",
       title: "开发模式",
-      message: "OpenFic 开发后端已就绪",
+      message: "OpenFix 开发后端已就绪",
       progress: 1,
     });
     startupProgress.complete();
@@ -400,14 +403,14 @@ async function initializeApp(): Promise<InitializeAppResult> {
   startupProgress.begin({
     step: "load-config",
     title: "读取本地配置",
-    message: "正在查找已有 OpenFic 实例",
+    message: "正在查找已有 OpenFix 实例",
     progress: 0.05,
   });
   try {
     const config = await readDesktopConfig();
     writeStartupLog(`config loaded: ${config ? `${config.instances.length} instances` : "none"}`);
     if (!config || config.instances.length === 0) {
-      startupProgress.complete("尚未配置 OpenFic 实例");
+      startupProgress.complete("尚未配置 OpenFix 实例");
       return { status: "needs-setup" };
     }
     const instance = getActiveInstance(config);
@@ -423,7 +426,7 @@ async function initializeApp(): Promise<InitializeAppResult> {
     startupProgress.begin({
       step: "ready",
       title: "服务已就绪",
-      message: "OpenFic 已准备完成",
+      message: "OpenFix 已准备完成",
       progress: 1,
     });
     startupProgress.complete();

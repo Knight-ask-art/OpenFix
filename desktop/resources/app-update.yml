@@ -1,4 +1,4 @@
-provider: github
-owner: syrizelink
-repo: OpenFic
-releaseType: release
+provider: generic
+url: http://127.0.0.1:0/disabled-openfix-updates
+updaterCacheDirName: openfix-desktop-updater
+useMultipleRangeRequest: false

@@ -1,15 +1,9 @@
-appId: com.openfic.app
-productName: OpenFic
-copyright: Copyright © 2026 Syrize
+appId: com.openfix.app
+productName: OpenFix
+copyright: Copyright © 2026 OpenFix contributors. Based on OpenFic by Syrize.
 
 directories:
   output: dist-electron
-
-publish:
-  provider: github
-  owner: syrizelink
-  repo: OpenFic
-  releaseType: release
 
 electronLanguages:
   - en-US
@@ -28,8 +22,8 @@ extraResources:
     to: app-update.yml
 
 win:
-  icon: resources/icons/openfic.svg
-  artifactName: OpenFic-${version}-win-${arch}.${ext}
+  icon: resources/icons/openfix.svg
+  artifactName: OpenFix-${version}-win-${arch}.${ext}
   target:
     - nsis
     - zip
@@ -38,11 +32,11 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   include: build/installer.nsh
-  artifactName: OpenFic-${version}-win-${arch}-setup.${ext}
+  artifactName: OpenFix-${version}-win-${arch}-setup.${ext}
 
 mac:
-  icon: resources/icons/openfic.svg
-  artifactName: OpenFic-${version}-mac-${arch}.${ext}
+  icon: resources/icons/openfix.svg
+  artifactName: OpenFix-${version}-mac-${arch}.${ext}
   target:
     - dmg
     - zip
@@ -51,9 +45,9 @@ mac:
 
 linux:
   icon: resources/icons
-  artifactName: OpenFic-${version}-linux-${arch}.${ext}
-  synopsis: An AI-native writing tool for fiction authors
-  description: OpenFic is an AI-native, cross-platform writing tool built for fiction authors.
+  artifactName: OpenFix-${version}-linux-${arch}.${ext}
+  synopsis: An AI writing workbench for long-form fiction
+  description: OpenFix is a Windows-first AI writing workbench for long-form fiction, based on OpenFic.
   maintainer: Syrize <syrize@qq.com>
   vendor: syrizelink
   target:

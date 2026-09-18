@@ -8,6 +8,14 @@ import { configureSystemProxy } from "./proxy.js";
 
 const { autoUpdater } = electronUpdater;
 
+/** Empty until OpenFix has its own GitHub releases. Must not use upstream OpenFic. */
+const UPDATE_GITHUB_OWNER = "";
+const UPDATE_GITHUB_REPO = "";
+
+function hasProductUpdateFeed(): boolean {
+  return Boolean(UPDATE_GITHUB_OWNER && UPDATE_GITHUB_REPO);
+}
+
 let shellWindow: BrowserWindow | null = null;
 let updateState: UpdateState = { status: "idle" };
 let initialized = false;
@@ -43,7 +51,7 @@ async function getReleaseNotes(info: UpdateInfo): Promise<string | undefined> {
 
   try {
     const response = await autoUpdater.netSession.fetch(
-      `https://api.github.com/repos/syrizelink/OpenFic/releases/tags/v${encodeURIComponent(info.version)}`,
+      `https://api.github.com/repos/${UPDATE_GITHUB_OWNER}/${UPDATE_GITHUB_REPO}/releases/tags/v${encodeURIComponent(info.version)}`,
       { headers: { Accept: "application/vnd.github+json" } },
     );
     if (!response.ok) return getUpdaterReleaseNotes(info);
@@ -90,7 +98,7 @@ function canUseAutoUpdater(): boolean {
 
 function configurePortableInstallDirectory(): void {
   const installDirectory = path.dirname(app.getPath("exe"));
-  const uninstallerPath = path.join(installDirectory, "Uninstall OpenFic.exe");
+  const uninstallerPath = path.join(installDirectory, "Uninstall OpenFix.exe");
   if (!existsSync(uninstallerPath) && autoUpdater instanceof NsisUpdater) {
     autoUpdater.installDirectory = installDirectory;
   }
@@ -105,7 +113,7 @@ export async function initializeUpdater(window: BrowserWindow): Promise<void> {
   }
 
   initialized = true;
-  if (!canUseAutoUpdater()) {
+  if (!hasProductUpdateFeed() || !canUseAutoUpdater()) {
     publishState({ status: "unsupported" });
     return;
   }
@@ -194,6 +202,8 @@ export function installUpdate(): void {
 }
 
 export async function openUpdateRelease(): Promise<void> {
-  if (!updateState.version) return;
-  await shell.openExternal(`https://github.com/syrizelink/OpenFic/releases/tag/v${encodeURIComponent(updateState.version)}`);
+  if (!updateState.version || !hasProductUpdateFeed()) return;
+  await shell.openExternal(
+    `https://github.com/${UPDATE_GITHUB_OWNER}/${UPDATE_GITHUB_REPO}/releases/tag/v${encodeURIComponent(updateState.version)}`,
+  );
 }

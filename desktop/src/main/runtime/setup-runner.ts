@@ -22,7 +22,7 @@ const STEP_DONE_MESSAGE: Record<SetupProgressEvent["step"], string> = {
   "extract-python": "Python 已解压",
   "create-venv": "运行环境已创建",
   "install-uv": "uv 已安装",
-  "install-openfic": "OpenFic 已安装",
+  "install-openfic": "OpenFix 后端已安装",
 };
 
 function markDone(webContents: WebContents, step: SetupProgressEvent["step"]): void {

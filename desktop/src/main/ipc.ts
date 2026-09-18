@@ -52,9 +52,9 @@ import { captureException } from "./telemetry.js";
 import type { BackendProcessHandle } from "./process.js";
 import { isDesktopInstanceAppearance, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
 
-const PROJECT_HOME_URL = "https://github.com/syrizelink/OpenFic";
-const BUG_REPORT_URL = `${PROJECT_HOME_URL}/issues/new?template=bug-report.yml`;
-const FEATURE_SUGGESTION_URL = `${PROJECT_HOME_URL}/issues/new?template=feature-request.yml`;
+const PROJECT_HOME_URL = "";
+const BUG_REPORT_URL = "";
+const FEATURE_SUGGESTION_URL = "";
 const MIN_ZOOM_FACTOR = 0.7;
 const MAX_ZOOM_FACTOR = 2.0;
 const DEFAULT_ZOOM_FACTOR = 1.1;
@@ -361,7 +361,7 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.getInstanceDeletionInfo, async (_event, request: GetInstanceDeletionInfoRequest) => {
     if (typeof request?.instanceId !== "string") throw new Error("无效的实例标识");
     const config = await readDesktopConfig();
-    if (!config) throw new Error("未找到 OpenFic 实例配置");
+    if (!config) throw new Error("未找到 OpenFix 实例配置");
     const instance = config.instances.find((item) => item.id === request.instanceId);
     if (!instance) throw new Error("实例不存在");
     if (instance.mode !== "local") {
@@ -387,7 +387,7 @@ export function registerIpc(context: IpcContext): void {
         throw new Error("无效的实例删除请求");
       }
       const config = await readDesktopConfig();
-      if (!config) throw new Error("未找到 OpenFic 实例配置");
+      if (!config) throw new Error("未找到 OpenFix 实例配置");
       const instance = config.instances.find((item) => item.id === request.instanceId);
       if (!instance) throw new Error("实例不存在");
       const instancePaths = instance.mode === "local" ? getLocalInstanceDeletionPaths(instance) : null;
@@ -457,7 +457,7 @@ export function registerIpc(context: IpcContext): void {
     );
     const options: Electron.SaveDialogOptions = {
       defaultPath,
-      filters: [{ name: "OpenFic 数据备份", extensions: ["tar.gz"] }],
+      filters: [{ name: "OpenFix 数据备份", extensions: ["tar.gz"] }],
       title: "备份作品数据",
     };
     const result = window
@@ -471,7 +471,7 @@ export function registerIpc(context: IpcContext): void {
     const window = context.shellWindow();
     const options: Electron.OpenDialogOptions = {
       properties: ["openFile"],
-      filters: [{ name: "OpenFic 数据备份", extensions: ["tar.gz"] }],
+      filters: [{ name: "OpenFix 数据备份", extensions: ["tar.gz"] }],
       title: "选择数据备份文件",
     };
     const result = window
@@ -515,7 +515,7 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.migrateData, (_event, request: MigrateDataRequest) =>
     enqueueConfigMutation(async (): Promise<MigrateDataResult> => {
       const config = await readDesktopConfig();
-      if (!config) throw new Error("未找到 OpenFic 实例配置");
+      if (!config) throw new Error("未找到 OpenFix 实例配置");
       const instance = config.instances.find((item) => item.id === request.instanceId);
       if (!instance) throw new Error("实例不存在");
       const sourceDir = resolveDataDir(instance);
@@ -662,7 +662,7 @@ export function registerIpc(context: IpcContext): void {
         startupProgress.begin({
           step: "ready",
           title: "服务已就绪",
-          message: "OpenFic 已准备完成",
+          message: "OpenFix 已准备完成",
           progress: 1,
         });
         startupProgress.complete();
@@ -704,12 +704,18 @@ export function registerIpc(context: IpcContext): void {
       webContents.closeDevTools();
       return;
     }
-    webContents.openDevTools({ mode: "detach", title: "OpenFic 开发者工具" });
+    webContents.openDevTools({ mode: "detach", title: "OpenFix 开发者工具" });
   });
   ipcMain.handle(IpcChannels.closeWindow, async () => {
     context.shellWindow()?.close();
   });
-  ipcMain.handle(IpcChannels.openProjectHome, () => shell.openExternal(PROJECT_HOME_URL));
-  ipcMain.handle(IpcChannels.reportBug, () => shell.openExternal(BUG_REPORT_URL));
-  ipcMain.handle(IpcChannels.suggestFeature, () => shell.openExternal(FEATURE_SUGGESTION_URL));
+  ipcMain.handle(IpcChannels.openProjectHome, () => {
+    if (PROJECT_HOME_URL) return shell.openExternal(PROJECT_HOME_URL);
+  });
+  ipcMain.handle(IpcChannels.reportBug, () => {
+    if (BUG_REPORT_URL) return shell.openExternal(BUG_REPORT_URL);
+  });
+  ipcMain.handle(IpcChannels.suggestFeature, () => {
+    if (FEATURE_SUGGESTION_URL) return shell.openExternal(FEATURE_SUGGESTION_URL);
+  });
 }
