@@ -87,5 +87,9 @@ upstream  → OpenFic 官方
 
 用户可见品牌已改为 OpenFix（`appId: com.openfix.app`）。桌面版本号仍为 `0.11.1`，因为 Runtime 仍会 `pip install openfic==${app.getVersion()}`。自动更新已断开官方 OpenFic Release，待自有 GitHub 仓库后再接入。
 
-第一阶段的验收标准见 [docs/03](../docs/03-source-change-list.md) 第 37 节：能在干净的 Windows 11 上安装并启动安装包，什么业务功能都不改。
+**[docs/04](../docs/04-fork-and-packaging-roadmap.md) Phase 1（Fork + 本机跑通）已结束。** 开发模式可启动；本地库中已有手工冒烟项目（标题「测试」，1 个章节）。未打安装包，未接自有 GitHub `origin`。
+
+**TASK-002（Sidebar / Navigation）已完成**（分支 `feature/navigation`）：一级导航改为首页 / 写作 / 大纲 / 人物 / 世界；Prompt Chains 与 Dashboard 从一级导航隐藏，路由 `/prompt-chains`、`/dashboard` 保留可用；`/outline` 为占位页（`frontend/src/features/outline/`）。已通过 lint / type-check / build 及浏览器冒烟。
+
+下一刀：V0.1 安装包验收（[docs/03](../docs/03-source-change-list.md) 第 37 节），随后 TASK-003（Home）。
 

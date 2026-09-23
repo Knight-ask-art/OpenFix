@@ -13,6 +13,7 @@ export const sidebarActionButtonStyle = {
 } as const;
 
 export interface AppSidebarNavItem {
+  id: string;
   label: string;
   href: string;
   icon: LucideIcon;

@@ -1,7 +1,6 @@
 import { Box, Flex } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { ChartNoAxesCombined, Globe, LibraryBig, UserRound, Workflow } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,15 +20,12 @@ import type { RecentProject } from "@/lib/recent-projects";
 import type { ThemeMode } from "@/lib/theme";
 
 import { useAppShell } from "./app-shell-context";
-import {
-  SIDEBAR_COLLAPSED_WIDTH,
-  SIDEBAR_EXPANDED_WIDTH,
-  type AppSidebarNavItem,
-} from "./app-sidebar.constants";
+import { SIDEBAR_COLLAPSED_WIDTH, SIDEBAR_EXPANDED_WIDTH } from "./app-sidebar.constants";
 import { RecentProjectsNav } from "./recent-projects-nav";
 import { SidebarActions } from "./sidebar-actions";
 import { SidebarBrand } from "./sidebar-brand";
 import { SidebarNav } from "./sidebar-nav";
+import { buildPrimaryNavItems } from "./sidebar-nav-config";
 
 const MotionBox = motion.create(Box);
 const MotionFlex = motion.create(Flex);
@@ -151,43 +147,21 @@ export function AppSidebar({ appearance, themeMode, onToggleTheme }: AppSidebarP
     };
   }, [currentProject, queryClient]);
 
-  const navItems = useMemo<AppSidebarNavItem[]>(() => {
-    const pathname = location.pathname;
-    const items: AppSidebarNavItem[] = [
-      {
-        label: t("topbar.projects"),
-        href: "/",
-        icon: LibraryBig,
-        active: pathname === "/",
-      },
-      {
-        label: t("topbar.workspace"),
-        href: "/world-info",
-        icon: Globe,
-        active: pathname.startsWith("/world-info"),
-      },
-      {
-        label: t("topbar.characters"),
-        href: "/characters",
-        icon: UserRound,
-        active: pathname.startsWith("/characters"),
-      },
-      {
-        label: t("topbar.promptChains"),
-        href: "/prompt-chains",
-        icon: Workflow,
-        active: pathname.startsWith("/prompt-chains"),
-      },
-      {
-        label: t("dashboard.title"),
-        href: "/dashboard",
-        icon: ChartNoAxesCombined,
-        active: pathname.startsWith("/dashboard"),
-      },
-    ];
-
-    return items;
-  }, [location.pathname, t]);
+  const navItems = useMemo(
+    () =>
+      buildPrimaryNavItems({
+        pathname: location.pathname,
+        recentProjectId: recentProjects[0]?.projectId,
+        labels: {
+          home: t("nav.home"),
+          writing: t("nav.writing"),
+          outline: t("nav.outline"),
+          characters: t("nav.characters"),
+          world: t("nav.world"),
+        },
+      }),
+    [location.pathname, recentProjects, t],
+  );
 
   const handleLanguageChange = async (language: string) => {
     const nextLanguage = language as LanguageCode;
@@ -327,7 +301,7 @@ export function AppSidebar({ appearance, themeMode, onToggleTheme }: AppSidebarP
               isExpanded={isMobile || isExpanded}
               isHovered={isLogoHovered}
               expandLabel={t("topbar.expand")}
-              projectsLabel={t("topbar.projects")}
+              projectsLabel={t("nav.home")}
               collapseLabel={t("topbar.collapse")}
               onToggleExpanded={toggleExpanded}
               onNavigateHome={navigateToProjects}

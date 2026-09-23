@@ -10,6 +10,7 @@ import { Toaster } from "./components/toaster";
 import { AppLayout } from "./features/app-shell";
 import { AuthPage } from "./features/auth";
 import { CharactersPage } from "./features/characters";
+import { OutlinePlaceholderPage } from "./features/outline";
 import { PromptChainsPage } from "./features/prompt-chains";
 import { fetchSettings, updateSettings } from "./features/settings/lib/settings-api";
 import type { Settings } from "./features/settings/lib/settings.types";
@@ -226,6 +227,10 @@ function AppContent({
           <Route
             path="/characters"
             element={<CharactersPage />}
+          />
+          <Route
+            path="/outline"
+            element={<OutlinePlaceholderPage />}
           />
           <Route
             path="/prompt-chains"

@@ -82,14 +82,14 @@ function SidebarNavItem({ item, isExpanded }: { item: AppSidebarNavItem; isExpan
 
   return isExpanded ? (
     <Box
-      key={item.href}
+      key={item.id}
       width="100%"
     >
       {linked}
     </Box>
   ) : (
     <Tooltip
-      key={item.href}
+      key={item.id}
       content={item.label}
       side="right"
     >
@@ -108,7 +108,7 @@ export function SidebarNav({ items, isExpanded }: SidebarNavProps) {
     >
       {items.map((item) => (
         <SidebarNavItem
-          key={item.href}
+          key={item.id}
           item={item}
           isExpanded={isExpanded}
         />

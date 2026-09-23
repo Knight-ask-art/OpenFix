@@ -85,6 +85,15 @@
     "chinese": "简体中文",
     "english": "English"
   },
+  "nav": {
+    "home": "首页",
+    "writing": "写作",
+    "outline": "大纲",
+    "characters": "人物",
+    "world": "世界",
+    "outlinePlaceholderTitle": "大纲稍后提供",
+    "outlinePlaceholderBody": "这里将用来整理全书结构。当前版本先保留入口，不改动现有章节和设定数据。"
+  },
   "projects": {
     "newProject": "新建项目",
     "import": "导入",

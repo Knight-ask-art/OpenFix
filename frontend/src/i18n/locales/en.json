@@ -85,6 +85,15 @@
     "chinese": "简体中文",
     "english": "English"
   },
+  "nav": {
+    "home": "Home",
+    "writing": "Writing",
+    "outline": "Outline",
+    "characters": "Characters",
+    "world": "World",
+    "outlinePlaceholderTitle": "Outline comes later",
+    "outlinePlaceholderBody": "This space will hold the book structure. The entry is available now; chapter and setting data stay unchanged."
+  },
   "projects": {
     "newProject": "New Project",
     "import": "Import",
