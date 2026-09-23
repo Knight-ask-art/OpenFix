@@ -93,3 +93,11 @@ upstream  → OpenFic 官方
 
 下一刀：V0.1 安装包验收（[docs/03](../docs/03-source-change-list.md) 第 37 节），随后 TASK-003（Home）。
 
+**V0.1 安装包已产出并通过本机冒烟**（2026-09-23，分支 `feature/navigation`）：
+
+* 产物：`desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe`（约 120 MB）与同名 `.zip`。
+* 打包修复：`electron-builder.yml` 显式将 `publish` 指向禁用端点，避免 electron-builder 从上游 repository 字段推断出 OpenFic 官方 GitHub 更新源。
+* 本机验证：静默安装成功、首次启动窗口正常加载实例配置页、开发模式主流程已通过浏览器冒烟。
+* 待人工验收：在干净的 Windows 11 虚拟机 / 电脑上安装，走完「实例配置 → 首次联网创建后端运行环境 → 模型配置 → 写作 → 重启数据保留」全链路。
+* 已知限制：版本号保持 `0.11.1`（Runtime 依赖 `pip install openfic==${app.getVersion()}`，与 [docs/03](../docs/03-source-change-list.md) 第 37 节的 0.1.0 命名不符，Phase 3 后端 Fork 时解耦）；自动更新尚未接入自有仓库。
+
