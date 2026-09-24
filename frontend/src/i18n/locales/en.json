@@ -94,6 +94,20 @@
     "outlinePlaceholderTitle": "Outline comes later",
     "outlinePlaceholderBody": "This space will hold the book structure. The entry is available now; chapter and setting data stay unchanged."
   },
+  "home": {
+    "title": "Home",
+    "continueLabel": "Continue writing",
+    "continueAction": "Open project",
+    "continueEmptyTitle": "No active project yet",
+    "continueEmptyBody": "Create or import a project and your latest novel will show up here.",
+    "goToProjects": "View all projects",
+    "todayWriting": "Today",
+    "thisWeekWriting": "This week",
+    "wordsUnit": "words",
+    "activeDays_one": "{{count}} active day",
+    "activeDays_other": "{{count}} active days",
+    "recentProjects": "Recent projects"
+  },
   "projects": {
     "newProject": "New Project",
     "import": "Import",

@@ -27,7 +27,7 @@ export function resolveWritingHref(recentProjectId: string | undefined): string 
 export function isPrimaryNavActive(id: PrimaryNavId, pathname: string): boolean {
   switch (id) {
     case "home":
-      return pathname === "/";
+      return pathname === "/" || pathname === "/projects";
     case "writing":
       return pathname.startsWith("/projects/");
     case "outline":

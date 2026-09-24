@@ -1,0 +1,26 @@
+.home-page {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--color-background);
+}
+
+.home-page__header {
+  padding-top: 20px;
+  flex-shrink: 0;
+}
+
+.home-page__body {
+  min-height: 0;
+}
+
+.home-page__continue {
+  flex: 1;
+  min-width: 240px;
+  max-width: 360px;
+}
+
+.home-page__all-projects {
+  align-self: flex-start;
+}

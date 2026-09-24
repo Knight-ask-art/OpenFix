@@ -10,6 +10,7 @@ import { Toaster } from "./components/toaster";
 import { AppLayout } from "./features/app-shell";
 import { AuthPage } from "./features/auth";
 import { CharactersPage } from "./features/characters";
+import { HomePage } from "./features/home";
 import { OutlinePlaceholderPage } from "./features/outline";
 import { PromptChainsPage } from "./features/prompt-chains";
 import { fetchSettings, updateSettings } from "./features/settings/lib/settings-api";
@@ -214,6 +215,10 @@ function AppContent({
         >
           <Route
             path="/"
+            element={<HomePage />}
+          />
+          <Route
+            path="/projects"
             element={<App />}
           />
           <Route

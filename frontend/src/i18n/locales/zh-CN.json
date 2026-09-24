@@ -94,6 +94,20 @@
     "outlinePlaceholderTitle": "大纲稍后提供",
     "outlinePlaceholderBody": "这里将用来整理全书结构。当前版本先保留入口，不改动现有章节和设定数据。"
   },
+  "home": {
+    "title": "首页",
+    "continueLabel": "继续写作",
+    "continueAction": "打开项目",
+    "continueEmptyTitle": "还没有正在创作的项目",
+    "continueEmptyBody": "新建或导入一个项目后，这里会显示最近编辑的小说。",
+    "goToProjects": "查看全部项目",
+    "todayWriting": "今日写作",
+    "thisWeekWriting": "本周写作",
+    "wordsUnit": "字",
+    "activeDays_one": "{{count}} 天写作",
+    "activeDays_other": "{{count}} 天写作",
+    "recentProjects": "最近项目"
+  },
   "projects": {
     "newProject": "新建项目",
     "import": "导入",

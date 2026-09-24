@@ -1,0 +1,65 @@
+.recent-projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recent-projects-list__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--gray-a4);
+  border-radius: var(--radius-3);
+  color: inherit;
+  text-decoration: none;
+  background: var(--color-background);
+}
+
+.recent-projects-list__item:hover {
+  background: var(--color-panel-translucent);
+  border-color: var(--gray-a6);
+}
+
+.recent-projects-list__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-2);
+  font-weight: 600;
+  font-size: 13px;
+  color: white;
+}
+
+.recent-projects-list__badge--blue {
+  background: var(--blue-9);
+}
+
+.recent-projects-list__badge--green {
+  background: var(--green-9);
+}
+
+.recent-projects-list__badge--orange {
+  background: var(--orange-9);
+}
+
+.recent-projects-list__badge--purple {
+  background: var(--purple-9);
+}
+
+.recent-projects-list__badge--teal {
+  background: var(--teal-9);
+}
+
+.recent-projects-list__badge--pink {
+  background: var(--pink-9);
+}
+
+.recent-projects-list__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
