@@ -608,6 +608,73 @@
   color: currentColor;
 }
 
+.settings-sidebar-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 12px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--gray-11);
+  font: inherit;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.settings-sidebar-group-toggle:hover {
+  color: var(--gray-12);
+}
+
+.settings-sidebar-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--gray-a4);
+}
+
+.settings-sidebar-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  color: var(--gray-11);
+  text-decoration: none;
+}
+
+.settings-sidebar-shortcut:hover {
+  background: var(--accent-a2);
+  color: var(--gray-12);
+}
+
+.settings-sidebar-advanced-toggle {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 0 12px;
+  border: 1px dashed var(--gray-a6);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--gray-11);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-sidebar-advanced-toggle:hover {
+  background: var(--accent-a2);
+  color: var(--gray-12);
+}
+
 .settings-dialog-visually-hidden {
   position: absolute;
   width: 1px;

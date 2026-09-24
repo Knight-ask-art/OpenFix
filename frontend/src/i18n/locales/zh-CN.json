@@ -108,6 +108,13 @@
     "activeDays_other": "{{count}} 天写作",
     "recentProjects": "最近项目"
   },
+  "settingsAdvanced": {
+    "advancedGroup": "高级",
+    "showAdvanced": "显示高级设置",
+    "hideAdvanced": "隐藏高级设置",
+    "promptChainsShortcut": "提示词链",
+    "aiUsageShortcut": "AI 使用情况"
+  },
   "projects": {
     "newProject": "新建项目",
     "import": "导入",

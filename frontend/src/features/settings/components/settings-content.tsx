@@ -39,7 +39,12 @@ import { SummarySettings } from "../components/summary-settings";
 import { WebSearchSettings } from "../components/web-search-settings";
 import { useAgentSettingsLock } from "../lib/agent-settings-lock";
 import { fetchAgentTools, fetchSettings, updateSettings } from "../lib/settings-api";
-import { SETTINGS_CATEGORY_ITEMS, type SettingsCategory } from "../lib/settings-categories";
+import {
+  filterSettingsCategories,
+  getSettingsCategoryTier,
+  type SettingsCategory,
+} from "../lib/settings-categories";
+import { readAdvancedModePreference } from "../lib/advanced-mode";
 import {
   DEFAULT_MODEL_SETTINGS_TAB,
   DEFAULT_SETTINGS_ROUTE_CATEGORY,
@@ -114,6 +119,10 @@ export function SettingsContent({
   const [mobileSubpageTitle, setMobileSubpageTitle] = useState<string | null>(null);
   const [mobileDirection, setMobileDirection] = useState<1 | -1>(1);
   const [mobileRefDocEdit, setMobileRefDocEdit] = useState(false);
+  const [isAdvancedMode, setIsAdvancedMode] = useState(() => {
+    const initial = readAdvancedModePreference();
+    return initial || getSettingsCategoryTier(initialCategory) === "advanced";
+  });
 
   const [editedSettings, setEditedSettings] = useState<Partial<Settings>>({});
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -516,6 +525,9 @@ export function SettingsContent({
           <SettingsSidebar
             activeCategory={activeCategory}
             onCategoryChange={handleDesktopCategorySelect}
+            isAdvancedMode={isAdvancedMode}
+            onAdvancedModeChange={setIsAdvancedMode}
+            onShortcutNavigate={onClose}
           />
         </Box>
       ) : null}
@@ -599,7 +611,7 @@ export function SettingsContent({
                       className="settings-dialog-mobile-category-list"
                       role="list"
                     >
-                      {SETTINGS_CATEGORY_ITEMS.map((category) => {
+                      {filterSettingsCategories(isAdvancedMode).map((category) => {
                         const Icon = category.icon;
                         return (
                           <button
@@ -628,6 +640,33 @@ export function SettingsContent({
                           </button>
                         );
                       })}
+                      <button
+                        type="button"
+                        className="settings-dialog-mobile-category-item"
+                        onClick={() => {
+                          const next = !isAdvancedMode;
+                          setIsAdvancedMode(next);
+                          if (!next && getSettingsCategoryTier(activeCategory) === "advanced") {
+                            handleMobileCategorySelect("general");
+                          }
+                        }}
+                      >
+                        <Flex
+                          align="center"
+                          gap="3"
+                          className="settings-dialog-mobile-category-item-content"
+                        >
+                          <span
+                            className="settings-dialog-mobile-category-item-icon"
+                            aria-hidden="true"
+                          />
+                          <Text size="2">
+                            {isAdvancedMode
+                              ? t("settingsAdvanced.hideAdvanced")
+                              : t("settingsAdvanced.showAdvanced")}
+                          </Text>
+                        </Flex>
+                      </button>
                     </Box>
                   </MotionBox>
                 ) : (

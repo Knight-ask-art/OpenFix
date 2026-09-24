@@ -108,6 +108,13 @@
     "activeDays_other": "{{count}} active days",
     "recentProjects": "Recent projects"
   },
+  "settingsAdvanced": {
+    "advancedGroup": "Advanced",
+    "showAdvanced": "Show advanced settings",
+    "hideAdvanced": "Hide advanced settings",
+    "promptChainsShortcut": "Prompt chains",
+    "aiUsageShortcut": "AI usage"
+  },
   "projects": {
     "newProject": "New Project",
     "import": "Import",
