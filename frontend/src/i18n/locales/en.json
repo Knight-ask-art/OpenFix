@@ -115,6 +115,32 @@
     "promptChainsShortcut": "Prompt chains",
     "aiUsageShortcut": "AI usage"
   },
+  "inlineAi": {
+    "trigger": "AI rewrite",
+    "close": "Close",
+    "actions": {
+      "polish": "Polish",
+      "rewrite": "Rewrite",
+      "expand": "Expand",
+      "shorten": "Shorten",
+      "dialogue": "More dialogue",
+      "description": "More detail",
+      "emotion": "Stronger emotion",
+      "pacing": "Adjust pacing",
+      "grammar": "Fix grammar",
+      "custom": "Custom"
+    },
+    "customPlaceholder": "Describe the change you want...",
+    "customSubmit": "Generate",
+    "requesting": "Generating...",
+    "accept": "Accept",
+    "reject": "Reject",
+    "resultTitle": "AI suggestion",
+    "applied": "AI change applied",
+    "conflict": "The original text changed; please select it again",
+    "tooLong": "Selection too long (max {{max}} characters)",
+    "failed": "AI rewrite failed"
+  },
   "projects": {
     "newProject": "New Project",
     "import": "Import",

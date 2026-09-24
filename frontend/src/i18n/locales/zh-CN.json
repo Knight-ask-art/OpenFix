@@ -115,6 +115,32 @@
     "promptChainsShortcut": "提示词链",
     "aiUsageShortcut": "AI 使用情况"
   },
+  "inlineAi": {
+    "trigger": "AI 改写",
+    "close": "关闭",
+    "actions": {
+      "polish": "润色",
+      "rewrite": "改写",
+      "expand": "扩写",
+      "shorten": "精简",
+      "dialogue": "增加对话",
+      "description": "增强画面",
+      "emotion": "增强情绪",
+      "pacing": "调整节奏",
+      "grammar": "修复语病",
+      "custom": "自定义"
+    },
+    "customPlaceholder": "描述你想要的修改…",
+    "customSubmit": "生成",
+    "requesting": "生成中…",
+    "accept": "接受",
+    "reject": "拒绝",
+    "resultTitle": "AI 建议",
+    "applied": "已应用 AI 修改",
+    "conflict": "原文已变化，请重新选中后再试",
+    "tooLong": "选中文本过长（最多 {{max}} 字符）",
+    "failed": "AI 改写失败"
+  },
   "projects": {
     "newProject": "新建项目",
     "import": "导入",

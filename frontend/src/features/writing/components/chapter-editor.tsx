@@ -16,6 +16,7 @@ import {
   buildLineRangeMentionTag,
 } from "@/features/assistant/lib/mention-text";
 import { fetchSettings } from "@/features/settings/lib/settings-api";
+import { InlineAiMenu } from "@/features/inline-ai";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
 import { fetchChapter } from "@/lib/api-client";
 import type { Chapter } from "@/lib/chapter.types";
@@ -684,6 +685,14 @@ function ChapterEditorContent({
           editor={editor}
           containerRef={editorContentRef}
           editorExtraItems={editorExtraItems}
+        />
+      )}
+
+      {!isAgentLocked && editor && (
+        <InlineAiMenu
+          editor={editor}
+          projectId={chapter.projectId}
+          chapterId={chapter.id}
         />
       )}
 

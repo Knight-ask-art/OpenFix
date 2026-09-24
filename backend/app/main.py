@@ -38,6 +38,7 @@ from app.api.routers import (
     dashboard,
     health,
     import_router,
+    inline_ai,
     model_icons,
     model_provider_catalog,
     model_providers,
@@ -715,6 +716,7 @@ def create_app() -> FastAPI:
     app.include_router(world_info_entries.router, prefix=app_settings.api_v1_prefix)
     app.include_router(settings.router, prefix=app_settings.api_v1_prefix)
     app.include_router(import_router.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(inline_ai.router, prefix=app_settings.api_v1_prefix)
     app.include_router(model_providers.router, prefix=app_settings.api_v1_prefix)
     app.include_router(model_provider_catalog.router, prefix=app_settings.api_v1_prefix)
     app.include_router(models.router, prefix=app_settings.api_v1_prefix)

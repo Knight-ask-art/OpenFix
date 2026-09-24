@@ -34,6 +34,7 @@ from app.api.routers import (
     dashboard,
     health,
     import_router,
+    inline_ai,
     model_icons,
     model_provider_catalog,
     model_providers,
@@ -101,6 +102,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(world_info_entries.router, prefix="/api/v1")
     test_app.include_router(settings.router, prefix="/api/v1")
     test_app.include_router(import_router.router, prefix="/api/v1")
+    test_app.include_router(inline_ai.router, prefix="/api/v1")
     test_app.include_router(model_providers.router, prefix="/api/v1")
     test_app.include_router(model_provider_catalog.router, prefix="/api/v1")
     test_app.include_router(models.router, prefix="/api/v1")
