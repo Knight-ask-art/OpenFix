@@ -87,7 +87,7 @@ upstream  → OpenFic 官方
 
 用户可见品牌已改为 OpenFix（`appId: com.openfix.app`）。桌面版本号仍为 `0.11.1`，因为 Runtime 仍会 `pip install openfic==${app.getVersion()}`。自动更新已断开官方 OpenFic Release，待自有 GitHub 仓库后再接入。
 
-**[docs/04](../docs/04-fork-and-packaging-roadmap.md) Phase 1（Fork + 本机跑通）已结束。** 开发模式可启动；本地库中已有手工冒烟项目（标题「测试」，1 个章节）。未打安装包，未接自有 GitHub `origin`。
+**[docs/04](../docs/04-fork-and-packaging-roadmap.md) Phase 1（Fork + 本机跑通）已结束。** 开发模式可启动。自有仓库 `origin` 已接入：`https://github.com/Knight-ask-art/OpenFix`（2026-09-23 由 OpenFic 改名而来），分支均已推送。
 
 **TASK-002（Sidebar / Navigation）已完成**（分支 `feature/navigation`）：一级导航改为首页 / 写作 / 大纲 / 人物 / 世界；Prompt Chains 与 Dashboard 从一级导航隐藏，路由 `/prompt-chains`、`/dashboard` 保留可用；`/outline` 为占位页（`frontend/src/features/outline/`）。已通过 lint / type-check / build 及浏览器冒烟。
 
@@ -100,4 +100,10 @@ upstream  → OpenFic 官方
 * 本机验证：静默安装成功、首次启动窗口正常加载实例配置页、开发模式主流程已通过浏览器冒烟。
 * 待人工验收：在干净的 Windows 11 虚拟机 / 电脑上安装，走完「实例配置 → 首次联网创建后端运行环境 → 模型配置 → 写作 → 重启数据保留」全链路。
 * 已知限制：版本号保持 `0.11.1`（Runtime 依赖 `pip install openfic==${app.getVersion()}`，与 [docs/03](../docs/03-source-change-list.md) 第 37 节的 0.1.0 命名不符，Phase 3 后端 Fork 时解耦）；自动更新尚未接入自有仓库。
+
+**TASK-003（Home Dashboard）已完成**（分支 `feature/home`，已合并入 `feature/navigation` → `feature/branding`）：
+
+* `/` 改为首页（`frontend/src/features/home/`）：继续写作卡、今日 / 本周写作字数（复用 `GET /dashboard/writing`）、最近项目列表；项目库完整功能移至 `/projects`，路由保留。
+* 「写作」导航指向最近打开的项目；`/projects` 归入「首页」高亮范围。
+* 已通过 lint / type-check / build 与浏览器冒烟（空状态、有项目状态、新建项目、进入写作、返回首页）。
 
