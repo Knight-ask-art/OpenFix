@@ -54,6 +54,27 @@
   color: var(--gray-12);
 }
 
+.inline-ai-result__seg--equal {
+  color: var(--gray-11);
+  opacity: 0.75;
+}
+
+.inline-ai-result__seg--removed {
+  background: rgba(220, 38, 38, 0.32);
+  color: var(--red-12);
+  font-weight: 600;
+}
+
+.inline-ai-result__seg--added {
+  background: rgba(22, 163, 74, 0.34);
+  color: var(--green-12);
+  font-weight: 600;
+}
+
+.inline-ai-result__hint {
+  margin-right: auto;
+}
+
 .inline-ai-result__footer {
   flex-shrink: 0;
 }

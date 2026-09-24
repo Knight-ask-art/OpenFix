@@ -55,7 +55,18 @@ export function InlineAiResult({ original, result, model, onAccept, onReject }: 
             >
               {row.type === "removed" ? "-" : row.type === "added" ? "+" : " "}
             </span>
-            <span className="inline-ai-result__text">{row.text || " "}</span>
+            <span className="inline-ai-result__text">
+              {row.segments
+                ? row.segments.map((segment, segmentIndex) => (
+                    <span
+                      key={segmentIndex}
+                      className={`inline-ai-result__seg inline-ai-result__seg--${segment.type}`}
+                    >
+                      {segment.text || " "}
+                    </span>
+                  ))
+                : row.text || " "}
+            </span>
           </div>
         ))}
       </div>
@@ -63,8 +74,16 @@ export function InlineAiResult({ original, result, model, onAccept, onReject }: 
       <Flex
         gap="2"
         justify="end"
+        align="center"
         className="inline-ai-result__footer"
       >
+        <Text
+          size="1"
+          color="gray"
+          className="inline-ai-result__hint"
+        >
+          {t("inlineAi.keyboardHint")}
+        </Text>
         <Button
           size="2"
           variant="soft"

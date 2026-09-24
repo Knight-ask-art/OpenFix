@@ -11,6 +11,7 @@ from app.api.schemas.inline_ai import (
     MAX_INLINE_AI_SELECTION_CHARACTERS,
     InlineAiAction,
 )
+from app.audit.context import AuditContext
 from app.background.llm.resolver import resolve_background_llm
 from app.core.errors import NotFoundError, ValidationError
 from app.core.inline_ai.prompts import build_inline_ai_messages
@@ -76,7 +77,21 @@ async def transform(
         selected_text=selected_text,
         instruction=effective_instruction,
     )
-    response = await resolved.client.generate(messages)
+    audit_context = AuditContext(
+        project_id=project_id,
+        category="editor",
+        chapter_id=chapter_id,
+        metadata={"inline_ai_action": action},
+    )
+    async with audit_context.llm_call(
+        operation=f"inline_ai_{action}",
+        model_id=resolved.model.model_id,
+        model_provider=resolved.provider.provider_type,
+        model_name=resolved.model.name,
+        request_messages=messages,
+    ) as audit:
+        response = await resolved.client.generate(messages)
+        audit.record_response(content=response.content, usage=response.usage)
     result_text = normalize_inline_ai_output(response.content)
     if not result_text:
         raise ValidationError("模型未返回有效内容，请重试")

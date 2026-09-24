@@ -207,6 +207,18 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
     setPhase("menu");
   };
 
+  useEffect(() => {
+    if (phase !== "result") return;
+    const handleEnter = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      event.preventDefault();
+      event.stopPropagation();
+      handleAccept();
+    };
+    document.addEventListener("keydown", handleEnter, true);
+    return () => document.removeEventListener("keydown", handleEnter, true);
+  }, [phase, handleAccept]);
+
   const floatingStyle: React.CSSProperties = anchor
     ? {
         position: "fixed",

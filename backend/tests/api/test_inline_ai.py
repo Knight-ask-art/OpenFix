@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Inline AI API 测试。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
@@ -122,19 +122,28 @@ async def test_transform_success_with_fake_model(
 
     fake_client = _FakeLLMClient("```text\n夜色轻柔地笼罩着小镇。\n```")
     fake_model = Model(name="测试模型", provider_id="provider-1", model_id="test-model")
+    captured_audit_logs: list[Any] = []
+
+    @dataclass
+    class _FakeProvider:
+        provider_type: str = "openai"
 
     @dataclass
     class _FakeResolved:
         client: _FakeLLMClient
         model: Model
-        provider: Any = None
+        provider: _FakeProvider = field(default_factory=_FakeProvider)
 
     async def _fake_resolve(session, *, model_policy: str, model_id: str | None = None):
         return _FakeResolved(client=fake_client, model=fake_model)
 
+    async def _fake_enqueue(audit_log: Any) -> None:
+        captured_audit_logs.append(audit_log)
+
     from app.core.inline_ai import service as inline_ai_service
 
     monkeypatch.setattr(inline_ai_service, "resolve_background_llm", _fake_resolve)
+    monkeypatch.setattr("app.audit.context.enqueue_audit_log", _fake_enqueue)
 
     payload = _payload(project_id, chapter_id)
     response = await client.post("/api/v1/inline-ai/transform", json=payload)
@@ -147,3 +156,18 @@ async def test_transform_success_with_fake_model(
     assert fake_client.messages[0]["role"] == "system"
     assert "润色" in fake_client.messages[0]["content"]
     assert "夜色笼罩着小镇。" in fake_client.messages[1]["content"]
+
+    assert len(captured_audit_logs) == 1
+    audit_log = captured_audit_logs[0]
+    assert audit_log.category == "editor"
+    assert audit_log.operation == "inline_ai_polish"
+    assert audit_log.project_id == project_id
+    assert audit_log.chapter_id == chapter_id
+    assert audit_log.model_name == "测试模型"
+    assert audit_log.status == "success"
+    assert audit_log.tokens_input == 10
+    assert audit_log.tokens_output == 5
+    assert audit_log.tokens_total == 15
+    assert audit_log.latency_ms >= 0
+    assert audit_log.extra_data is not None
+    assert "inline_ai_action" in audit_log.extra_data

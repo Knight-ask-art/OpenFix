@@ -139,7 +139,8 @@
     "applied": "AI change applied",
     "conflict": "The original text changed; please select it again",
     "tooLong": "Selection too long (max {{max}} characters)",
-    "failed": "AI rewrite failed"
+    "failed": "AI rewrite failed",
+    "keyboardHint": "Enter to accept · Esc to reject"
   },
   "projects": {
     "newProject": "New Project",

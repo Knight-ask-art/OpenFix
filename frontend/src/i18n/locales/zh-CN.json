@@ -139,7 +139,8 @@
     "applied": "已应用 AI 修改",
     "conflict": "原文已变化，请重新选中后再试",
     "tooLong": "选中文本过长（最多 {{max}} 字符）",
-    "failed": "AI 改写失败"
+    "failed": "AI 改写失败",
+    "keyboardHint": "Enter 接受 · Esc 拒绝"
   },
   "projects": {
     "newProject": "新建项目",
