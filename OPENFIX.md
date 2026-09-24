@@ -121,5 +121,14 @@ upstream  → OpenFic 官方
 * 测试：后端 7 个新 API 测试 + 全量 1726 个测试通过；前端 lint / type-check / build 通过；浏览器冒烟（触发器、菜单、请求体、400 错误 toast、Escape 关闭、重新选中恢复）通过。
 * 未覆盖：真实模型成功路径的接受/拒绝交互（无 API Key，后端成功路径已由 fake-model 测试覆盖），待配置模型后人工验收。
 
-下一刀按 Ticket 顺序：TASK-006（AI Diff / Accept / Reject 产品化完善），随后 TASK-007（Outline 系统，V0.4 起）。
+**TASK-006（AI Diff / Accept / Reject 产品化完善）已完成**（分支 `feature/inline-ai-diff`，已合并入 `feature/branding`）：
+
+* Inline AI 调用接入审计日志（`category=editor`、`operation=inline_ai_<action>`），token 用量与错误均进入「AI 使用情况」Dashboard。
+* Diff 升级为两级：行级配对 + 行内字符级高亮（`diffChars`），单段落改写可以看清具体改动字符；超长行（>4000 字符）自动退回整行对比。
+* 结果面板支持 Enter 接受（捕获阶段拦截，防 ProseMirror 抢键）、底部显示「Enter 接受 · Esc 拒绝」提示。
+* **真实端到端验收通过**：本地假 OpenAI 兼容服务 + `openai-compatible` provider 配置 `light_model`，完整走通「选中 → 润色 → 字符级 Diff → Enter 接受 → 自动保存落库 → Dashboard 审计记录（tokens=30, success）」；错误路径（401）同样正确落审计。
+* 测试：后端全量 1726+ 通过（成功测试增加审计断言并拦截审计队列，避免测试污染本地库）；前端 lint / type-check / build 通过。
+* 验收经验：provider_type 必须用 `openai-compatible` 才会使用自定义 base_url（`openai` 类型直连官方端点）。
+
+下一刀按 Ticket 顺序：TASK-007（Outline 系统），随后 TASK-008/009（DOCX Import / Export）。
 
