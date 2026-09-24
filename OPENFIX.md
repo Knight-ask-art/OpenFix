@@ -114,5 +114,12 @@ upstream  → OpenFic 官方
 * 「显示 / 隐藏高级设置」状态存 localStorage（`openfix.settings.advancedMode`），移动端列表同步过滤；未改后端 schema。
 * 已通过 lint / type-check / build 与浏览器冒烟（普通模式、切高级、持久化、快捷入口跳转、收回普通模式）。
 
-下一刀按 Ticket 顺序：TASK-005（Inline AI，后端 + 前端，首次涉及后端新增路由）。
+**TASK-005（Inline AI）已完成**（分支 `feature/inline-ai`，已合并入 `feature/branding`）：
+
+* 后端新增 `POST /api/v1/inline-ai/transform`（`app/api/routers/inline_ai.py` + `app/core/inline_ai/`）：10 种改写动作，复用 `resolve_background_llm`（`light_model` 策略）与 `LLMClient.generate`；**仅返回建议，不写章节**；校验选区长度（8000 字符）、自定义指令、章节归属。
+* 前端新增 `frontend/src/features/inline-ai/`：选中文本出现「AI 改写」触发器 → 动作菜单（9 预设 + 自定义）→ 请求中 → Diff 结果面板（`diff` 包行级对比）→ 接受 / 拒绝。接受前校验选中文本未变化，否则提示冲突且不改正文；`chapter-editor.tsx` 仅新增 9 行集成，受 `isAgentLocked` 守卫。
+* 测试：后端 7 个新 API 测试 + 全量 1726 个测试通过；前端 lint / type-check / build 通过；浏览器冒烟（触发器、菜单、请求体、400 错误 toast、Escape 关闭、重新选中恢复）通过。
+* 未覆盖：真实模型成功路径的接受/拒绝交互（无 API Key，后端成功路径已由 fake-model 测试覆盖），待配置模型后人工验收。
+
+下一刀按 Ticket 顺序：TASK-006（AI Diff / Accept / Reject 产品化完善），随后 TASK-007（Outline 系统，V0.4 起）。
 
