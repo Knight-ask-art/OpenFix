@@ -107,3 +107,12 @@ upstream  → OpenFic 官方
 * 「写作」导航指向最近打开的项目；`/projects` 归入「首页」高亮范围。
 * 已通过 lint / type-check / build 与浏览器冒烟（空状态、有项目状态、新建项目、进入写作、返回首页）。
 
+**TASK-004（Settings 普通 / 高级模式）已完成**（分支 `feature/settings`，已合并入 `feature/branding`）：
+
+* 设置类目打上 `basic / advanced` 分层；普通模式仅显示通用、个性化、编辑器、提供商、模型五项。
+* 高级模式下其余类目收进可折叠「高级」分组，并提供「提示词链」「AI 使用情况」快捷入口（跳转时自动关闭设置弹窗）。
+* 「显示 / 隐藏高级设置」状态存 localStorage（`openfix.settings.advancedMode`），移动端列表同步过滤；未改后端 schema。
+* 已通过 lint / type-check / build 与浏览器冒烟（普通模式、切高级、持久化、快捷入口跳转、收回普通模式）。
+
+下一刀按 Ticket 顺序：TASK-005（Inline AI，后端 + 前端，首次涉及后端新增路由）。
+
