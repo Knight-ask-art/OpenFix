@@ -25,7 +25,7 @@ import {
   fetchProject,
 } from "@/lib/api-client";
 import { subscribeBackgroundEvents } from "@/lib/background-socket";
-import type { ChapterExport } from "@/lib/chapter-export.types";
+import type { ChapterExport, ChapterExportFormat } from "@/lib/chapter-export.types";
 import type { Chapter, VolumeWithChapters } from "@/lib/chapter.types";
 import { getSocketConnectionStatus, subscribeSocketConnectionStatus } from "@/lib/socket-client";
 
@@ -105,6 +105,7 @@ export function ChapterExportDialog({
   const [previewChapter, setPreviewChapter] = useState<Chapter | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [step, setStep] = useState<ChapterExportStep>("selecting");
+  const [exportFormat, setExportFormat] = useState<ChapterExportFormat>("txt");
   const [exportJob, setExportJob] = useState<ChapterExport | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,6 +155,7 @@ export function ChapterExportDialog({
     setExpandedVolumeIds(new Set(exportableVolumesRef.current.map((volume) => volume.id)));
     setPreviewChapter(null);
     setStep("selecting");
+    setExportFormat("txt");
     setExportJob(null);
     setErrorMessage(null);
     setIsSubmitting(false);
@@ -319,6 +321,7 @@ export function ChapterExportDialog({
         includedChapterIds: [...selection.includedChapterIds],
         excludedChapterIds: [...selection.excludedChapterIds],
         localDate: getLocalDate(),
+        format: exportFormat,
       });
       setExportJob(nextExport);
       setStep("exporting");
@@ -655,15 +658,34 @@ export function ChapterExportDialog({
           className="chapter-export-footer"
         >
           {step === "selecting" ? (
-            <Text
-              size="2"
-              color="gray"
+            <Flex
+              align="center"
+              gap="4"
+              wrap="wrap"
             >
-              {t(`${EXPORT_I18N_KEY}.selectionInfo`, {
-                chapters: selectedChapterIds.size,
-                words: selectedWordCount,
-              })}
-            </Text>
+              <Text
+                size="2"
+                color="gray"
+              >
+                {t(`${EXPORT_I18N_KEY}.selectionInfo`, {
+                  chapters: selectedChapterIds.size,
+                  words: selectedWordCount,
+                })}
+              </Text>
+              <SegmentedControl.Root
+                value={exportFormat}
+                onValueChange={(value) => setExportFormat(value as ChapterExportFormat)}
+                size="1"
+                aria-label={t(`${EXPORT_I18N_KEY}.formatLabel`)}
+              >
+                <SegmentedControl.Item value="txt">
+                  {t(`${EXPORT_I18N_KEY}.formatTxt`)}
+                </SegmentedControl.Item>
+                <SegmentedControl.Item value="docx">
+                  {t(`${EXPORT_I18N_KEY}.formatDocx`)}
+                </SegmentedControl.Item>
+              </SegmentedControl.Root>
+            </Flex>
           ) : (
             <span />
           )}

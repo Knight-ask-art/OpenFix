@@ -432,7 +432,10 @@
       "cancelFailed": "取消导出失败，请重试。",
       "previewFailed": "加载章节预览失败，请重试。",
       "statusLoadFailed": "获取导出进度失败，请重试。",
-      "backToSelection": "返回选择"
+      "backToSelection": "返回选择",
+      "formatLabel": "导出格式",
+      "formatTxt": "TXT",
+      "formatDocx": "Word 文档"
     },
     "backToProjects": "返回项目列表",
     "selectChapter": "选择一个章节开始编辑",

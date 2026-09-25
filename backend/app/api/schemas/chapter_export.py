@@ -1,6 +1,7 @@
 """章节导出 API 数据模型。"""
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +13,7 @@ class ChapterExportCreate(BaseModel):
     included_chapter_ids: list[str] = Field(default_factory=list)
     excluded_chapter_ids: list[str] = Field(default_factory=list)
     local_date: date
+    format: Literal["txt", "docx"] = "txt"
 
 
 class ChapterExportResponse(BaseModel):
@@ -21,6 +23,7 @@ class ChapterExportResponse(BaseModel):
     status: str
     filename: str
     mode: str
+    format: str = "txt"
     volume_count: int
     chapter_count: int
     word_count: int

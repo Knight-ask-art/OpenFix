@@ -332,3 +332,92 @@ async def test_cleanup_keeps_output_while_export_is_still_running(
 
     assert await chapter_export_service.cleanup_chapter_export_files(session) == 0
     assert output_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_export_task_writes_full_volume_docx_and_serves_download(
+    client: AsyncClient,
+    session,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    import io
+
+    from docx import Document
+
+    async def skip_cancellation_check(_context: JobContext) -> None:
+        return None
+
+    monkeypatch.setattr(chapter_export_service.settings, "chapter_exports_dir", tmp_path)
+    monkeypatch.setattr(JobContext, "check_cancelled", skip_cancellation_check)
+    project_id, volume_id = await _create_project(client)
+    await _create_chapter(client, project_id, volume_id, "第一章", "第一章正文\r\n第二行", 5)
+    await _create_chapter(client, project_id, volume_id, "第二章", "第二章正文", 5)
+    created = await client.post(
+        f"/api/v1/projects/{project_id}/chapter-exports",
+        json={
+            "selected_volume_ids": [volume_id],
+            "included_chapter_ids": [],
+            "excluded_chapter_ids": [],
+            "local_date": "2026-07-28",
+            "format": "docx",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["filename"] == "测试小说-全本-2026-07-28.docx"
+    assert created.json()["format"] == "docx"
+
+    job = await background_service.get_job(session, created.json()["id"])
+    assert job is not None
+    job.status = "running"
+    await session.commit()
+
+    context = JobContext(session=session, job=job, publisher=BackgroundEventPublisher(None))
+    result = await dispatch_job(context)
+    await background_service.mark_succeeded(session, context.publisher, context.job, result=result)
+    await session.commit()
+
+    status_response = await client.get(
+        f"/api/v1/projects/{project_id}/chapter-exports/{job.id}"
+    )
+    assert status_response.status_code == 200
+    assert status_response.json()["download_url"]
+
+    download_response = await client.get(
+        f"/api/v1/projects/{project_id}/chapter-exports/{job.id}/download"
+    )
+    assert download_response.status_code == 200
+    assert (
+        download_response.headers["content-type"]
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    assert "测试小说-全本-2026-07-28.docx" in unquote(
+        download_response.headers["content-disposition"]
+    )
+
+    document = Document(io.BytesIO(download_response.content))
+    headings = [(p.style.name, p.text) for p in document.paragraphs if p.style.name.startswith("Heading")]
+    body_texts = [p.text for p in document.paragraphs if not p.style.name.startswith("Heading") and p.text.strip()]
+    assert ("Heading 1", "第一卷 第一卷") in headings
+    assert ("Heading 2", "第一章") in headings
+    assert ("Heading 2", "第二章") in headings
+    assert "第二行" in body_texts
+    assert "第二章正文" in body_texts
+
+
+@pytest.mark.asyncio
+async def test_create_docx_export_rejects_invalid_format(client: AsyncClient) -> None:
+    project_id, _volume_id = await _create_project(client)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/chapter-exports",
+        json={
+            "selected_volume_ids": [],
+            "included_chapter_ids": [],
+            "excluded_chapter_ids": [],
+            "local_date": "2026-07-28",
+            "format": "pdf",
+        },
+    )
+
+    assert response.status_code == 422

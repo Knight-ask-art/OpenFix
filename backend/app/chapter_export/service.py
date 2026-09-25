@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 import os
 from pathlib import Path
@@ -29,6 +29,8 @@ EXPORT_JOB_TYPE = "chapter_export"
 EXPORT_FILE_PREFIX = "chapter-export-"
 EXPORT_FILE_TTL = timedelta(hours=24)
 EXPORT_BATCH_SIZE = 20
+EXPORT_FORMATS = frozenset({"txt", "docx"})
+DOCX_SUFFIX = ".docx"
 
 
 class ChapterExportSelectionError(ValueError):
@@ -78,8 +80,9 @@ class ChapterExportPlan:
     project_id: str
     filename: str
     mode: str
-    chapters: list[ExportChapter]
-    volumes: list[ExportVolume]
+    format: str = "txt"
+    chapters: list[ExportChapter] = field(default_factory=list)
+    volumes: list[ExportVolume] = field(default_factory=list)
 
     @property
     def chapter_ids(self) -> list[str]:
@@ -102,6 +105,7 @@ class ChapterExportPlan:
             "project_id": self.project_id,
             "filename": self.filename,
             "mode": self.mode,
+            "format": self.format,
             "chapters": [chapter.to_dict() for chapter in self.chapters],
             "volumes": [volume.to_dict() for volume in self.volumes],
             "chapter_count": self.chapter_count,
@@ -116,11 +120,12 @@ def ensure_chapter_exports_dir() -> Path:
     return settings.chapter_exports_dir
 
 
-def export_file_paths(job_id: str) -> tuple[Path, Path]:
+def export_file_paths(job_id: str, export_format: str = "txt") -> tuple[Path, Path]:
     """返回任务的临时文件与成品文件路径。"""
+    suffix = DOCX_SUFFIX if export_format == "docx" else ".txt"
     directory = ensure_chapter_exports_dir()
     basename = f"{EXPORT_FILE_PREFIX}{job_id}"
-    return directory / f"{basename}.part", directory / f"{basename}.txt"
+    return directory / f"{basename}.part", directory / f"{basename}{suffix}"
 
 
 def sanitize_filename_segment(value: str, fallback: str) -> str:
@@ -183,8 +188,11 @@ async def create_export_plan(
     included_chapter_ids: Iterable[str],
     excluded_chapter_ids: Iterable[str],
     local_date: str,
+    export_format: str = "txt",
 ) -> ChapterExportPlan:
     """校验选择并固定导出范围、顺序和文件名。"""
+    if export_format not in EXPORT_FORMATS:
+        raise ChapterExportSelectionError(f"导出格式无效: {export_format}")
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
         raise LookupError(f"项目不存在: {project_id}")
@@ -249,10 +257,12 @@ async def create_export_plan(
     else:
         filename_label = f"{len(selected_chapters)}个章节"
 
+    suffix = DOCX_SUFFIX if export_format == "docx" else ".txt"
     return ChapterExportPlan(
         project_id=project_id,
-        filename=f"{project_title}-{filename_label}-{local_date}.txt",
+        filename=f"{project_title}-{filename_label}-{local_date}{suffix}",
         mode=mode,
+        format=export_format,
         chapters=[
             ExportChapter(
                 id=chapter_id,
@@ -293,6 +303,7 @@ def get_export_summary(job: BackgroundJob) -> dict[str, object]:
         "status": job.status,
         "filename": payload.get("filename", "导出章节.txt"),
         "mode": payload.get("mode", "chapters"),
+        "format": payload.get("format", "txt") if isinstance(payload.get("format", "txt"), str) else "txt",
         "volume_count": int(payload.get("volume_count", 0)),
         "chapter_count": int(payload.get("chapter_count", len(chapter_ids))),
         "word_count": int(payload.get("word_count", 0)),
@@ -309,14 +320,19 @@ def get_export_summary(job: BackgroundJob) -> dict[str, object]:
 
 
 async def write_chapter_export(context) -> dict[str, object]:
-    """分批读取章节正文并写入任务专属 TXT 文件。"""
+    """分批读取章节正文并写入任务专属导出文件。"""
+    from app.chapter_export import docx_writer
+
     payload = background_service.parse_json_object(context.job.payload_json)
     chapters = [item for item in payload.get("chapters", []) if isinstance(item, dict)]
     volumes = [item for item in payload.get("volumes", []) if isinstance(item, dict)]
+    export_format = payload.get("format", "txt")
+    if export_format not in EXPORT_FORMATS:
+        raise ChapterExportSelectionError(f"导出格式无效: {export_format}")
     if not chapters:
         raise ChapterExportSelectionError("导出任务没有可处理的章节")
 
-    part_path, output_path = export_file_paths(context.job_id)
+    part_path, output_path = export_file_paths(context.job_id, export_format)
     groups = {
         chapter_id: volume
         for volume in volumes
@@ -328,6 +344,42 @@ async def write_chapter_export(context) -> dict[str, object]:
     last_group_id: str | None = None
 
     try:
+        if export_format == "docx":
+            async def _load_docx_batch(ids: list[str]):
+                await context.check_cancelled()
+                loaded = await chapter_repo.get_by_ids(context.session, ids)
+                if len(loaded) != len(ids):
+                    raise RuntimeError("导出章节已被删除，请重新发起导出")
+                return loaded
+
+            written_count = await docx_writer.write_docx_export(
+                part_path,
+                mode=mode if isinstance(mode, str) else "chapters",
+                chapters=chapters,
+                volume_by_chapter=groups,
+                load_batch=_load_docx_batch,
+            )
+            context.job = await background_service.update_progress(
+                context.session,
+                context.publisher,
+                context.job,
+                current=written_count,
+                total=len(chapters),
+                message="writing",
+                extra_payload={"stage": "writing", "chapter_title": None},
+            )
+            await context.commit()
+            await context.check_cancelled()
+            await asyncio.to_thread(os.replace, part_path, output_path)
+            expires_at = datetime.now(UTC) + EXPORT_FILE_TTL
+            return {
+                "filename": payload.get("filename", "导出章节.docx"),
+                "volume_count": payload.get("volume_count", 0),
+                "chapter_count": len(chapters),
+                "word_count": payload.get("word_count", 0),
+                "expires_at": expires_at.isoformat(),
+            }
+
         async with aiofiles.open(part_path, "w", encoding="utf-8-sig", newline="\n") as output:
             for offset in range(0, len(chapters), EXPORT_BATCH_SIZE):
                 await context.check_cancelled()
@@ -395,7 +447,7 @@ async def write_chapter_export(context) -> dict[str, object]:
             "expires_at": expires_at.isoformat(),
         }
     except BaseException:
-        await _delete_export_files(context.job_id)
+        await _delete_export_files(context.job_id, export_format if isinstance(export_format, str) else "txt")
         raise
 
 
@@ -412,13 +464,15 @@ async def cleanup_chapter_export_files(session: AsyncSession) -> int:
         job = await background_service.get_job(session, job_id)
         should_keep = False
         if job is not None and job.type == EXPORT_JOB_TYPE:
-            if path.suffix in {".part", ".txt"}:
+            export_format = background_service.parse_json_object(job.payload_json).get("format", "txt")
+            output_suffix = DOCX_SUFFIX if export_format == "docx" else ".txt"
+            if path.suffix in {".part", ".txt", DOCX_SUFFIX}:
                 should_keep = job.status in {
                     JOB_STATUS_PENDING,
                     JOB_STATUS_RUNNING,
                     JOB_STATUS_CANCEL_REQUESTED,
-                }
-            elif path.suffix == ".txt" and job.status == JOB_STATUS_SUCCEEDED:
+                } and (path.suffix == ".part" or path.suffix == output_suffix)
+            elif path.suffix == output_suffix and job.status == JOB_STATUS_SUCCEEDED:
                 expires_at = _parse_datetime(
                     background_service.parse_json_object(job.result_json).get("expires_at")
                 )
@@ -437,12 +491,13 @@ def is_export_download_available(job: BackgroundJob) -> bool:
     expires_at = _parse_datetime(background_service.parse_json_object(job.result_json).get("expires_at"))
     if expires_at is None or expires_at <= datetime.now(UTC):
         return False
-    _part_path, output_path = export_file_paths(job.id)
+    export_format = background_service.parse_json_object(job.payload_json).get("format", "txt")
+    _part_path, output_path = export_file_paths(job.id, export_format if isinstance(export_format, str) else "txt")
     return output_path.is_file()
 
 
-async def _delete_export_files(job_id: str) -> None:
-    part_path, output_path = export_file_paths(job_id)
+async def _delete_export_files(job_id: str, export_format: str = "txt") -> None:
+    part_path, output_path = export_file_paths(job_id, export_format)
     await asyncio.to_thread(part_path.unlink, missing_ok=True)
     await asyncio.to_thread(output_path.unlink, missing_ok=True)
 

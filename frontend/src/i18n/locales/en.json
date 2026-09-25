@@ -432,7 +432,10 @@
       "cancelFailed": "Could not cancel the export. Please try again.",
       "previewFailed": "Could not load the chapter preview. Please try again.",
       "statusLoadFailed": "Could not load export progress. Please try again.",
-      "backToSelection": "Back to selection"
+      "backToSelection": "Back to selection",
+      "formatLabel": "Export format",
+      "formatTxt": "TXT",
+      "formatDocx": "Word document"
     },
     "backToProjects": "Back to projects",
     "selectChapter": "Select a chapter to start editing",
