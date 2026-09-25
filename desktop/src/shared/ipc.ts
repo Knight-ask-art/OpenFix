@@ -48,6 +48,7 @@ export const IpcChannels = {
   migrateData: "data:migrate",
   backupData: "data:backup",
   restoreData: "data:restore",
+  autoBackupNow: "data:auto-backup-now",
   dataProgress: "data:progress",
   selectSaveFile: "dialog:select-save-file",
   selectOpenFile: "dialog:select-open-file",
@@ -263,6 +264,11 @@ export interface MigrateDataResult {
 export interface BackupDataRequest {
   instanceId: string;
   targetPath: string;
+}
+
+/** 立即执行一次自动备份（忽略 24 小时间隔判断）。 */
+export interface AutoBackupNowRequest {
+  instanceId: string;
 }
 
 export interface RestoreDataRequest {

@@ -421,3 +421,30 @@
     animation: none;
   }
 }
+
+.data-auto-backup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.data-auto-backup-keep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--gray-11);
+}
+
+.data-auto-backup-keep input {
+  width: 64px;
+  padding: 4px 8px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 6px;
+  background: var(--color-panel-solid);
+  color: var(--gray-12);
+  font: inherit;
+}

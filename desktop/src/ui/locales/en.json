@@ -233,6 +233,19 @@
         "copy": "Copying data…",
         "delete-old": "Deleting original directory…"
       }
+    },
+    "autoBackup": {
+      "title": "Automatic backup",
+      "description": "Automatically backs up the whole data directory to a folder of your choice once per day (checked at launch), rotating old backups by retention count.",
+      "enable": "Enable automatic backup",
+      "on": "On",
+      "pickDir": "Choose backup folder",
+      "changeDir": "Change folder",
+      "noDir": "No backup folder selected",
+      "keep": "Keep",
+      "runNow": "Back up now",
+      "running": "Running automatic backup",
+      "done": "Automatic backup finished"
     }
   }
 }

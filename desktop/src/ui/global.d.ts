@@ -42,6 +42,7 @@ declare global {
       checkPathOverlap: (dataDir: string, installDir?: string) => Promise<boolean>;
       migrateData: (instanceId: string, newDataDir: string, deleteOldDir: boolean) => Promise<MigrateDataResult>;
       backupData: (instanceId: string, targetPath: string) => Promise<void>;
+      autoBackupNow: (instanceId: string) => Promise<void>;
       restoreData: (instanceId: string, sourcePath: string) => Promise<void>;
       inspectLocalRuntime: (installDir: string) => Promise<InspectLocalRuntimeResult>;
       frontendHostPreloadPath: string;

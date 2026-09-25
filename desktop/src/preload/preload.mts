@@ -23,6 +23,7 @@ import {
   type PingInstanceRequest,
   type PingInstanceResult,
   type ReportErrorPayload,
+  type AutoBackupNowRequest,
   type RestoreDataRequest,
   type SaveConfigRequest,
   type SaveInstanceAppearanceRequest,
@@ -112,6 +113,8 @@ const desktopApi = {
     ipcRenderer.invoke(IpcChannels.migrateData, { instanceId, newDataDir, deleteOldDir } satisfies MigrateDataRequest),
   backupData: (instanceId: string, targetPath: string): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.backupData, { instanceId, targetPath } satisfies BackupDataRequest),
+  autoBackupNow: (instanceId: string): Promise<void> =>
+    ipcRenderer.invoke(IpcChannels.autoBackupNow, { instanceId } satisfies AutoBackupNowRequest),
   restoreData: (instanceId: string, sourcePath: string): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.restoreData, { instanceId, sourcePath } satisfies RestoreDataRequest),
   inspectLocalRuntime: (installDir: string): Promise<InspectLocalRuntimeResult> =>

@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   defaultDesktopConfig,
+  isAutoBackupSettings,
   isDesktopInstanceAppearance,
   type DesktopConfig,
   type DesktopInstance,
@@ -37,13 +38,15 @@ function isDesktopInstance(value: unknown): value is DesktopInstance {
 }
 
 function isDesktopConfig(value: unknown): value is DesktopConfig {
-  if (!value || typeof value !== "object") return false;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const candidate = value as Partial<DesktopConfig>;
   return (
     (typeof candidate.activeInstanceId === "string" || candidate.activeInstanceId === null) &&
     Array.isArray(candidate.instances) &&
     candidate.instances.every(isDesktopInstance) &&
-    (candidate.zoomFactor === undefined || (typeof candidate.zoomFactor === "number" && Number.isFinite(candidate.zoomFactor)))
+    (candidate.zoomFactor === undefined ||
+      (typeof candidate.zoomFactor === "number" && Number.isFinite(candidate.zoomFactor))) &&
+    (candidate.autoBackup === undefined || isAutoBackupSettings(candidate.autoBackup))
   );
 }
 

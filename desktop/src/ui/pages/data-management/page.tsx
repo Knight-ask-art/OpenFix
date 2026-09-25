@@ -14,7 +14,11 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { DataInfo, DataProgressEvent } from "../../../shared/ipc";
-import type { DesktopInstance } from "../../../shared/config";
+import type { AutoBackupSettings, DesktopInstance } from "../../../shared/config";
+import {
+  DEFAULT_AUTO_BACKUP_KEEP,
+  MAX_AUTO_BACKUP_KEEP,
+} from "../../../shared/config";
 import "./data-management.css";
 
 interface DataManagementPageProps {
@@ -64,6 +68,12 @@ export function DataManagementPage({
   const [deleteOldDir, setDeleteOldDir] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [confirmClosing, setConfirmClosing] = useState(false);
+  const [autoBackup, setAutoBackup] = useState<AutoBackupSettings>({
+    enabled: false,
+    dir: null,
+    keep: DEFAULT_AUTO_BACKUP_KEEP,
+  });
+  const [autoBackupLoaded, setAutoBackupLoaded] = useState(false);
 
   const backendNote = backendRunning ? `${t("desktop.data.backendRestartNote")}` : "";
   const backendStoppedNote = backendRunning ? `\n${t("desktop.data.backendStoppedNote")}` : "";
@@ -84,6 +94,52 @@ export function DataManagementPage({
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (autoBackupLoaded) return;
+    let cancelled = false;
+    void window.openficDesktop.getConfig().then((config) => {
+      if (cancelled) return;
+      const settings = config?.autoBackup;
+      if (settings) setAutoBackup(settings);
+      setAutoBackupLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [autoBackupLoaded]);
+
+  const saveAutoBackup = async (next: AutoBackupSettings) => {
+    const config = await window.openficDesktop.getConfig();
+    await window.openficDesktop.saveConfig({
+      ...(config ?? { activeInstanceId: null, instances: [] }),
+      autoBackup: next,
+    });
+    setAutoBackup(next);
+    onConfigChanged();
+  };
+
+  const handleAutoBackupToggle = async (enabled: boolean) => {
+    const next: AutoBackupSettings = enabled
+      ? { ...autoBackup, dir: autoBackup.dir ?? "", enabled: true }
+      : { ...autoBackup, enabled: false };
+    await saveAutoBackup(next);
+  };
+
+  const handleAutoBackupDirPick = async () => {
+    const picked = await window.openficDesktop.selectDirectory();
+    if (!picked) return;
+    await saveAutoBackup({ ...autoBackup, dir: picked });
+  };
+
+  const handleAutoBackupNow = async () => {
+    if (!instance) return;
+    await run(t("desktop.data.autoBackup.running"), async () => {
+      await window.openficDesktop.autoBackupNow(instance.id);
+      setNotice(`${t("desktop.data.autoBackup.done")}\n${backendStoppedNote}`);
+    });
+  };
+
 
   useEffect(() => {
     if (!busyLabel) return;
@@ -294,6 +350,72 @@ export function DataManagementPage({
                     <span>{t("desktop.data.nestedDirectoryWarning")}</span>
                   </div>
                 ) : null}
+                <section className="data-card">
+                  <div className="data-card-head">
+                    <RefreshCw size={15} strokeWidth={2} />
+                    <span>{t("desktop.data.autoBackup.title")}</span>
+                    {autoBackup.enabled ? <span className="data-badge">{t("desktop.data.autoBackup.on")}</span> : null}
+                  </div>
+                  <p className="data-description">{t("desktop.data.autoBackup.description")}</p>
+                  <div className="data-auto-backup-row">
+                    <label className="data-check">
+                      <input
+                        type="checkbox"
+                        checked={autoBackup.enabled && Boolean(autoBackup.dir)}
+                        disabled={autoBackup.dir === null}
+                        onChange={(event) => void handleAutoBackupToggle(event.target.checked)}
+                      />
+                      <span>{t("desktop.data.autoBackup.enable")}</span>
+                    </label>
+                    <button
+                      className="data-btn"
+                      type="button"
+                      disabled={Boolean(busyLabel)}
+                      onClick={() => void handleAutoBackupDirPick()}
+                    >
+                      <FolderOpen size={14} strokeWidth={2} />
+                      {autoBackup.dir
+                        ? t("desktop.data.autoBackup.changeDir")
+                        : t("desktop.data.autoBackup.pickDir")}
+                    </button>
+                  </div>
+                  <p className="data-path" title={autoBackup.dir ?? undefined}>
+                    {autoBackup.dir || t("desktop.data.autoBackup.noDir")}
+                  </p>
+                  {autoBackup.enabled && autoBackup.dir ? (
+                    <div className="data-auto-backup-row">
+                      <label className="data-auto-backup-keep">
+                        <span>{t("desktop.data.autoBackup.keep")}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={MAX_AUTO_BACKUP_KEEP}
+                          value={autoBackup.keep}
+                          onChange={(event) => {
+                            const parsed = Number.parseInt(event.target.value, 10);
+                            if (Number.isInteger(parsed) && parsed > 0 && parsed <= MAX_AUTO_BACKUP_KEEP) {
+                              setAutoBackup((current) => ({ ...current, keep: parsed }));
+                            }
+                          }}
+                          onBlur={(event) => {
+                            const parsed = Number.parseInt(event.target.value, 10);
+                            const keep = Number.isInteger(parsed) && parsed > 0 && parsed <= MAX_AUTO_BACKUP_KEEP ? parsed : DEFAULT_AUTO_BACKUP_KEEP;
+                            void saveAutoBackup({ ...autoBackup, keep });
+                          }}
+                        />
+                      </label>
+                      <button
+                        className="data-btn"
+                        type="button"
+                        disabled={Boolean(busyLabel)}
+                        onClick={() => void handleAutoBackupNow()}
+                      >
+                        <Archive size={14} strokeWidth={2} />
+                        {t("desktop.data.autoBackup.runNow")}
+                      </button>
+                    </div>
+                  ) : null}
+                </section>
               </>
             ) : null}
 

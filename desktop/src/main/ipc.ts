@@ -2,6 +2,7 @@ import { app, dialog, ipcMain, session, shell, webContents, type BrowserWindow }
 import path from "node:path";
 import {
   IpcChannels,
+  type AutoBackupNowRequest,
   type BackupDataRequest,
   type CheckPathOverlapRequest,
   type DataProgressEvent,
@@ -29,6 +30,14 @@ import {
   type SwitchInstanceRequest,
 } from "../shared/ipc.js";
 import { createDefaultConfig, readDesktopConfig, writeDesktopConfig } from "./config.js";
+import {
+  AUTO_BACKUP_CHECK_INTERVAL_MS,
+  AUTO_BACKUP_STARTUP_DELAY_MS,
+  buildAutoBackupFileName,
+  getAutoBackupTarget,
+  rotateAutoBackups,
+  shouldRunAutoBackup,
+} from "./auto-backup.js";
 import { ensureAppProtocolForPartition } from "./protocol.js";
 import { findLocalInstanceByInstallDir, normalizeInstallDir } from "./local-instance.js";
 import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
@@ -50,7 +59,7 @@ import { createStartupProgressTracker, getStartupProgress } from "./startup-prog
 import { appendLog, exportLogs } from "./logging.js";
 import { captureException } from "./telemetry.js";
 import type { BackendProcessHandle } from "./process.js";
-import { isDesktopInstanceAppearance, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
+import { isDesktopInstanceAppearance, normalizeAutoBackupSettings, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
 
 const PROJECT_HOME_URL = "";
 const BUG_REPORT_URL = "";
@@ -247,6 +256,64 @@ export function registerIpc(context: IpcContext): void {
     const wasRunning = context.isBackendRunning();
     if (wasRunning) await context.stopActiveBackend();
     return operation();
+  }
+
+  let autoBackupTimer: NodeJS.Timeout | null = null;
+  let isAutoBackupRunning = false;
+
+  const executeAutoBackup = async (target: ReturnType<typeof getAutoBackupTarget>): Promise<void> => {
+    if (!target) return;
+    isAutoBackupRunning = true;
+    try {
+      await enqueueConfigMutation(async () => {
+        await withBackendRestart(target.instanceId, async () => {
+          const emitProgress = (event: DataProgressEvent) =>
+            context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
+          const fileName = buildAutoBackupFileName(new Date());
+          const targetPath = path.join(target.settings.dir ?? "", fileName);
+          appendLog("data", `auto backup: ${target.dataDir} -> ${targetPath}`);
+          await backupDataDir(
+            target.dataDir,
+            targetPath,
+            (message) => appendLog("data", message),
+            (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
+          );
+          await rotateAutoBackups(target.settings.dir ?? "", target.settings.keep);
+          appendLog("data", `auto backup done: ${fileName}`);
+        });
+      });
+      context.shellWindow()?.webContents.send(
+        IpcChannels.dataProgress,
+        { operation: "backup", phase: "done", progress: 1 },
+      );
+    } catch (error) {
+      appendLog("data", `自动备份失败：${error instanceof Error ? error.message : String(error)}`);
+      context.shellWindow()?.webContents.send(
+        IpcChannels.dataProgress,
+        { operation: "backup", phase: "error", progress: 0 },
+      );
+    } finally {
+      isAutoBackupRunning = false;
+    }
+  };
+
+  function startAutoBackupScheduler(): void {
+    if (autoBackupTimer) return;
+    const tick = async () => {
+      if (isAutoBackupRunning) return;
+      try {
+        const config = await readDesktopConfig();
+        const target = getAutoBackupTarget(config);
+        if (!target) return;
+        if (isAutoBackupRunning) return;
+        if (!(await shouldRunAutoBackup(target.settings.dir ?? ""))) return;
+        await executeAutoBackup(target);
+      } catch (error) {
+        appendLog("data", `auto backup check failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    };
+    autoBackupTimer = setInterval(() => void tick(), AUTO_BACKUP_CHECK_INTERVAL_MS);
+    setTimeout(() => void tick(), AUTO_BACKUP_STARTUP_DELAY_MS);
   }
 
   const saveZoomFactor = async (zoomFactor: number): Promise<number> => {
@@ -597,6 +664,32 @@ export function registerIpc(context: IpcContext): void {
   );
 
   ipcMain.handle(
+    IpcChannels.autoBackupNow,
+    (_event, request: AutoBackupNowRequest) =>
+      enqueueConfigMutation(async (): Promise<void> => {
+        const config = await readDesktopConfig();
+        const instance = config?.instances.find((item) => item.id === request.instanceId);
+        if (!instance) throw new Error("instance not found");
+        await withBackendRestart(request.instanceId, async () => {
+          const emitProgress = (event: DataProgressEvent) =>
+            context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
+          const settings = normalizeAutoBackupSettings(config?.autoBackup);
+          if (!settings.dir) throw new Error("auto backup dir is not configured");
+          const fileName = buildAutoBackupFileName(new Date());
+          const targetPath = path.join(settings.dir, fileName);
+          appendLog("data", `manual auto backup: ${resolveDataDir(instance)} -> ${targetPath}`);
+          await backupDataDir(
+            resolveDataDir(instance),
+            targetPath,
+            (message) => appendLog("data", message),
+            (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
+          );
+          await rotateAutoBackups(settings.dir, settings.keep);
+          appendLog("data", `auto backup done: ${fileName}`);
+        });
+      }),
+  );
+  ipcMain.handle(
     IpcChannels.inspectLocalRuntime,
     async (_event, request: InspectLocalRuntimeRequest): Promise<InspectLocalRuntimeResult> => {
       const [runtime, config] = await Promise.all([inspectLocalRuntime(request.installDir), readDesktopConfig()]);
@@ -718,4 +811,6 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.suggestFeature, () => {
     if (FEATURE_SUGGESTION_URL) return shell.openExternal(FEATURE_SUGGESTION_URL);
   });
+
+  startAutoBackupScheduler();
 }

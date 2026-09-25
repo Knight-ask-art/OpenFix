@@ -55,6 +55,42 @@ export interface DesktopConfig {
   activeInstanceId: string | null;
   instances: DesktopInstance[];
   zoomFactor?: number;
+  autoBackup?: AutoBackupSettings;
+}
+
+export interface AutoBackupSettings {
+  enabled: boolean;
+  /** 自动备份目录；null 表示未配置。 */
+  dir: string | null;
+  /** 保留的历史备份数量。 */
+  keep: number;
+}
+
+export const DEFAULT_AUTO_BACKUP_KEEP = 30;
+export const MAX_AUTO_BACKUP_KEEP = 365;
+
+export function isAutoBackupSettings(value: unknown): value is AutoBackupSettings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<AutoBackupSettings>;
+  return (
+    typeof candidate.enabled === "boolean" &&
+    (candidate.dir === null || typeof candidate.dir === "string") &&
+    typeof candidate.keep === "number" &&
+    Number.isInteger(candidate.keep) &&
+    (candidate.keep as number) > 0 &&
+    (candidate.keep as number) <= MAX_AUTO_BACKUP_KEEP
+  );
+}
+
+export function normalizeAutoBackupSettings(value: unknown): AutoBackupSettings {
+  if (!isAutoBackupSettings(value)) {
+    return { enabled: false, dir: null, keep: DEFAULT_AUTO_BACKUP_KEEP };
+  }
+  return {
+    enabled: value.enabled && typeof value.dir === "string" && value.dir.length > 0,
+    dir: value.dir,
+    keep: value.keep,
+  };
 }
 
 export interface RuntimeConfigResponse {
