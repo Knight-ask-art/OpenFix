@@ -55,11 +55,11 @@ interface ImportDialogProps {
 type Step = "select" | "split" | "preview" | "info" | "importing" | "complete";
 
 function isSupportedImportFile(filename: string): boolean {
-  return /\.(txt|md|zip)$/i.test(filename);
+  return /\.(txt|md|docx|zip)$/i.test(filename);
 }
 
 function getImportFileTitle(filename: string): string {
-  return filename.replace(/\.(txt|md|zip)$/i, "");
+  return filename.replace(/\.(txt|md|docx|zip)$/i, "");
 }
 
 export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
@@ -299,7 +299,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
               className="import-dialog-file-input"
               ref={fileInputRef}
               type="file"
-              accept=".txt,.md,.zip"
+              accept=".txt,.md,.docx,.zip"
               onChange={(e) => {
                 const selectedFile = e.target.files?.[0];
                 if (selectedFile) {

@@ -31,7 +31,7 @@ from app.storage.services import import_service
 
 router = APIRouter(prefix="/import", tags=["import"])
 
-SUPPORTED_FILE_DETAIL = "仅支持 .txt、.md 或 .zip 文件"
+SUPPORTED_FILE_DETAIL = "仅支持 .txt、.md、.docx 或 .zip 文件"
 
 
 def _require_supported_filename(filename: str | None) -> str:
@@ -94,7 +94,7 @@ def _no_chapters_detail(filename: str) -> str:
     summary="预览项目导入文件",
 )
 async def preview_import_file(
-    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
+    file: Annotated[UploadFile, File(description="TXT、Markdown、DOCX 或 ZIP 文件")],
     split_mode: Annotated[ImportSplitMode, Form(description="分割模式")] = "auto",
     chunk_size: Annotated[
         int,
@@ -109,7 +109,7 @@ async def preview_import_file(
     上传项目文件并获取解析预览。
 
     Args:
-        file: TXT、Markdown 或 ZIP 文件。
+        file: TXT、Markdown、DOCX 或 ZIP 文件。
 
     Returns:
         解析预览结果。
@@ -147,7 +147,7 @@ async def preview_import_file(
     summary="确认导入",
 )
 async def confirm_import(
-    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
+    file: Annotated[UploadFile, File(description="TXT、Markdown、DOCX 或 ZIP 文件")],
     title: Annotated[str, Form(description="书名")],
     description: Annotated[str | None, Form(description="简介")] = None,
     cover: Annotated[UploadFile | None, File(description="封面图片")] = None,
@@ -166,7 +166,7 @@ async def confirm_import(
     确认导入，创建项目和所有章节。
 
     Args:
-        file: TXT、Markdown 或 ZIP 文件。
+        file: TXT、Markdown、DOCX 或 ZIP 文件。
         title: 书名。
         description: 简介（可选）。
         cover: 封面图片（可选）。
@@ -233,7 +233,7 @@ async def confirm_import(
     summary="确认导入（流式进度）",
 )
 async def confirm_import_stream(
-    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
+    file: Annotated[UploadFile, File(description="TXT、Markdown、DOCX 或 ZIP 文件")],
     title: Annotated[str, Form(description="书名")],
     description: Annotated[str | None, Form(description="简介")] = None,
     cover: Annotated[UploadFile | None, File(description="封面图片")] = None,

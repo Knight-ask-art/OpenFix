@@ -8,6 +8,7 @@ import posixpath
 from typing import Literal
 import zipfile
 
+from app.core.docx_parser import extract_docx_text, parse_docx_content
 from app.core.txt_parser import (
     ParseResult,
     ParsedChapter,
@@ -23,7 +24,7 @@ ImportSplitMode = Literal["auto", "manual"]
 DEFAULT_IMPORT_CHUNK_SIZE = 800
 MAX_IMPORT_CHUNK_SIZE = 100_000
 MAX_IMPORT_FILE_SIZE = 50 * 1024 * 1024
-SUPPORTED_IMPORT_SUFFIXES = frozenset({".txt", ".md", ".zip"})
+SUPPORTED_IMPORT_SUFFIXES = frozenset({".txt", ".md", ".docx", ".zip"})
 SUPPORTED_TEXT_SUFFIXES = frozenset({".txt", ".md"})
 
 
@@ -63,9 +64,14 @@ def parse_project_import(
         if split_mode == "manual":
             return _parse_manual_text(content, chunk_size)
         return parse_txt_content(content)
+    if suffix == ".docx":
+        if split_mode == "manual":
+            text = extract_docx_text(content)
+            return _parse_manual_text(text.encode("utf-8"), chunk_size)
+        return parse_docx_content(content)
     if suffix == ".zip":
         return _parse_zip_archive(content)
-    raise ValueError("不支持的文件类型，仅支持 .txt、.md 或 .zip 文件")
+    raise ValueError("不支持的文件类型，仅支持 .txt、.md、.docx 或 .zip 文件")
 
 
 def _parse_manual_text(content: bytes, chunk_size: int) -> ParseResult:
