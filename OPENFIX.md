@@ -130,5 +130,26 @@ upstream  → OpenFic 官方
 * 测试：后端全量 1726+ 通过（成功测试增加审计断言并拦截审计队列，避免测试污染本地库）；前端 lint / type-check / build 通过。
 * 验收经验：provider_type 必须用 `openai-compatible` 才会使用自定义 base_url（`openai` 类型直连官方端点）。
 
-下一刀按 Ticket 顺序：TASK-007（Outline 系统），随后 TASK-008/009（DOCX Import / Export）。
+**TASK-008（DOCX Import）已完成**（分支 `feature/docx-import`，已合并入 `feature/branding`）：
+
+* 新增 `backend/app/core/docx_parser.py`（python-docx）：Heading 1 → 卷、Heading 2+ → 章；无 Heading 文档回退到现有 TXT 章节规则；手动字数切分复用纯文本路径。
+* 导入管线、路由文案、测试扩展；前端导入对话框 `accept` 加 `.docx`，格式提示更新（zh-CN/en）。
+* 测试：7 个新 docx 单测 + API 冒烟（preview/confirm/落库验证）通过；后端全量 1733 通过。
+
+**TASK-009（DOCX Export）已完成**（分支 `feature/docx-export`，已合并入 `feature/branding`）：
+
+* 导出 API 加 `format: "txt" | "docx"`（默认 txt，向后兼容）：贯穿 plan、payload、文件路径、清理、下载 MIME 与摘要。
+* 新增 `chapter_export/docx_writer.py`：卷 = Heading 1、章 = Heading 2（与导入解析对称），`doc.save` 放线程避免阻塞事件循环。
+* 前端导出弹窗加 TXT / Word 格式选择器（zh-CN/en）。
+* 测试：2 个新 API 测试（docx 往返 + 非法格式 422）；E2E 冒烟（创建任务 → succeeded → 下载 36KB docx → 读回断言标题层级）通过；后端全量 1735 通过。
+
+**TASK-010（Auto Backup）已完成**（分支 `feature/auto-backup`，已合并入 `feature/branding`）：
+
+* 桌面 config 新增 `autoBackup`（enabled / dir / keep，含校验与归一化），存 localStorage 等价的 config.json，无数据库改动。
+* 新增 `desktop/src/main/auto-backup.ts`：每日间隔判断、时间戳 tar.gz 命名、按保留数量轮换，复用 `backupDataDir`。
+* `registerIpc` 启动调度器（启动 2 分钟后首查、每 30 分钟检查），自动备份走与手动备份相同的配置变更队列与后端重启流程；新增 `autoBackupNow` IPC。
+* 数据管理页新增自动备份卡片：启用开关、目录选择、保留份数、立即备份按钮（zh-CN/en）。
+* 验证：核心逻辑 6 项 Electron 内断言全过（命名格式、24h 判断、空目录、轮换、无关文件保留）；desktop tsc main/renderer、eslint、vp build 通过。完整 UI 交互待打包版人工点验。
+
+下一刀按 Ticket 顺序：TASK-007（Outline 系统）、TASK-011（Story Memory 多数据源）、TASK-012（Consistency Checker）、TASK-013（Onboarding）。
 
