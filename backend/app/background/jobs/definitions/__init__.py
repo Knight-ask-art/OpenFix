@@ -8,6 +8,7 @@ from app.background.jobs.constants import (
     JOB_TYPE_LONG_TERM_SUMMARY,
     JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH,
     JOB_TYPE_SESSION_TITLE,
+    JOB_TYPE_STORY_MEMORY_REBUILD,
     JOB_TYPE_SUMMARY_BATCH,
 )
 from app.background.runtime.registry import get_job_registry
@@ -51,12 +52,21 @@ def register_chapter_export_job() -> None:
     get_job_registry().register(CHAPTER_EXPORT_JOB)
 
 
+def register_story_memory_rebuild_job() -> None:
+    from app.background.jobs.definitions.story_memory_index import (
+        STORY_MEMORY_REBUILD_JOB,
+    )
+
+    get_job_registry().register(STORY_MEMORY_REBUILD_JOB)
+
+
 _REGISTRARS: dict[str, Callable[[], None]] = {
     JOB_TYPE_SESSION_TITLE: register_session_title_job,
     JOB_TYPE_CHAPTER_SUMMARY: register_chapter_summary_job,
     JOB_TYPE_LONG_TERM_SUMMARY: register_long_term_summary_job,
     JOB_TYPE_SUMMARY_BATCH: register_summary_batch_job,
     JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH: register_retrieval_chapter_index_batch_job,
+    JOB_TYPE_STORY_MEMORY_REBUILD: register_story_memory_rebuild_job,
     JOB_TYPE_CHAPTER_EXPORT: register_chapter_export_job,
 }
 

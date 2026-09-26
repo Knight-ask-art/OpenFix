@@ -90,7 +90,8 @@
     "writing": "写作",
     "outline": "大纲",
     "characters": "人物",
-    "world": "世界"
+    "world": "世界",
+    "storyMemory": "故事记忆"
   },
   "home": {
     "title": "首页",
@@ -2408,5 +2409,32 @@
     "deleteConfirm": "删除「{{title}}」及其全部子节点，无法恢复。",
     "deleteWithChildren_one": "含 {{count}} 个子节点",
     "deleteWithChildren_other": "含 {{count}} 个子节点"
+  },
+  "storyMemory": {
+    "title": "故事记忆",
+    "description": "人物、世界设定、大纲与笔记会被统一索引，供 AI 在需要时检索相关设定与前文。",
+    "noProject": "还没有可索引的项目，请先创建项目。",
+    "embeddingMissing": "尚未配置可用的向量模型，无法构建索引。请先到 设置 → 高级 → 模型 中配置 embedding 模型。",
+    "lastUpdated": "最近更新：{{time}}",
+    "rebuild": "重建索引",
+    "rebuilding": "正在索引中…",
+    "rebuildEnqueued": "已提交索引重建任务",
+    "rebuildFailed": "提交索引重建失败",
+    "footerHint": "正文在保存章节时自动增量索引；其他资料修改后请重建索引。",
+    "sources": {
+      "chapters": "正文",
+      "characters": "人物",
+      "worldEntries": "世界设定",
+      "outlines": "大纲",
+      "notes": "笔记"
+    },
+    "status": {
+      "notCreated": "未创建",
+      "waiting": "待索引",
+      "building": "索引中",
+      "ready": "已索引",
+      "failed": "失败",
+      "needsRebuild": "需要重建"
+    }
   }
 }

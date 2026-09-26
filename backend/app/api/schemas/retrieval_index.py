@@ -51,3 +51,31 @@ class IndexStopResponse(BaseModel):
 
     project_id: str
     stopped_count: int
+
+
+class StoryMemoryCounts(BaseModel):
+    characters: int = 0
+    world_entries: int = 0
+    outlines: int = 0
+    notes: int = 0
+    chapters: int = 0
+
+
+class StoryMemoryStatusResponse(BaseModel):
+    """故事记忆索引状态。"""
+
+    project_id: str
+    embedding_configured: bool
+    index_status: str
+    last_error: str | None = None
+    last_ready_at: str | None = None
+    rebuild_job_status: str | None = None
+    counts: StoryMemoryCounts = Field(default_factory=StoryMemoryCounts)
+
+
+class StoryMemoryRebuildResponse(BaseModel):
+    """提交故事记忆重建的响应。"""
+
+    project_id: str
+    job_id: str | None = None
+    enqueued: bool

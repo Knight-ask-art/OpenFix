@@ -158,6 +158,7 @@ export function AppSidebar({ appearance, themeMode, onToggleTheme }: AppSidebarP
           outline: t("nav.outline"),
           characters: t("nav.characters"),
           world: t("nav.world"),
+          "story-memory": t("nav.storyMemory"),
         },
       }),
     [location.pathname, recentProjects, t],

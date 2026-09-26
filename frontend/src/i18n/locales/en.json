@@ -90,7 +90,8 @@
     "writing": "Writing",
     "outline": "Outline",
     "characters": "Characters",
-    "world": "World"
+    "world": "World",
+    "storyMemory": "Story memory"
   },
   "home": {
     "title": "Home",
@@ -2408,5 +2409,32 @@
     "deleteConfirm": "Delete {{title}} and all of its children. This cannot be undone.",
     "deleteWithChildren_one": "{{count}} child",
     "deleteWithChildren_other": "{{count}} children"
+  },
+  "storyMemory": {
+    "title": "Story memory",
+    "description": "Characters, world info, outlines and notes are indexed together so the AI can retrieve related settings and earlier text when needed.",
+    "noProject": "Nothing to index yet. Create a project first.",
+    "embeddingMissing": "No usable embedding model is configured. Set one up under Settings > Advanced > Models.",
+    "lastUpdated": "Last updated: {{time}}",
+    "rebuild": "Rebuild index",
+    "rebuilding": "Indexing...",
+    "rebuildEnqueued": "Index rebuild submitted",
+    "rebuildFailed": "Failed to submit index rebuild",
+    "footerHint": "Chapters are indexed incrementally on save; rebuild after editing other materials.",
+    "sources": {
+      "chapters": "Chapters",
+      "characters": "Characters",
+      "worldEntries": "World info",
+      "outlines": "Outlines",
+      "notes": "Notes"
+    },
+    "status": {
+      "notCreated": "Not created",
+      "waiting": "Queued",
+      "building": "Building",
+      "ready": "Indexed",
+      "failed": "Failed",
+      "needsRebuild": "Needs rebuild"
+    }
   }
 }

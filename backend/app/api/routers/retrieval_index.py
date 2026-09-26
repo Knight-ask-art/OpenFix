@@ -11,6 +11,9 @@ from app.api.schemas.retrieval_index import (
     IndexProjectStatusResponse,
     IndexStartResponse,
     IndexStopResponse,
+    StoryMemoryCounts,
+    StoryMemoryRebuildResponse,
+    StoryMemoryStatusResponse,
 )
 from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.background.jobs import service as background_service
@@ -28,11 +31,18 @@ from app.retrieval.chapter_index import (
     resolve_index_embedding_model,
 )
 from app.retrieval.index_status import schedule_emit_index_status
+from app.retrieval.story_memory import (
+    compute_story_memory_status,
+    enqueue_story_memory_rebuild,
+)
 from app.storage.database import get_session
 from app.storage.repos import project_repo
 
 router = APIRouter(prefix="/projects/{project_id}/retrieval/index", tags=["retrieval"])
 global_router = APIRouter(prefix="/retrieval/index", tags=["retrieval"])
+story_memory_router = APIRouter(
+    prefix="/projects/{project_id}/story-memory", tags=["story-memory"]
+)
 
 
 _BLOCKING_DETAIL = "未配置可用的嵌入模型，无法操作检索索引"
@@ -168,4 +178,49 @@ async def get_overall_retrieval_index_status(
         in_progress_count=in_progress_count,
         failed_count=failed_count,
         projects=projects,
+    )
+
+
+@story_memory_router.get("/status", response_model=StoryMemoryStatusResponse)
+async def get_story_memory_status(
+    project_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> StoryMemoryStatusResponse:
+    await _require_project(session, project_id)
+    status_obj = await compute_story_memory_status(session, project_id=project_id)
+    counts = status_obj.counts
+    return StoryMemoryStatusResponse(
+        project_id=status_obj.project_id,
+        embedding_configured=status_obj.embedding_configured,
+        index_status=status_obj.index_status,
+        last_error=status_obj.last_error,
+        last_ready_at=status_obj.last_ready_at.isoformat()
+        if status_obj.last_ready_at
+        else None,
+        rebuild_job_status=status_obj.rebuild_job_status,
+        counts=StoryMemoryCounts(
+            characters=counts.characters,
+            world_entries=counts.world_entries,
+            outlines=counts.outlines,
+            notes=counts.notes,
+            chapters=counts.chapters,
+        ),
+    )
+
+
+@story_memory_router.post("/rebuild", response_model=StoryMemoryRebuildResponse)
+async def rebuild_story_memory_index(
+    project_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> StoryMemoryRebuildResponse:
+    await _require_project(session, project_id)
+    job_id = await enqueue_story_memory_rebuild(session, project_id=project_id)
+    if job_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_BLOCKING_DETAIL,
+        )
+    await background_service.commit_and_notify(session)
+    return StoryMemoryRebuildResponse(
+        project_id=project_id, job_id=job_id, enqueued=True
     )

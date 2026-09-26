@@ -113,6 +113,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(agent_rules.router, prefix="/api/v1")
     test_app.include_router(retrieval_index.router, prefix="/api/v1")
     test_app.include_router(retrieval_index.global_router, prefix="/api/v1")
+    test_app.include_router(retrieval_index.story_memory_router, prefix="/api/v1")
     test_app.include_router(runtime_config.router, prefix="/api/v1")
     test_app.include_router(skills.router, prefix="/api/v1")
     test_app.include_router(skill_reference_docs.router, prefix="/api/v1")

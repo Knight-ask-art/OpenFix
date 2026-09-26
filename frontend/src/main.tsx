@@ -13,6 +13,7 @@ import { CharactersPage } from "./features/characters";
 import { HomePage } from "./features/home";
 import { OutlinePage } from "./features/outline";
 import { PromptChainsPage } from "./features/prompt-chains";
+import { StoryMemoryPage } from "./features/story-memory";
 import { fetchSettings, updateSettings } from "./features/settings/lib/settings-api";
 import type { Settings } from "./features/settings/lib/settings.types";
 import { WorldInfoPage } from "./features/world-info";
@@ -236,6 +237,10 @@ function AppContent({
           <Route
             path="/outline"
             element={<OutlinePage />}
+          />
+          <Route
+            path="/story-memory"
+            element={<StoryMemoryPage />}
           />
           <Route
             path="/prompt-chains"

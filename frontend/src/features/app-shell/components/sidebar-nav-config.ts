@@ -1,8 +1,8 @@
-import { Globe, House, ListTree, PenLine, UserRound, type LucideIcon } from "lucide-react";
+import { BookMarked, Globe, House, ListTree, PenLine, UserRound, type LucideIcon } from "lucide-react";
 
 import type { AppSidebarNavItem } from "./app-sidebar.constants";
 
-export type PrimaryNavId = "home" | "writing" | "outline" | "characters" | "world";
+export type PrimaryNavId = "home" | "writing" | "outline" | "characters" | "world" | "story-memory";
 
 const PRIMARY_NAV_IDS: readonly PrimaryNavId[] = [
   "home",
@@ -10,6 +10,7 @@ const PRIMARY_NAV_IDS: readonly PrimaryNavId[] = [
   "outline",
   "characters",
   "world",
+  "story-memory",
 ];
 
 const NAV_ICONS: Record<PrimaryNavId, LucideIcon> = {
@@ -18,6 +19,7 @@ const NAV_ICONS: Record<PrimaryNavId, LucideIcon> = {
   outline: ListTree,
   characters: UserRound,
   world: Globe,
+  "story-memory": BookMarked,
 };
 
 export function resolveWritingHref(recentProjectId: string | undefined): string {
@@ -36,6 +38,8 @@ export function isPrimaryNavActive(id: PrimaryNavId, pathname: string): boolean 
       return pathname.startsWith("/characters");
     case "world":
       return pathname.startsWith("/world-info");
+    case "story-memory":
+      return pathname === "/story-memory" || pathname.startsWith("/story-memory/");
   }
 }
 
@@ -56,6 +60,7 @@ export function buildPrimaryNavItems({
     outline: "/outline",
     characters: "/characters",
     world: "/world-info",
+    "story-memory": "/story-memory",
   };
 
   return PRIMARY_NAV_IDS.map((id) => ({
