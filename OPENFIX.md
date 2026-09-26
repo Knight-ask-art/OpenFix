@@ -159,5 +159,15 @@ upstream  → OpenFic 官方
 * 测试：7 个新 API 测试；后端全量 **1742 通过**；前端 lint / type-check / build 通过；浏览器端到端冒烟（建节点、编辑、保存、加子节点、持久化回查）通过。
 * 暂未做：拖拽排序（API 已支持 `sort_order`，UI 未接）、大纲节点关联具体章节 / 卷的下拉选择、AI 生成大纲。
 
-下一刀按 Ticket 顺序：TASK-011（Story Memory 多数据源）、TASK-012（Consistency Checker）、TASK-013（Onboarding）。
+**TASK-011（Story Memory 多数据源）已完成**（分支 `feature/story-memory`，已合并入 `feature/branding`）：
+
+* 未造第二套 RAG：新增 `retrieval/story_memory.py` 复用 `OpenFicRetrievalService` 与 contract 机制，把**人物、世界设定、大纲、笔记**统一索引到 `story_memory:<project_id>` 独立 LanceDB 表（正文沿用既有 `chapters:*` 增量索引）。
+* 新后台任务类型 `story_memory_rebuild`（复用 embedding client 构建逻辑，模型变更时中止防错索引）。
+* API：`GET/POST /projects/{id}/story-memory/status|rebuild`；前端新增 `features/story-memory/` 页面（项目选择、五类计数卡、状态徽章、重建按钮 + 2s 轮询）与一级导航「故事记忆」。
+* 测试：5 个新后端测试；全量 **1747 通过**；前端三连 + desktop tsc/eslint/build 过；**端到端 E2E**：假 OpenAI 兼容 embedding 服务 → UI 点重建 → job ready → 共享引擎查询「剑冢」命中 world_entry（0.989）/character/outline。
+* 范围说明：Agent 检索工具暂不消费 story memory（`search_chapters` 仍只查正文），接入统一 Agent Context 属后续；项目删除不清理索引表，与上游 chapter 索引行为一致。
+
+**品牌残留核查（OpenFic → OpenFix）**：桌面安装向导「安装」步骤与启动进度「更新后端」步骤此前因 i18n 键拼写不一致（`installOpenFic` / `updateOpenFicMessage` vs JSON 的 `OpenFix` 拼写）在界面上直接显示含旧名的原始键——已修复（commit `ae53817`）。全面盘点结论：其余 `OpenFic` / `openfic` 字样均为**非用户可见**的内部标识或真实名称（`openfic.db` 数据文件名、`~/.openfic` CLI 默认目录、PyPI `openfic` 包与其 CLI、`persist:openfic-*` 分区、`openfic:*` IPC 事件名、`X-OpenFic-Shutdown-Token`、`OpenFicRetrievalService` 类名），改动会破坏数据兼容或 upstream 可合并性，统一留待 Phase 3 后端 Fork 处理；用户可见文案（窗口标题、HTML title、托盘、设置、About、安装包名）均已是 OpenFix。`runtime/openfic.ts` 日志文案含「OpenFic 运行环境」字样，属 AGENTS 保护区且描述对象是 PyPI 包本身，本轮按约束不动。
+
+下一刀按 Ticket 顺序：TASK-012（Consistency Checker）、TASK-013（Onboarding）。
 
