@@ -22,7 +22,7 @@ const STARTUP_MESSAGE_KEYS: Record<StartupProgressEvent["step"], string> = {
   "load-config": "desktop.startup.loadConfigMessage",
   "check-runtime": "desktop.startup.checkRuntimeMessage",
   "update-python": "desktop.startup.updatePythonMessage",
-  "update-openfic": "desktop.startup.updateOpenFicMessage",
+  "update-openfic": "desktop.startup.updateOpenFixMessage",
   "start-backend": "desktop.startup.startBackendProcessMessage",
   "initialize-backend": "desktop.startup.initializeBackendMessage",
   "initialize-database": "desktop.startup.initializeDatabaseMessage",
