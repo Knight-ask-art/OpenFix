@@ -151,5 +151,13 @@ upstream  → OpenFic 官方
 * 数据管理页新增自动备份卡片：启用开关、目录选择、保留份数、立即备份按钮（zh-CN/en）。
 * 验证：核心逻辑 6 项 Electron 内断言全过（命名格式、24h 判断、空目录、轮换、无关文件保留）；desktop tsc main/renderer、eslint、vp build 通过。完整 UI 交互待打包版人工点验。
 
-下一刀按 Ticket 顺序：TASK-007（Outline 系统）、TASK-011（Story Memory 多数据源）、TASK-012（Consistency Checker）、TASK-013（Onboarding）。
+**TASK-007（Outline 系统）已完成**（分支 `feature/outline`，已合并入 `feature/branding`）：
+
+* 数据库：新增 `outlines` 表（migration `1022_create_outlines.py`，自引用 `parent_id` + `sort_order`，层级 book/arc/volume/chapter，可选卷/章关联）；已验证空库从 1001 完整升级到 1022。
+* 后端：`/projects/{id}/outlines` REST API（list / create / update / 级联 delete），service 层校验层级顺序、跨项目父节点、防环；模型注册进测试 registry。
+* 前端：`/outline` 占位页替换为真实工作台——项目选择器（记住上次项目）、递归大纲树（逐节点添加子级、自动展开选中）、右侧编辑器（标题 / 层级 / 内容、脏检查保存）、删除前确认含子节点数；i18n zh-CN/en。
+* 测试：7 个新 API 测试；后端全量 **1742 通过**；前端 lint / type-check / build 通过；浏览器端到端冒烟（建节点、编辑、保存、加子节点、持久化回查）通过。
+* 暂未做：拖拽排序（API 已支持 `sort_order`，UI 未接）、大纲节点关联具体章节 / 卷的下拉选择、AI 生成大纲。
+
+下一刀按 Ticket 顺序：TASK-011（Story Memory 多数据源）、TASK-012（Consistency Checker）、TASK-013（Onboarding）。
 
