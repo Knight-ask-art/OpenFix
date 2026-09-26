@@ -45,6 +45,7 @@ def register_sqlmodel_models() -> None:
     from app.storage.models.task_message import TaskMessage
     from app.storage.models.volume import Volume
     from app.storage.models.note import Note, NoteCategory
+    from app.storage.models.outline import Outline
     from app.storage.models.world_info import WorldInfo
     from app.storage.models.world_info_entry import WorldInfoEntry
     from app.storage.models.writing_activity_event import WritingActivityEvent
@@ -84,5 +85,6 @@ def register_sqlmodel_models() -> None:
         Volume,
         WorldInfo,
         WorldInfoEntry,
+        Outline,
         WritingActivityEvent,
     )

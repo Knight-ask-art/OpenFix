@@ -90,9 +90,7 @@
     "writing": "写作",
     "outline": "大纲",
     "characters": "人物",
-    "world": "世界",
-    "outlinePlaceholderTitle": "大纲稍后提供",
-    "outlinePlaceholderBody": "这里将用来整理全书结构。当前版本先保留入口，不改动现有章节和设定数据。"
+    "world": "世界"
   },
   "home": {
     "title": "首页",
@@ -2388,5 +2386,27 @@
         "completeTitle": "导入完成"
       }
     }
+  },
+  "outline": {
+    "title": "大纲",
+    "level": "层级",
+    "content": "内容",
+    "save": "保存",
+    "untitled": "未命名节点",
+    "levels": {
+      "book": "全书",
+      "arc": "篇章",
+      "volume": "卷",
+      "chapter": "章"
+    },
+    "addRoot": "新建节点",
+    "addChild": "新建子节点",
+    "emptyTree": "还没有大纲节点，点击「新建节点」开始梳理全书结构。",
+    "selectNode": "从左侧选择一个节点进行编辑",
+    "noProject": "还没有项目，请先在首页创建一个项目。",
+    "delete": "删除",
+    "deleteConfirm": "删除「{{title}}」及其全部子节点，无法恢复。",
+    "deleteWithChildren_one": "含 {{count}} 个子节点",
+    "deleteWithChildren_other": "含 {{count}} 个子节点"
   }
 }

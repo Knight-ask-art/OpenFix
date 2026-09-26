@@ -90,9 +90,7 @@
     "writing": "Writing",
     "outline": "Outline",
     "characters": "Characters",
-    "world": "World",
-    "outlinePlaceholderTitle": "Outline comes later",
-    "outlinePlaceholderBody": "This space will hold the book structure. The entry is available now; chapter and setting data stay unchanged."
+    "world": "World"
   },
   "home": {
     "title": "Home",
@@ -2388,5 +2386,27 @@
       "fresh": "Fresh",
       "failed": "Failed"
     }
+  },
+  "outline": {
+    "title": "Outline",
+    "level": "Level",
+    "content": "Content",
+    "save": "Save",
+    "untitled": "Untitled",
+    "levels": {
+      "book": "Book",
+      "arc": "Arc",
+      "volume": "Volume",
+      "chapter": "Chapter"
+    },
+    "addRoot": "New node",
+    "addChild": "Add child",
+    "emptyTree": "No outline nodes yet. Start structuring your book.",
+    "selectNode": "Select a node on the left to edit",
+    "noProject": "No projects yet. Create one from the home page first.",
+    "delete": "Delete",
+    "deleteConfirm": "Delete {{title}} and all of its children. This cannot be undone.",
+    "deleteWithChildren_one": "{{count}} child",
+    "deleteWithChildren_other": "{{count}} children"
   }
 }

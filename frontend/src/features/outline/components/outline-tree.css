@@ -1,0 +1,68 @@
+.outline-tree {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.outline-tree__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding-right: 6px;
+  border-radius: 6px;
+}
+
+.outline-tree__row:hover {
+  background: var(--gray-a3);
+}
+
+.outline-tree__row--selected {
+  background: var(--accent-a4);
+}
+
+.outline-tree__expander {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--gray-11);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.outline-tree__expander:hover {
+  background: var(--gray-a4);
+}
+
+.outline-tree__expander--placeholder {
+  cursor: default;
+}
+
+.outline-tree__icon {
+  flex-shrink: 0;
+  color: var(--gray-11);
+}
+
+.outline-tree__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  background: transparent;
+  color: var(--gray-12);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.outline-tree__empty {
+  padding: 24px 8px;
+}

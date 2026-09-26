@@ -1,1 +1,1 @@
-export { OutlinePlaceholderPage } from "./pages/outline-placeholder-page";
+export { OutlinePage } from "./pages/outline-page";
