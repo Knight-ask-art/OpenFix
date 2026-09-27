@@ -101,6 +101,14 @@ upstream  → OpenFic 官方
 * 待人工验收：在干净的 Windows 11 虚拟机 / 电脑上安装，走完「实例配置 → 首次联网创建后端运行环境 → 模型配置 → 写作 → 重启数据保留」全链路。
 * 已知限制：版本号保持 `0.11.1`（Runtime 依赖 `pip install openfic==${app.getVersion()}`，与 [docs/03](../docs/03-source-change-list.md) 第 37 节的 0.1.0 命名不符，Phase 3 后端 Fork 时解耦）；自动更新尚未接入自有仓库。
 
+**Phase 3 最小实现完成——安装包不再依赖 PyPI 官方 openfic 包**（分支 `fix/packaged-backend-and-layout`）：
+
+* 发现问题：V0.4 包首启验证时，Runtime 仍 `pip install openfic==0.11.1`（PyPI 官方 wheel），导致安装包前端的新页面（大纲/故事记忆/检查/Inline AI）全部 404。
+* 修复：`scripts/build-backend-wheel.mjs` 用 `uv build` 把自研 backend 构建成 wheel 并 staging 到 `desktop/backend-wheel/`；electron-builder 经 extraResources 打进 `resources/backend-wheel/`；Runtime 启动安装时优先 `pip install <内置wheel>`（无 wheel 回退 PyPI），wheel 模式下索引探测不再要求 openfic 包存在（镜像测速仍用于拉取依赖）。包名与版本保持 `openfic 0.11.1`，CLI 入口/版本校验逻辑零改动。
+* 净装验证：全新安装 → 首启向导 → 本地运行时创建（「安装 OpenFix」步骤从数分钟降到 37 秒）→ 后端 openapi 含 outlines / story-memory / consistency / inline-ai 全部 146 路由 → 大纲节点创建、story-memory 状态、consistency 校验行为均正确。
+* 新安装包：`desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe`（149.3 MB，SHA256 `536D2CD69BBA1DC0D11CE619C890DB2E6C39044131B8D41FA6B4F63F21A4E18E`）。
+* 完整 Phase 3（改名自有包 `novelflow-core` 之类）仍推迟，不在本刀。
+
 **TASK-003（Home Dashboard）已完成**（分支 `feature/home`，已合并入 `feature/navigation` → `feature/branding`）：
 
 * `/` 改为首页（`frontend/src/features/home/`）：继续写作卡、今日 / 本周写作字数（复用 `GET /dashboard/writing`）、最近项目列表；项目库完整功能移至 `/projects`，路由保留。

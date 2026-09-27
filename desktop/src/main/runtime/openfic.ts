@@ -1,6 +1,6 @@
-import { net } from "electron";
+import { app, net } from "electron";
 import { spawn } from "node:child_process";
-import { access, mkdir, rm } from "node:fs/promises";
+import { access, mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { findFreePort } from "../ports.js";
 import {
@@ -70,6 +70,24 @@ async function pathExists(filePath: string): Promise<boolean> {
   }
 }
 
+/**
+ * 打包版优先使用随安装包分发的自研后端 wheel（Phase 3：脱离 PyPI 官方 openfic 包）。
+ * 目录不存在或没有 wheel 时返回 null，回退为 `openfic==<version>` 在线安装。
+ */
+export async function findBundledBackendWheel(): Promise<string | null> {
+  if (!app.isPackaged) return null;
+  const wheelDir = path.join(process.resourcesPath, "backend-wheel");
+  try {
+    const entries = await readdir(wheelDir);
+    const wheel = entries
+      .filter((name) => name.startsWith("openfic-") && name.endsWith(".whl"))
+      .sort()[0];
+    return wheel ? path.join(wheelDir, wheel) : null;
+  } catch {
+    return null;
+  }
+}
+
 function forwardLines(
   stream: NodeJS.ReadableStream | null,
   logStream: NodeJS.WritableStream,
@@ -102,7 +120,7 @@ function stripAnsi(value: string): string {
   return value.replace(ANSI_ESCAPE_SEQUENCE, "");
 }
 
-async function probePypiIndex(indexUrl: string, expectedVersion: string): Promise<PypiIndexProbe | null> {
+async function probePypiIndex(indexUrl: string, expectedVersion: string, requireVersion = true): Promise<PypiIndexProbe | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PYPI_INDEX_PROBE_TIMEOUT_MS);
   const startedAt = performance.now();
@@ -118,7 +136,7 @@ async function probePypiIndex(indexUrl: string, expectedVersion: string): Promis
     }
     const packageIndex = await response.text();
     const elapsedMs = performance.now() - startedAt;
-    if (!packageIndex.includes(`openfic-${expectedVersion}`)) {
+    if (requireVersion && !packageIndex.includes(`openfic-${expectedVersion}`)) {
       appendLog("runtime", `Python 包索引未找到 OpenFic ${expectedVersion}：${indexUrl}`);
       return null;
     }
@@ -143,10 +161,15 @@ async function buildPypiEnvironment(indexUrl: string): Promise<NodeJS.ProcessEnv
   };
 }
 
-async function getPypiEnvironmentsBySpeed(expectedVersion: string): Promise<NodeJS.ProcessEnv[]> {
+async function getPypiEnvironmentsBySpeed(
+  expectedVersion: string,
+  requireVersion = true,
+): Promise<NodeJS.ProcessEnv[]> {
   await configureDefaultSystemProxy();
   const probes = await Promise.all(
-    [DEFAULT_PYPI_INDEX_URL, TSINGHUA_PYPI_INDEX_URL].map((indexUrl) => probePypiIndex(indexUrl, expectedVersion)),
+    [DEFAULT_PYPI_INDEX_URL, TSINGHUA_PYPI_INDEX_URL].map((indexUrl) =>
+      probePypiIndex(indexUrl, expectedVersion, requireVersion),
+    ),
   );
   const orderedUrls = probes
     .filter((probe): probe is PypiIndexProbe => probe !== null)
@@ -342,9 +365,14 @@ export async function ensureOpenFicRuntime(
   const venvDir = getVenvDir(runtimeDir);
   const venvPythonPath = getVenvPythonPath(runtimeDir);
   const uvPath = getUvPath(runtimeDir);
+  const bundledWheel = await findBundledBackendWheel();
   let pypiEnvironments: Promise<NodeJS.ProcessEnv[]> | null = null;
-  const getPypiEnvironments = () => (pypiEnvironments ??= getPypiEnvironmentsBySpeed(expectedVersion));
+  const getPypiEnvironments = () =>
+    (pypiEnvironments ??= getPypiEnvironmentsBySpeed(expectedVersion, !bundledWheel));
 
+  if (bundledWheel) {
+    appendLog("runtime", `使用安装包内置后端：${bundledWheel}`);
+  }
   appendLog("runtime", `开始检查 OpenFic 运行环境：${runtimeDir}`);
   await mkdir(runtimeDir, { recursive: true });
 
@@ -394,6 +422,7 @@ export async function ensureOpenFicRuntime(
       venvPythonPath,
       expectedVersion,
       installedVersion === expectedVersion && !openFicCliIsUsable,
+      bundledWheel,
     );
     await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
       runUvInstallWithSystemCertsRetry(uvPath, installCommand.args, runtimeDir, onProgress, environment),

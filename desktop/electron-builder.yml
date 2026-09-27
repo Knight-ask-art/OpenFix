@@ -24,6 +24,10 @@ extraResources:
     to: frontend-dist
     filter:
       - "**/*"
+  - from: backend-wheel
+    to: backend-wheel
+    filter:
+      - "openfic-*.whl"
   - from: resources/app-update.yml
     to: app-update.yml
 
