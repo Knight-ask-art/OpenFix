@@ -10,6 +10,7 @@ import { Toaster } from "./components/toaster";
 import { AppLayout } from "./features/app-shell";
 import { AuthPage } from "./features/auth";
 import { CharactersPage } from "./features/characters";
+import { ConsistencyPage } from "./features/consistency";
 import { HomePage } from "./features/home";
 import { OutlinePage } from "./features/outline";
 import { PromptChainsPage } from "./features/prompt-chains";
@@ -241,6 +242,10 @@ function AppContent({
           <Route
             path="/story-memory"
             element={<StoryMemoryPage />}
+          />
+          <Route
+            path="/consistency"
+            element={<ConsistencyPage />}
           />
           <Route
             path="/prompt-chains"

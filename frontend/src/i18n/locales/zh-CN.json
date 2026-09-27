@@ -91,7 +91,8 @@
     "outline": "大纲",
     "characters": "人物",
     "world": "世界",
-    "storyMemory": "故事记忆"
+    "storyMemory": "故事记忆",
+    "consistency": "检查"
   },
   "home": {
     "title": "首页",
@@ -2435,6 +2436,39 @@
       "ready": "已索引",
       "failed": "失败",
       "needsRebuild": "需要重建"
+    }
+  },
+  "consistency": {
+    "title": "一致性检查",
+    "check": "开始检查",
+    "checking": "正在分析，请稍候…",
+    "checkFailed": "检查失败",
+    "idleHint": "选择章节后点击「开始检查」。",
+    "disclaimer": "结果仅供参考：AI 只能提示可能存在的问题，请结合原文判断，可忽略或重新检查。",
+    "noIssues": "未发现明显的一致性问题。",
+    "resultSummary_other": "发现 {{count}} 个可疑点 · 模型：{{model}}",
+    "contextStoryMemory": "依据：故事记忆检索",
+    "contextInventory": "依据：人物与大纲清单",
+    "recheck": "重新检查",
+    "dismiss": "忽略",
+    "dismissed": "已忽略",
+    "restore": "恢复",
+    "suggestionPrefix": "建议：",
+    "untitledChapter": "未命名章节",
+    "severity": {
+      "info": "提示",
+      "warning": "可能存在问题",
+      "high": "优先关注"
+    },
+    "types": {
+      "general": "一般",
+      "character_age": "人物年龄",
+      "character_identity": "人物身份",
+      "timeline": "时间线",
+      "location": "地点",
+      "world_rule": "世界观规则",
+      "foreshadowing": "伏笔",
+      "naming": "称谓"
     }
   }
 }

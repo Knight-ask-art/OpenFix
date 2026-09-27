@@ -91,7 +91,8 @@
     "outline": "Outline",
     "characters": "Characters",
     "world": "World",
-    "storyMemory": "Story memory"
+    "storyMemory": "Story memory",
+    "consistency": "Check"
   },
   "home": {
     "title": "Home",
@@ -2435,6 +2436,40 @@
       "ready": "Indexed",
       "failed": "Failed",
       "needsRebuild": "Needs rebuild"
+    }
+  },
+  "consistency": {
+    "title": "Consistency check",
+    "check": "Run check",
+    "checking": "Analyzing, please wait...",
+    "checkFailed": "Check failed",
+    "idleHint": "Select a chapter, then run the check.",
+    "disclaimer": "Results are advisory: the AI can only flag possible issues. Review against the text; dismiss or re-run as needed.",
+    "noIssues": "No obvious inconsistencies found.",
+    "resultSummary_one": "{{count}} possible issue · model: {{model}}",
+    "resultSummary_other": "{{count}} possible issues · model: {{model}}",
+    "contextStoryMemory": "Context: story memory search",
+    "contextInventory": "Context: character & outline inventory",
+    "recheck": "Re-run",
+    "dismiss": "Dismiss",
+    "dismissed": "Dismissed",
+    "restore": "Restore",
+    "suggestionPrefix": "Suggestion: ",
+    "untitledChapter": "Untitled chapter",
+    "severity": {
+      "info": "Info",
+      "warning": "Possible issue",
+      "high": "High priority"
+    },
+    "types": {
+      "general": "General",
+      "character_age": "Character age",
+      "character_identity": "Character identity",
+      "timeline": "Timeline",
+      "location": "Location",
+      "world_rule": "World rules",
+      "foreshadowing": "Foreshadowing",
+      "naming": "Naming"
     }
   }
 }

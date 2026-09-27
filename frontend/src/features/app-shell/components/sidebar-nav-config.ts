@@ -1,8 +1,15 @@
-import { BookMarked, Globe, House, ListTree, PenLine, UserRound, type LucideIcon } from "lucide-react";
+import { BookMarked, Globe, House, ListTree, PenLine, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
 
 import type { AppSidebarNavItem } from "./app-sidebar.constants";
 
-export type PrimaryNavId = "home" | "writing" | "outline" | "characters" | "world" | "story-memory";
+export type PrimaryNavId =
+  | "home"
+  | "writing"
+  | "outline"
+  | "characters"
+  | "world"
+  | "story-memory"
+  | "consistency";
 
 const PRIMARY_NAV_IDS: readonly PrimaryNavId[] = [
   "home",
@@ -11,6 +18,7 @@ const PRIMARY_NAV_IDS: readonly PrimaryNavId[] = [
   "characters",
   "world",
   "story-memory",
+  "consistency",
 ];
 
 const NAV_ICONS: Record<PrimaryNavId, LucideIcon> = {
@@ -20,6 +28,7 @@ const NAV_ICONS: Record<PrimaryNavId, LucideIcon> = {
   characters: UserRound,
   world: Globe,
   "story-memory": BookMarked,
+  consistency: ShieldCheck,
 };
 
 export function resolveWritingHref(recentProjectId: string | undefined): string {
@@ -40,6 +49,8 @@ export function isPrimaryNavActive(id: PrimaryNavId, pathname: string): boolean 
       return pathname.startsWith("/world-info");
     case "story-memory":
       return pathname === "/story-memory" || pathname.startsWith("/story-memory/");
+    case "consistency":
+      return pathname === "/consistency" || pathname.startsWith("/consistency/");
   }
 }
 
@@ -61,6 +72,7 @@ export function buildPrimaryNavItems({
     characters: "/characters",
     world: "/world-info",
     "story-memory": "/story-memory",
+    consistency: "/consistency",
   };
 
   return PRIMARY_NAV_IDS.map((id) => ({

@@ -31,6 +31,7 @@ from app.api.routers import (
     chapter_exports,
     chapters,
     commands,
+    consistency,
     dashboard,
     health,
     import_router,
@@ -99,6 +100,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(notes.router, prefix="/api/v1")
     test_app.include_router(outlines.router, prefix="/api/v1")
     test_app.include_router(commands.router, prefix="/api/v1")
+    test_app.include_router(consistency.router, prefix="/api/v1")
     test_app.include_router(characters.router, prefix="/api/v1")
     test_app.include_router(world_info.router, prefix="/api/v1")
     test_app.include_router(world_info_entries.router, prefix="/api/v1")
