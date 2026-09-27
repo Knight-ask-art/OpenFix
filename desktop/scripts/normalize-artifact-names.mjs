@@ -1,7 +1,8 @@
-import { readdir, rename, rm } from "node:fs/promises";
+import { readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const outputDirectory = path.resolve(process.argv[2] ?? "dist-electron");
+const productName = process.env.OPENFIX_PRODUCT_NAME ?? "OpenFix";
 const architectureNames = new Map([
   ["arm_aarch64", "aarch64"],
   ["x64", "x86_64"],
@@ -26,7 +27,32 @@ for (const entry of await readdir(outputDirectory, { withFileTypes: true })) {
 
 for (const entry of await readdir(outputDirectory, { withFileTypes: true })) {
   if (!entry.isFile()) continue;
-  if (!/^OpenFic-.+-win-setup\.exe(?:\.blockmap)?$/.test(entry.name)) continue;
+  const staleArtifact = new RegExp(`^${productName}-.+-win-setup\\.exe(?:\\.blockmap)?$`);
+  if (!staleArtifact.test(entry.name)) continue;
   if (entry.name.includes("-win-x86_64-setup") || entry.name.includes("-win-aarch64-setup")) continue;
   await rm(path.join(outputDirectory, entry.name));
+}
+
+// electron-updater 依赖 latest.yml 里的文件名定位安装包。产物名被规范化
+// 改名后必须同步更新 latest.yml，否则自动更新会 404。
+const latestYmlPath = path.join(outputDirectory, "latest.yml");
+try {
+  const latestYml = await readFile(latestYmlPath, "utf-8");
+  const updatedYml = await readdir(outputDirectory).then((names) => {
+    let result = latestYml;
+    for (const name of names) {
+      if (!name.endsWith(".exe") || !name.includes("-win-")) continue;
+      for (const arch of architectureNames.keys()) {
+        const stale = `${productName}-${latestYml.match(/version:\s*(\S+)/)?.[1]}-win-${arch}-setup.exe`;
+        result = result.replaceAll(stale, name);
+      }
+    }
+    return result;
+  });
+  if (updatedYml !== latestYml) {
+    await writeFile(latestYmlPath, updatedYml, "utf-8");
+    console.log(`normalize-artifact-names: patched latest.yml for ${productName}`);
+  }
+} catch {
+  // 没有 latest.yml（例如只打 zip）时无需处理。
 }

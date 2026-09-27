@@ -1,6 +1,6 @@
 import { app, net } from "electron";
 import { spawn } from "node:child_process";
-import { access, mkdir, readdir, rm } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { findFreePort } from "../ports.js";
 import {
@@ -70,21 +70,47 @@ async function pathExists(filePath: string): Promise<boolean> {
   }
 }
 
+/** 标记文件名：记录当前 venv 的后端是否来自安装包内置 wheel。 */
+const BUNDLED_BACKEND_MARKER = ".openfix-bundled-backend";
+
+function getBundledBackendMarkerPath(runtimeDir: string): string {
+  return path.join(runtimeDir, BUNDLED_BACKEND_MARKER);
+}
+
 /**
  * 打包版优先使用随安装包分发的自研后端 wheel（Phase 3：脱离 PyPI 官方 openfic 包）。
- * 目录不存在或没有 wheel 时返回 null，回退为 `openfic==<version>` 在线安装。
+ * 目录不存在或没有匹配当前版本的 wheel 时返回 null，回退为 `openfic==<version>` 在线安装。
  */
-export async function findBundledBackendWheel(): Promise<string | null> {
+export async function findBundledBackendWheel(expectedVersion: string): Promise<string | null> {
   if (!app.isPackaged) return null;
   const wheelDir = path.join(process.resourcesPath, "backend-wheel");
   try {
     const entries = await readdir(wheelDir);
     const wheel = entries
-      .filter((name) => name.startsWith("openfic-") && name.endsWith(".whl"))
-      .sort()[0];
+      .filter((name) => name.startsWith(`openfic-${expectedVersion}-`) && name.endsWith(".whl"))
+      .sort()
+      .pop();
     return wheel ? path.join(wheelDir, wheel) : null;
   } catch {
     return null;
+  }
+}
+
+/** venv 中的后端是否已由内置 wheel 安装过。 */
+async function isBundledBackendInstalled(runtimeDir: string, expectedVersion: string): Promise<boolean> {
+  try {
+    const marker = await readFile(getBundledBackendMarkerPath(runtimeDir), "utf-8");
+    return marker.trim() === expectedVersion;
+  } catch {
+    return false;
+  }
+}
+
+async function markBundledBackendInstalled(runtimeDir: string, expectedVersion: string): Promise<void> {
+  try {
+    await writeFile(getBundledBackendMarkerPath(runtimeDir), `${expectedVersion}\n`, "utf-8");
+  } catch (error) {
+    appendLog("runtime", `写入内置后端标记失败：${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -353,6 +379,13 @@ export async function inspectOpenFicRuntime(
     return { complete: false, message: "OpenFix 命令行程序缺失或不可用" };
   }
 
+  // 打包版内置 wheel：版本号相同但来源不同的旧 venv（例如从 PyPI 装的官方
+  // openfic==同版本）必须判定为不完整，否则新接口全部 404。
+  const bundledWheel = await findBundledBackendWheel(expectedVersion);
+  if (bundledWheel && !(await isBundledBackendInstalled(runtimeDir, expectedVersion))) {
+    return { complete: false, message: "OpenFix 后端需要从安装包更新" };
+  }
+
   return { complete: true, message: "OpenFix 运行环境已完整安装" };
 }
 
@@ -365,7 +398,10 @@ export async function ensureOpenFicRuntime(
   const venvDir = getVenvDir(runtimeDir);
   const venvPythonPath = getVenvPythonPath(runtimeDir);
   const uvPath = getUvPath(runtimeDir);
-  const bundledWheel = await findBundledBackendWheel();
+  const bundledWheel = await findBundledBackendWheel(expectedVersion);
+  const bundledBackendInstalled = bundledWheel
+    ? await isBundledBackendInstalled(runtimeDir, expectedVersion)
+    : true;
   let pypiEnvironments: Promise<NodeJS.ProcessEnv[]> | null = null;
   const getPypiEnvironments = () =>
     (pypiEnvironments ??= getPypiEnvironmentsBySpeed(expectedVersion, !bundledWheel));
@@ -379,6 +415,8 @@ export async function ensureOpenFicRuntime(
   if (python.wasReplaced) {
     appendLog("runtime", "便携式 Python 已更新，删除现有虚拟环境");
     await rm(venvDir, { recursive: true, force: true });
+    // venv 已被删除，内置后端标记必须一起失效，否则会跳过重装。
+    await rm(getBundledBackendMarkerPath(runtimeDir), { force: true });
   }
 
   const venvIsUsable =
@@ -411,22 +449,34 @@ export async function ensureOpenFicRuntime(
   const openFicCliPath = resolveOpenFicCliPath(venvPythonPath);
   const openFicCliIsUsable =
     (await pathExists(openFicCliPath)) && (await succeeds(openFicCliPath, ["--help"], runtimeDir));
-  if (installedVersion !== expectedVersion || !openFicCliIsUsable) {
+  // bundledBackendInstalled=false 表示 venv 里是同版本的旧来源（例如 PyPI 官方包），
+  // 版本号相同也必须重装，否则新接口全部 404。
+  if (installedVersion !== expectedVersion || !openFicCliIsUsable || !bundledBackendInstalled) {
     appendLog(
       "runtime",
-      installedVersion ? `OpenFix 后端需要更新：${installedVersion} -> ${expectedVersion}` : "OpenFix 后端尚未安装",
+      installedVersion
+        ? `OpenFix 后端需要更新：${installedVersion} -> ${expectedVersion}${
+            bundledWheel && !bundledBackendInstalled ? "（改用安装包内置后端）" : ""
+          }`
+        : "OpenFix 后端尚未安装",
     );
     onProgress("install-openfic", installedVersion ? "更新 OpenFix 后端" : "安装 OpenFix 后端");
     const packageIndexEnvironments = await getPypiEnvironments();
+    // 版本号相同时 pip 会跳过安装，必须强制重装才能换成本地 wheel。
+    const forceReinstall =
+      !bundledBackendInstalled || (installedVersion === expectedVersion && !openFicCliIsUsable);
     const installCommand = createOpenFicInstallCommand(
       venvPythonPath,
       expectedVersion,
-      installedVersion === expectedVersion && !openFicCliIsUsable,
+      forceReinstall,
       bundledWheel,
     );
     await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
       runUvInstallWithSystemCertsRetry(uvPath, installCommand.args, runtimeDir, onProgress, environment),
     );
+    if (bundledWheel) {
+      await markBundledBackendInstalled(runtimeDir, expectedVersion);
+    }
   }
 
   appendLog("runtime", "OpenFic 运行环境检查完成");
