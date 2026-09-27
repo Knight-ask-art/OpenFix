@@ -169,5 +169,13 @@ upstream  → OpenFic 官方
 
 **品牌残留核查（OpenFic → OpenFix）**：桌面安装向导「安装」步骤与启动进度「更新后端」步骤此前因 i18n 键拼写不一致（`installOpenFic` / `updateOpenFicMessage` vs JSON 的 `OpenFix` 拼写）在界面上直接显示含旧名的原始键——已修复（commit `ae53817`）。全面盘点结论：其余 `OpenFic` / `openfic` 字样均为**非用户可见**的内部标识或真实名称（`openfic.db` 数据文件名、`~/.openfic` CLI 默认目录、PyPI `openfic` 包与其 CLI、`persist:openfic-*` 分区、`openfic:*` IPC 事件名、`X-OpenFic-Shutdown-Token`、`OpenFicRetrievalService` 类名），改动会破坏数据兼容或 upstream 可合并性，统一留待 Phase 3 后端 Fork 处理；用户可见文案（窗口标题、HTML title、托盘、设置、About、安装包名）均已是 OpenFix。`runtime/openfic.ts` 日志文案含「OpenFic 运行环境」字样，属 AGENTS 保护区且描述对象是 PyPI 包本身，本轮按约束不动。
 
-下一刀按 Ticket 顺序：TASK-012（Consistency Checker）、TASK-013（Onboarding）。
+**TASK-012（Consistency Checker）已完成**（分支 `feature/consistency`，已合并入 `feature/branding`）：
+
+* `backend/app/core/consistency/`：优先通过 story memory 索引检索相关设定（不可用时退回人物+大纲清单），提示词强制审慎表述（「可能存在问题」而非断言冲突），模型输出解析为受约束 Issue（severity ∈ info/warning/high、证据≤3 条截断、json_repair 容错）。
+* `POST /projects/{id}/consistency/check` 仅返回建议不触碰正文；结果暂不持久化（v1 无状态）。
+* 前端 `features/consistency/`：项目+章节选择器、Issue 卡（徽章/证据引用/建议/忽略/恢复）、重新检查、底部免责说明；一级导航新增「检查」。
+* 测试：7 个新后端测试；全量 **1754 通过**；前端三连过；**端到端**：假对话+假向量模型双通道 → story memory 就绪 → UI 点「开始检查」→ 结果卡显示「可能存在问题 · 人物年龄」+ 双证据 + 建议、上下文来源标注「故事记忆检索」（证明消费了 TASK-011 索引）→ 忽略/恢复可用。
+* 暂未做：检查任务化（长章节同步等待）、结果持久化与问题处理状态跟踪、按卷/全书批量检查。
+
+下一刀：TASK-013（Onboarding，V0.4 前最后一个低险 Ticket）。
 
