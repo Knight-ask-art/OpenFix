@@ -177,5 +177,13 @@ upstream  → OpenFic 官方
 * 测试：7 个新后端测试；全量 **1754 通过**；前端三连过；**端到端**：假对话+假向量模型双通道 → story memory 就绪 → UI 点「开始检查」→ 结果卡显示「可能存在问题 · 人物年龄」+ 双证据 + 建议、上下文来源标注「故事记忆检索」（证明消费了 TASK-011 索引）→ 忽略/恢复可用。
 * 暂未做：检查任务化（长章节同步等待）、结果持久化与问题处理状态跟踪、按卷/全书批量检查。
 
-下一刀：TASK-013（Onboarding，V0.4 前最后一个低险 Ticket）。
+**TASK-013（Onboarding）已完成**（分支 `feature/onboarding`，已合并入 `feature/branding`）：
+
+* `frontend/src/features/onboarding/`：首页首挂向导——欢迎 → 三条路径（创建新小说：复用项目表单并直达写作页；导入已有小说：复用导入对话框；从灵感开始：直达大纲页）→ 可选「连接 AI」说明页（推荐提供商、设置入口、明示不连 AI 也能写作，符合 PRD §27）。
+* 完成标记存 localStorage；已有项目或已配置 chat 模型的老用户自动静默跳过（内置 embedding/rerank 不算已配置）。
+* 纯前端，无后端改动；lint / type-check / build 通过；浏览器 E2E：新用户全流程（创建项目 → 跳转写作页）、flag 清除后自动跳过回归，均验证通过。
+
+**里程碑：V0.4 内容（Outline、DOCX 导入/导出、自动备份）已全部完成**（对应 [docs/03](../docs/03-source-change-list.md) 第 40 节，另已提前做完 V0.5 的 Story Memory 多数据源与一致性检查两项）。剩余：TASK-014（V1 整体测试）、发布工程（打包/签名/更新，[docs/04](../docs/04-fork-and-packaging-roadmap.md) Phase 5）、AI Context UI。
+
+下一刀建议：重新打包 V0.4 安装包（含以上全部功能）+ 干净 Windows 11 人工验收，或开始 TASK-014（导入导出/备份/Inline AI 的回归测试矩阵）。
 
