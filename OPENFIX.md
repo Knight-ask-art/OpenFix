@@ -108,6 +108,8 @@ upstream  → OpenFic 官方
 * 净装验证：全新安装 → 首启向导 → 本地运行时创建（「安装 OpenFix」步骤从数分钟降到 37 秒）→ 后端 openapi 含 outlines / story-memory / consistency / inline-ai 全部 146 路由 → 大纲节点创建、story-memory 状态、consistency 校验行为均正确。
 * 新安装包：`desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe`（149.3 MB，SHA256 `536D2CD69BBA1DC0D11CE619C890DB2E6C39044131B8D41FA6B4F63F21A4E18E`）。
 * 完整 Phase 3（改名自有包 `novelflow-core` 之类）仍推迟，不在本刀。
+* 复核又发现并修复三个缺陷（`60712a1`）：① **升级路径失效**——存量用户 venv 里是官方同版本 wheel，版本号相同则永远不重装，新接口继续 404；改为安装后写 `.openfix-bundled-backend` 标记，标记缺失/不匹配即判定运行时不完整并强制重装（venv 重建时同步删除标记）；② wheel 选择忽略版本号，按 `openfic-<expectedVersion>-*.whl` 精确匹配；③ `latest.yml` 仍写改名前的 `x64` 文件名，接自动更新后必 404，改为随产物改名同步修正，并清掉脚本里写死的 `OpenFic-` 前缀。
+* 修复后安装包：`desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe`（149.3 MB，SHA256 `959A8AC086108C9729F544B2B67159465EC03B360C243795107A09C3FF72861C`）；验证：净装从 wheel 安装、删除标记后重启触发重装、二次启动无重复重装、openapi 146 路由含全部新接口。
 
 **TASK-003（Home Dashboard）已完成**（分支 `feature/home`，已合并入 `feature/navigation` → `feature/branding`）：
 
