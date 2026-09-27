@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { OnboardingWizard } from "@/features/onboarding";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 
 import { ContinueWritingCard } from "../components/continue-writing-card";
@@ -80,6 +81,8 @@ export function HomePage() {
           </Button>
         </Flex>
       </Container>
+
+      <OnboardingWizard />
     </Box>
   );
 }

@@ -1,0 +1,38 @@
+.onboarding-dialog {
+  padding: 28px;
+}
+
+.onboarding-step {
+  padding: 8px 0;
+}
+
+.onboarding-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-3);
+  background: var(--gray-a3);
+  color: var(--gray-12);
+}
+
+.onboarding-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--gray-a5);
+  border-radius: var(--radius-3);
+  background: var(--color-panel-solid);
+  color: var(--gray-12);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.onboarding-choice:hover {
+  border-color: var(--gray-a7);
+  background: var(--gray-a2);
+}

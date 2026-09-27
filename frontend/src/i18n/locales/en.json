@@ -2471,5 +2471,26 @@
       "foreshadowing": "Foreshadowing",
       "naming": "Naming"
     }
+  },
+  "onboarding": {
+    "title": "Welcome to OpenFix",
+    "subtitle": "A local AI writing studio for long-form fiction. Your data stays on your computer.",
+    "begin": "Get started",
+    "skip": "Skip",
+    "chooseTitle": "How would you like to begin?",
+    "create": "Create a new novel",
+    "createDesc": "Start a blank project.",
+    "import": "Import an existing novel",
+    "importDesc": "TXT, Markdown, DOCX and ZIP are supported.",
+    "inspire": "Start from an idea",
+    "inspireDesc": "Sketch the book structure in Outline first.",
+    "connectAI": "Learn how to connect AI",
+    "aiTitle": "Connect AI",
+    "aiRecommend": "OpenAI, Claude, DeepSeek and Gemini-compatible services are recommended.",
+    "aiPath": "Settings live under the top-right Settings button > Providers, where you paste an API key.",
+    "aiAlreadyConfigured": "You already have models configured and can start writing right away.",
+    "aiOptional": "AI is optional: every editing feature works without it.",
+    "gotIt": "Got it",
+    "created": "Project created"
   }
 }
