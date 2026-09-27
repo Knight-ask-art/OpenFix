@@ -187,3 +187,16 @@ upstream  → OpenFic 官方
 
 下一刀建议：重新打包 V0.4 安装包（含以上全部功能）+ 干净 Windows 11 人工验收，或开始 TASK-014（导入导出/备份/Inline AI 的回归测试矩阵）。
 
+**V0.4 安装包已重新产出**（2026-09-27，`desktop/dist-electron/`）：
+
+* 产物：`OpenFix-0.11.1-win-x86_64-setup.exe`（120.5 MB，SHA256 `7B50AD0268D72470099F759678E79E52DDF04B168730762F23084C125FB638D6`）、同名 `.zip`、`.blockmap`。
+* 本机验证：静默覆盖安装成功、启动窗口正常（setup UI bundle 为最新构建）；包内容抽查确认 story memory / consistency / inline-ai / outlines 路由、自动备份（`OpenFix-backup-*`、`autoBackupNow`）、onboarding 与品牌键修复均已进入安装包；`app-update.yml` 仍指向禁用端点。
+* 干净 Windows 11 人工验收清单（待执行）：
+  1. 全新环境双击安装 → 首启动向导（欢迎 → 创建/导入/灵感 → AI 说明）；
+  2. 配置本地实例（首次会联网创建 Python venv 并安装后端——当前设计，见 docs/04 Phase 3）；
+  3. 设置 → 提供商填入 API Key → 模型可用；
+  4. 新建项目 → 写章节 → 选中文字走 Inline AI 润色（Diff + Enter 接受）；
+  5. 大纲建树、故事记忆重建、一致性检查出结果卡；
+  6. 导入 DOCX、导出 DOCX、自动备份（选目录 + 立即备份 + 轮换）；
+  7. 重启应用数据完好、升级安装（覆盖装新版本）数据保留。
+
