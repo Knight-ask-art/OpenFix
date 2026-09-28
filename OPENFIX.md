@@ -197,6 +197,15 @@ upstream  → OpenFic 官方
 
 下一刀建议：重新打包 V0.4 安装包（含以上全部功能）+ 干净 Windows 11 人工验收，或开始 TASK-014（导入导出/备份/Inline AI 的回归测试矩阵）。
 
+**TASK-014（V1 整体测试 / 发布校验）已完成首轮**（分支 `feature/release-verification`）：
+
+* **发布产物静态校验** `desktop/scripts/verify-release.mjs`（`pnpm verify:release`）：15 项不变量——产物齐全且架构后缀已规范化、`latest.yml` 引用的文件存在且 sha512/size 与实际一致、内置 wheel 版本匹配、`app-update.yml` 未回退上游、前端 bundle 确实含 V1 新页面。回归验证：把 `latest.yml` 改回改名前的 `x64` 文件名后脚本立即报错并以退出码 1 失败（即上一个 bug 的形态），恢复后全过。
+* **安装包端到端冒烟** `desktop/scripts/packaged-smoke.mjs`（零依赖，直连 CDP）：静默安装 → 首启向导 → 运行时安装 → 主界面 → openapi 校验 → 关键 API 冒烟 → 清理。当前 **15/15 PASS**（含大纲建节点、故事记忆状态、一致性检查路由可达、清理冒烟项目）。
+* 修复首启链路两个真实缺陷：① 首次运行强依赖联网安装 **uv**，受限网络下两个镜像均失败并直接中断整个安装流——自带 wheel 后改用 venv 自带 pip，移除 uv 依赖；② 用户已有 Python 时仍强制下载便携 Python——新增系统 Python 复用（3.12/3.13 区间，与 `requires-python` 一致，校验 ensurepip/venv，解释器来源记入 `.openfix-python` 标记以保证切换时只重建一次 venv）。实测本机命中 3.13.4、零下载、二次调用不重复重建；版本门控对 3.11/3.14/2.7 正确拒绝。
+* 修复冒烟脚本自身两个缺陷：起始页也含「开始使用 OpenFix」按钮导致误判安装完成；向导前进按钮的 React 处理器不响应原生 `element.click()`（改用类选择器 + 完整指针事件序列）。
+
+下一刀按计划：Phase 5 发布工程（自有 GitHub Releases + 自动更新接入）与 AI Context UI。
+
 **V0.4 安装包已重新产出**（2026-09-27，`desktop/dist-electron/`）：
 
 * 产物：`OpenFix-0.11.1-win-x86_64-setup.exe`（120.5 MB，SHA256 `7B50AD0268D72470099F759678E79E52DDF04B168730762F23084C125FB638D6`）、同名 `.zip`、`.blockmap`。
