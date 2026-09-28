@@ -12,6 +12,7 @@ import { configureDefaultSystemProxy, getSystemProxyEnvironment } from "../proxy
 import { throwIfAborted, waitForBackend } from "../health.js";
 import type { PortablePython, RuntimeIntegrityCheck } from "./python.js";
 import {
+  createBundledWheelPipInstallCommand,
   createOpenFicInstallCommand,
   createOpenFicServeCommand,
   createOpenFicVersionCommand,
@@ -361,9 +362,13 @@ export async function inspectOpenFicRuntime(
     return { complete: false, message: "Python 虚拟环境不可用" };
   }
 
-  const uvPath = getUvPath(runtimeDir);
-  if (!(await pathExists(uvPath)) || !(await readOutput(uvPath, ["--version"], runtimeDir))) {
-    return { complete: false, message: "uv 不存在或不可用" };
+  // 自带 wheel 时用 venv 自带 pip 安装，不要求 uv 存在。
+  const bundledWheel = await findBundledBackendWheel(expectedVersion);
+  if (!bundledWheel) {
+    const uvPath = getUvPath(runtimeDir);
+    if (!(await pathExists(uvPath)) || !(await readOutput(uvPath, ["--version"], runtimeDir))) {
+      return { complete: false, message: "uv 不存在或不可用" };
+    }
   }
 
   const versionCommand = createOpenFicVersionCommand(venvPythonPath);
@@ -381,7 +386,6 @@ export async function inspectOpenFicRuntime(
 
   // 打包版内置 wheel：版本号相同但来源不同的旧 venv（例如从 PyPI 装的官方
   // openfic==同版本）必须判定为不完整，否则新接口全部 404。
-  const bundledWheel = await findBundledBackendWheel(expectedVersion);
   if (bundledWheel && !(await isBundledBackendInstalled(runtimeDir, expectedVersion))) {
     return { complete: false, message: "OpenFix 后端需要从安装包更新" };
   }
@@ -429,7 +433,8 @@ export async function ensureOpenFicRuntime(
   }
 
   const uvIsUsable = (await pathExists(uvPath)) && Boolean(await readOutput(uvPath, ["--version"], runtimeDir));
-  if (!uvIsUsable) {
+  // 自带 wheel 时用 venv 自带 pip 安装，跳过 uv 这一联网步骤（uv 安装常是首启失败点）。
+  if (!uvIsUsable && !bundledWheel) {
     appendLog("runtime", "uv 不存在或不可用，开始安装");
     onProgress("install-uv", "安装 uv");
     const packageIndexEnvironments = await getPypiEnvironments();
@@ -465,15 +470,26 @@ export async function ensureOpenFicRuntime(
     // 版本号相同时 pip 会跳过安装，必须强制重装才能换成本地 wheel。
     const forceReinstall =
       !bundledBackendInstalled || (installedVersion === expectedVersion && !openFicCliIsUsable);
-    const installCommand = createOpenFicInstallCommand(
-      venvPythonPath,
-      expectedVersion,
-      forceReinstall,
-      bundledWheel,
-    );
-    await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
-      runUvInstallWithSystemCertsRetry(uvPath, installCommand.args, runtimeDir, onProgress, environment),
-    );
+    if (bundledWheel) {
+      await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
+        run(
+          venvPythonPath,
+          createBundledWheelPipInstallCommand(bundledWheel, forceReinstall),
+          runtimeDir,
+          (message) => onProgress("install-openfic", message),
+          environment,
+        ),
+      );
+    } else {
+      const installCommand = createOpenFicInstallCommand(
+        venvPythonPath,
+        expectedVersion,
+        forceReinstall,
+      );
+      await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
+        runUvInstallWithSystemCertsRetry(uvPath, installCommand.args, runtimeDir, onProgress, environment),
+      );
+    }
     if (bundledWheel) {
       await markBundledBackendInstalled(runtimeDir, expectedVersion);
     }

@@ -29,6 +29,7 @@
     "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "lint": "eslint . --ext .js,.jsx,.mjs,.ts,.tsx,.mts",
     "package": "node scripts/build-backend-wheel.mjs && electron-builder --config electron-builder.yml && node scripts/normalize-artifact-names.mjs",
+    "verify:release": "node scripts/verify-release.mjs",
     "package:local-update": "node scripts/package-local-update.mjs",
     "serve:local-update": "node scripts/serve-local-update.mjs"
   },
