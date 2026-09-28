@@ -154,26 +154,61 @@ async function main() {
   }
   const page = await connectCdp(setupTarget.webSocketDebuggerUrl);
 
-  if (await waitFor(async () => (await page.text())?.includes("前往设置"), { timeoutMs: 90_000, label: "开始页" })) {
-    await page.clickButton("b.textContent.includes('前往设置')");
-  }
   // 注意：起始页也有一个「开始使用 OpenFix」按钮，只有「运行环境已就绪」
   // 才代表运行时安装真正完成，不能用「开始使用」做完成判定。
   const completedMarker = "运行环境已就绪";
-  let clickedContinue = false;
+  // setup 向导的前进按钮统一是 .setup-actions .primary-button，用类选择器
+  // 避免依赖文案（不同语言/版本文案会变）。
+  const clickPrimaryAction = () =>
+    page.evaluate(
+      `(() => {
+        const button = document.querySelector('.setup-actions .primary-button');
+        if (!button || button.disabled) return false;
+        for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+          button.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));
+        }
+        return true;
+      })()`,
+    );
+  let clickedSetup = false;
+  let clickedInstallDir = false;
   let clickedStart = false;
   let lastStep = "";
   const installed = await waitFor(
     async () => {
       const current = (await page.text()) ?? "";
-      if (!clickedContinue && current.includes("继续")) {
-        await page.clickButton("b.textContent.trim() === '继续'");
-        clickedContinue = true;
+      if (!clickedSetup && current.includes("前往设置")) {
+        const dispatched = await page.evaluate(
+          `(() => {
+            const label = [...document.querySelectorAll('button *')].find(
+              (el) => el.textContent.trim() === '前往设置',
+            );
+            const button = label?.closest('button');
+            if (!button) return false;
+            for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
+              button.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));
+            }
+            return true;
+          })()`,
+        );
+        console.log(`    … 点击「前往设置」${dispatched ? "" : "（未找到）"}`);
+        clickedSetup = dispatched;
+        return false;
+      }
+      if (!clickedInstallDir && current.includes("选择安装目录")) {
+        // 安装目录页主按钮 =「继续」
+        if (await clickPrimaryAction()) {
+          console.log("    … 继续（安装目录）");
+          clickedInstallDir = true;
+        }
         return false;
       }
       if (!clickedStart && current.includes("开始安装")) {
-        await page.clickButton("b.textContent.includes('开始安装')");
-        clickedStart = true;
+        // 数据目录页主按钮 =「开始安装」
+        if (await clickPrimaryAction()) {
+          console.log("    … 开始安装");
+          clickedStart = true;
+        }
         return false;
       }
       for (const step of ["下载 Python", "解压 Python", "创建运行环境", "安装 OpenFix"]) {
@@ -193,7 +228,8 @@ async function main() {
 
   console.log("\n4/7 进入主界面并等待后端就绪…");
   if (installed) {
-    await page.clickButton("b.textContent.includes('开始使用')");
+    // 完成页的「开始使用」同样是主按钮。
+    await clickPrimaryAction();
   }
   const frontendTarget = await waitFor(
     async () => (await cdpTargets()).find((t) => t.url.includes("app://openfic")),
