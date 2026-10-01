@@ -85,7 +85,7 @@ upstream  → OpenFic 官方
 
 已从 `OpenFic/` 本地克隆到本目录，分支 `feature/branding`。
 
-用户可见品牌已改为 OpenFix（`appId: com.openfix.app`）。桌面版本号仍为 `0.11.1`，因为 Runtime 仍会 `pip install openfic==${app.getVersion()}`。自动更新已断开官方 OpenFic Release，待自有 GitHub 仓库后再接入。
+用户可见品牌已改为 OpenFix（`appId: com.openfix.app`）。桌面版本号仍为 `0.11.1`，因为 Runtime 仍会 `pip install openfic==${app.getVersion()}`。Phase 5 更新源与 Windows Release 资产链路现已配置为 `Knight-ask-art/OpenFix`；真实 Release、签名与安装后升级尚未验收。
 
 **[docs/04](../docs/04-fork-and-packaging-roadmap.md) Phase 1（Fork + 本机跑通）已结束。** 开发模式可启动。自有仓库 `origin` 已接入：`https://github.com/Knight-ask-art/OpenFix`（2026-09-23 由 OpenFic 改名而来），分支均已推送。
 
@@ -193,9 +193,9 @@ upstream  → OpenFic 官方
 * 完成标记存 localStorage；已有项目或已配置 chat 模型的老用户自动静默跳过（内置 embedding/rerank 不算已配置）。
 * 纯前端，无后端改动；lint / type-check / build 通过；浏览器 E2E：新用户全流程（创建项目 → 跳转写作页）、flag 清除后自动跳过回归，均验证通过。
 
-**里程碑：V0.4 内容（Outline、DOCX 导入/导出、自动备份）已全部完成**（对应 [docs/03](../docs/03-source-change-list.md) 第 40 节，另已提前做完 V0.5 的 Story Memory 多数据源与一致性检查两项）。剩余：TASK-014（V1 整体测试）、发布工程（打包/签名/更新，[docs/04](../docs/04-fork-and-packaging-roadmap.md) Phase 5）、AI Context UI。
+**里程碑：V0.4 内容（Outline、DOCX 导入/导出、自动备份）已全部完成**（对应 [docs/03](../docs/03-source-change-list.md) 第 40 节，另已提前做完 V0.5 的 Story Memory 多数据源与一致性检查两项）。TASK-014 已完成首轮；Phase 5 的更新源与 Windows Release 资产配置已接入，真实 Release、签名和升级验收仍待执行；AI Context UI 也未完成。
 
-下一刀建议：重新打包 V0.4 安装包（含以上全部功能）+ 干净 Windows 11 人工验收，或开始 TASK-014（导入导出/备份/Inline AI 的回归测试矩阵）。
+下一步：完成 Phase 5 的真实 Windows Release、签名配置和安装后自动升级验收，再继续 AI Context UI。
 
 **TASK-014（V1 整体测试 / 发布校验）已完成首轮**（分支 `feature/release-verification`）：
 
@@ -204,12 +204,20 @@ upstream  → OpenFic 官方
 * 修复首启链路两个真实缺陷：① 首次运行强依赖联网安装 **uv**，受限网络下两个镜像均失败并直接中断整个安装流——自带 wheel 后改用 venv 自带 pip，移除 uv 依赖；② 用户已有 Python 时仍强制下载便携 Python——新增系统 Python 复用（3.12/3.13 区间，与 `requires-python` 一致，校验 ensurepip/venv，解释器来源记入 `.openfix-python` 标记以保证切换时只重建一次 venv）。实测本机命中 3.13.4、零下载、二次调用不重复重建；版本门控对 3.11/3.14/2.7 正确拒绝。
 * 修复冒烟脚本自身两个缺陷：起始页也含「开始使用 OpenFix」按钮导致误判安装完成；向导前进按钮的 React 处理器不响应原生 `element.click()`（改用类选择器 + 完整指针事件序列）。
 
-下一刀按计划：Phase 5 发布工程（自有 GitHub Releases + 自动更新接入）与 AI Context UI。
+**Phase 5（自有 GitHub Release 与自动更新）首轮实现**（2026-10-01）：
+
+* Electron Builder、打包更新资源与桌面更新器都指向 `Knight-ask-art/OpenFix`；本地更新冒烟继续使用独立 loopback 配置。
+* Windows 更新清单、Release 上传文件名与包验收工作流已统一到 `OpenFix-*`；Release 静态校验增加了自有更新源与 x86_64 / aarch64 更新清单检查。
+* Windows 包验收与 Release runner 会在打包前运行现有 `build-backend-wheel.mjs`，将内部 `openfic` wheel 一并打入安装包；GitHub Actions 实际运行仍待验证。
+* Fork 中的 tag 不再运行继承的 PyPI `openfic` 或 Docker 发布任务。
+* 这轮没有创建 tag、上传 Release、签名或执行安装后升级；当前更新链路尚未完成真实发布验收。
+
+下一步：配置 Windows 签名身份，发布一版测试 Release，在干净 Windows 11 环境验证安装、检查更新、下载、安装升级和数据保留；之后继续 AI Context UI。
 
 **V0.4 安装包已重新产出**（2026-09-27，`desktop/dist-electron/`）：
 
 * 产物：`OpenFix-0.11.1-win-x86_64-setup.exe`（120.5 MB，SHA256 `7B50AD0268D72470099F759678E79E52DDF04B168730762F23084C125FB638D6`）、同名 `.zip`、`.blockmap`。
-* 本机验证：静默覆盖安装成功、启动窗口正常（setup UI bundle 为最新构建）；包内容抽查确认 story memory / consistency / inline-ai / outlines 路由、自动备份（`OpenFix-backup-*`、`autoBackupNow`）、onboarding 与品牌键修复均已进入安装包；`app-update.yml` 仍指向禁用端点。
+* 本机验证：静默覆盖安装成功、启动窗口正常（setup UI bundle 为最新构建）；包内容抽查确认 story memory / consistency / inline-ai / outlines 路由、自动备份（`OpenFix-backup-*`、`autoBackupNow`）、onboarding 与品牌键修复均已进入安装包；该版本构建时的 `app-update.yml` 仍指向禁用端点。
 * 干净 Windows 11 人工验收清单（待执行）：
   1. 全新环境双击安装 → 首启动向导（欢迎 → 创建/导入/灵感 → AI 说明）；
   2. 配置本地实例（首次会联网创建 Python venv 并安装后端——当前设计，见 docs/04 Phase 3）；

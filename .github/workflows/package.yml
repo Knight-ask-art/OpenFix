@@ -82,6 +82,7 @@ jobs:
   # ---------------------------------------------------------------- pypi
   pypi:
     needs: [context, build-frontend]
+    if: github.repository == 'syrizelink/OpenFic'
     runs-on: ubuntu-latest
     environment: pypi
     steps:
@@ -158,6 +159,7 @@ jobs:
   # ---------------------------------------------------------------- docker
   docker:
     needs: [context]
+    if: github.repository == 'syrizelink/OpenFic'
     strategy:
       fail-fast: false
       matrix:
@@ -199,6 +201,7 @@ jobs:
 
   docker-manifest:
     needs: [context, docker]
+    if: github.repository == 'syrizelink/OpenFic'
     runs-on: ubuntu-latest
     steps:
       - uses: docker/setup-buildx-action@v4
@@ -229,6 +232,11 @@ jobs:
   # ---------------------------------------------------------------- desktop
   desktop:
     needs: [context, build-frontend, pypi]
+    if: >-
+      always() &&
+      needs.context.result == 'success' &&
+      needs.build-frontend.result == 'success' &&
+      (needs.pypi.result == 'success' || needs.pypi.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
@@ -296,6 +304,16 @@ jobs:
       - name: 构建桌面端
         working-directory: desktop
         run: pnpm build
+      - uses: actions/setup-python@v6
+        if: runner.os == 'Windows'
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+        if: runner.os == 'Windows'
+      - name: 构建内置后端 wheel
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        run: node scripts/build-backend-wheel.mjs
       - name: 构建 Electron 安装包
         working-directory: desktop
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }} --publish never
@@ -379,9 +397,9 @@ jobs:
       - name: 发布 Windows 自动更新产物
         run: |
           gh release upload "${{ needs.context.outputs.release_tag }}" \
-            desktop/dist-electron/OpenFic-*-win-*-setup.exe \
-            desktop/dist-electron/OpenFic-*-win-*-setup.exe.blockmap \
-            desktop/dist-electron/OpenFic-*-win-*.zip \
+            desktop/dist-electron/OpenFix-*-win-*-setup.exe \
+            desktop/dist-electron/OpenFix-*-win-*-setup.exe.blockmap \
+            desktop/dist-electron/OpenFix-*-win-*.zip \
             desktop/dist-electron/latest*.yml \
             --clobber
 

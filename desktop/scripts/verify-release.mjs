@@ -5,7 +5,8 @@
  *   - 产物齐全且文件名架构后缀已规范化
  *   - latest.yml 指向的文件真实存在、sha512 与实际一致（否则自动更新 404）
  *   - 内置后端 wheel 与桌面版本号匹配（否则运行时不会安装我们的后端）
- *   - app-update.yml 未回退到上游 OpenFic 更新源
+ *   - app-update.yml 指向 OpenFix 自有 GitHub 更新源
+ *   - Release-prepared x86_64 / aarch64 channel 清单与安装包一致
  *   - 前端产物确实含 V1 新页面（防止打进旧 frontend/dist）
  *
  * 用法：node scripts/verify-release.mjs [dist-electron 目录]
@@ -19,6 +20,7 @@ const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const outputDir = path.resolve(process.argv[2] ?? path.join(desktopDir, "dist-electron"));
 const desktopPackage = JSON.parse(readFileSync(path.join(desktopDir, "package.json"), "utf8"));
 const version = desktopPackage.version;
+const updateRepository = { owner: "Knight-ask-art", repo: "OpenFix" };
 
 const failures = [];
 const checks = [];
@@ -39,6 +41,43 @@ function sha512Base64(filePath) {
   return createHash("sha512").update(readFileSync(filePath)).digest("base64");
 }
 
+function getAssetFileName(reference) {
+  const withoutQueryOrHash = reference.trim().split(/[?#]/, 1)[0];
+  return path.posix.basename(decodeURIComponent(withoutQueryOrHash));
+}
+
+function verifyUpdateManifest(name, content, expectedArchitecture = null) {
+  const manifestVersion = content.match(/^version:\s*(\S+)/m)?.[1];
+  check(`${name} version matches desktop package`, manifestVersion === version, manifestVersion ?? "缺少 version");
+
+  const files = [...content.matchAll(/^[ \t]*-[ \t]+url:[ \t]*(.+)\r?\n[ \t]+sha512:[ \t]*(\S+)\r?\n[ \t]+size:[ \t]*(\d+)/gm)]
+    .map((match) => ({ name: getAssetFileName(match[1]), sha512: match[2], size: Number(match[3]) }));
+  check(`${name} includes update assets`, files.length > 0);
+
+  if (expectedArchitecture) {
+    const expectedInstaller = `OpenFix-${version}-win-${expectedArchitecture}-setup.exe`;
+    check(`${name} references ${expectedArchitecture} installer`, files.some((file) => file.name === expectedInstaller), files.map((file) => file.name).join(", "));
+    const manifestPath = content.match(/^path:\s*(.+)$/m)?.[1];
+    check(`${name} path matches ${expectedArchitecture} installer`, getAssetFileName(manifestPath ?? "") === expectedInstaller, manifestPath ?? "缺少 path");
+  }
+
+  for (const file of files) {
+    const assetPath = path.join(outputDir, file.name);
+    if (!existsSync(assetPath)) {
+      check(`${name} asset exists: ${file.name}`, false);
+      continue;
+    }
+    check(`${name} sha512 matches ${file.name}`, sha512Base64(assetPath) === file.sha512);
+    check(`${name} size matches ${file.name}`, statSync(assetPath).size === file.size);
+  }
+
+  const pathValue = content.match(/^path:\s*(.+)$/m)?.[1];
+  if (pathValue) {
+    const pathName = getAssetFileName(pathValue);
+    check(`${name} path asset exists: ${pathName}`, existsSync(path.join(outputDir, pathName)));
+  }
+}
+
 console.log(`verify-release: ${outputDir} (version ${version})\n`);
 
 // 1. 产物齐全 + 架构后缀已规范化
@@ -48,21 +87,24 @@ const portableZip = artifacts.find((name) => /^.+-win-x86_64\.zip$/.test(name));
 const blockmap = artifacts.find((name) => /^.+-win-x86_64-setup\.exe\.blockmap$/.test(name));
 
 check("setup 安装包存在且架构后缀为 x86_64", Boolean(setupExe), artifacts.join(", "));
+check("setup 安装包使用 OpenFix 产品名", Boolean(setupExe?.startsWith(`OpenFix-${version}-`)), setupExe ?? "缺少 setup");
 check("便携 zip 存在且架构后缀为 x86_64", Boolean(portableZip));
+check("便携 zip 使用 OpenFix 产品名", Boolean(portableZip?.startsWith(`OpenFix-${version}-`)), portableZip ?? "缺少 zip");
 check("setup blockmap 存在", Boolean(blockmap));
+check("setup blockmap 使用 OpenFix 产品名", Boolean(blockmap?.startsWith(`OpenFix-${version}-`)), blockmap ?? "缺少 blockmap");
 check(
   "产物名不含未规范化的 x64 后缀",
   !artifacts.some((name) => /-win-x64(-|\.)/.test(name)),
   artifacts.filter((name) => /-win-x64(-|\.)/.test(name)).join(", "),
 );
 
-// 2. latest.yml 与实际产物一致
+// 2. latest.yml 与实际产物一致；兼容 URL 可带 ?arch=x64 / ?arch=arm64。
 const latestYmlPath = path.join(outputDir, "latest.yml");
 if (existsSync(latestYmlPath)) {
   const latestYml = readFileSync(latestYmlPath, "utf8");
-  const referencedNames = [...latestYml.matchAll(/^\s*-?\s*url:\s*(.+)$/gm)].map((m) => m[1].trim());
+  const referencedNames = [...latestYml.matchAll(/^[ \t]*-[ \t]+url:[ \t]*(.+)$/gm)].map((match) => getAssetFileName(match[1]));
   const pathMatch = latestYml.match(/^path:\s*(.+)$/m);
-  if (pathMatch) referencedNames.push(pathMatch[1].trim());
+  if (pathMatch) referencedNames.push(getAssetFileName(pathMatch[1]));
   const missing = referencedNames.filter((name) => !existsSync(path.join(outputDir, name)));
   check("latest.yml 引用的文件均存在", missing.length === 0, `缺失: ${missing.join(", ")}`);
   check(
@@ -70,20 +112,7 @@ if (existsSync(latestYmlPath)) {
     referencedNames.some((name) => name.endsWith("-win-x86_64-setup.exe")),
     referencedNames.join(", "),
   );
-  for (const match of latestYml.matchAll(/url:\s*(.+)\n\s*sha512:\s*(\S+)/g)) {
-    const [, name, sha512] = match;
-    const target = path.join(outputDir, name.trim());
-    if (!existsSync(target)) continue;
-    check(`latest.yml sha512 与 ${name.trim()} 一致`, sha512Base64(target) === sha512.trim());
-  }
-  const sizeMatch = latestYml.match(/url:\s*(.+)\n\s*sha512:\s*\S+\n\s*size:\s*(\d+)/);
-  if (sizeMatch) {
-    const [, name, size] = sizeMatch;
-    const target = path.join(outputDir, name.trim());
-    if (existsSync(target)) {
-      check(`latest.yml size 与 ${name.trim()} 一致`, statSync(target).size === Number(size));
-    }
-  }
+  verifyUpdateManifest("latest.yml", latestYml);
 } else {
   check("latest.yml 存在（自动更新元数据）", false, "缺失 latest.yml");
 }
@@ -101,18 +130,35 @@ if (existsSync(wheelDir)) {
   check("win-unpacked 内含 backend-wheel 资源", false, "缺失 backend-wheel 目录");
 }
 
-// 4. 更新源不得回退到上游
+// 4. 更新源必须精确指向 OpenFix 自有 GitHub Releases。
 const appUpdateYml = path.join(outputDir, "win-unpacked", "resources", "app-update.yml");
 if (existsSync(appUpdateYml)) {
   const content = readFileSync(appUpdateYml, "utf8");
-  check(
-    "app-update.yml 未指向上游 OpenFic",
-    !/syrizelink|OpenFic/i.test(content),
-    content.replace(/\n/g, " | "),
-  );
+  check("app-update.yml uses the GitHub provider", /^provider:\s*github\s*$/m.test(content));
+  check("app-update.yml owner is OpenFix owner", new RegExp(`^owner:\\s*${updateRepository.owner}\\s*$`, "m").test(content));
+  check("app-update.yml repo is OpenFix", new RegExp(`^repo:\\s*${updateRepository.repo}\\s*$`, "m").test(content));
+  check("app-update.yml does not use an upstream or disabled feed", !/syrizelink|OpenFic|disabled-openfix-updates|127\.0\.0\.1/i.test(content));
+} else {
+  check("win-unpacked 内含 app-update.yml", false, "缺失 app-update.yml");
 }
 
-// 5. 前端产物包含 V1 新页面
+// 5. Release-prepared metadata must provide both Windows architecture channels.
+const architectureManifests = [
+  ["x86_64", path.join(outputDir, "latest-win-x86_64.yml")],
+  ["aarch64", path.join(outputDir, "latest-win-aarch64.yml")],
+];
+const hasArchitectureManifest = architectureManifests.some(([, manifestPath]) => existsSync(manifestPath));
+if (hasArchitectureManifest) {
+  for (const [architecture, manifestPath] of architectureManifests) {
+    if (!existsSync(manifestPath)) {
+      check(`latest-win-${architecture}.yml exists`, false);
+      continue;
+    }
+    verifyUpdateManifest(`latest-win-${architecture}.yml`, readFileSync(manifestPath, "utf8"), architecture);
+  }
+}
+
+// 6. 前端产物包含 V1 新页面
 const frontendIndex = path.join(outputDir, "win-unpacked", "resources", "frontend-dist", "index.html");
 if (existsSync(frontendIndex)) {
   const assetsDir = path.join(outputDir, "win-unpacked", "resources", "frontend-dist", "assets");

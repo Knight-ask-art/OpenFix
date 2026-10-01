@@ -161,6 +161,16 @@ jobs:
         working-directory: desktop
         timeout-minutes: 20
         run: pnpm exec electron tests/main/runtime-smoke.mjs ../backend-dist/openfic-*.whl
+      - uses: actions/setup-python@v6
+        if: runner.os == 'Windows'
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+        if: runner.os == 'Windows'
+      - name: Build bundled backend wheel
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        run: node scripts/build-backend-wheel.mjs
       - name: Build desktop package
         working-directory: desktop
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --${{ matrix.arch }} --publish never
@@ -203,14 +213,14 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $installer = @(Get-ChildItem -LiteralPath 'dist-electron' -Filter 'OpenFic-*-win-${{ matrix.arch }}-setup.exe')
+          $installer = @(Get-ChildItem -LiteralPath 'dist-electron' -Filter 'OpenFix-*-win-${{ matrix.arch }}-setup.exe')
           if ($installer.Count -ne 1) { throw "Expected one Windows installer, found $($installer.Count)" }
 
           $installDirectory = Join-Path $env:RUNNER_TEMP "openfic-${{ matrix.arch }}-$env:GITHUB_RUN_ID"
           $userDataDirectory = Join-Path $env:RUNNER_TEMP "openfic-user-data-${{ matrix.arch }}-$env:GITHUB_RUN_ID"
           $standardOutput = Join-Path $env:RUNNER_TEMP "openfic-${{ matrix.arch }}.out.log"
           $standardError = Join-Path $env:RUNNER_TEMP "openfic-${{ matrix.arch }}.err.log"
-          $application = Join-Path $installDirectory 'OpenFic.exe'
+          $application = Join-Path $installDirectory 'OpenFix.exe'
           $process = $null
 
           try {
@@ -239,8 +249,8 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          app_images=(dist-electron/OpenFic-*-linux-*.AppImage)
-          tar_files=(dist-electron/OpenFic-*-linux-*.tar.gz)
+          app_images=(dist-electron/OpenFix-*-linux-*.AppImage)
+          tar_files=(dist-electron/OpenFix-*-linux-*.tar.gz)
           ((${#app_images[@]} == 1))
           ((${#tar_files[@]} == 1))
           packages=()
@@ -319,12 +329,12 @@ jobs:
                 echo "$package_name exited before the startup check completed with code $exit_code"
                 return 1
               fi
-              if xdotool search --onlyvisible --name 'OpenFic' >/dev/null 2>&1; then window_visible=true; fi
+              if xdotool search --onlyvisible --name 'OpenFix' >/dev/null 2>&1; then window_visible=true; fi
               sleep 1
             done
             if [[ "$window_visible" != true ]]; then
               print_diagnostics "$log_path" "$user_data_dir"
-              echo "$package_name started but did not show an OpenFic window"
+              echo "$package_name started but did not show an OpenFix window"
               return 1
             fi
             stop_application "$app_pid"
@@ -334,9 +344,9 @@ jobs:
           launch_and_verify AppImage "$app_image_log" "$app_image_user_data_dir" "${app_images[0]}" "${app_image_args[@]}" --user-data-dir="$app_image_user_data_dir"
 
           tar -xzf "${tar_files[0]}" -C "$install_dir"
-          mapfile -t tarball_applications < <(find "$install_dir" -type f -name openfic-desktop -perm -111)
+          mapfile -t tarball_applications < <(find "$install_dir" -type f -name openfix-desktop -perm -111)
           if ((${#tarball_applications[@]} != 1)); then
-            echo "Expected one executable named openfic-desktop, found ${#tarball_applications[@]}"
+            echo "Expected one executable named openfix-desktop, found ${#tarball_applications[@]}"
             find "$install_dir" -maxdepth 3 -type f -printf '%m %p\n' | sort
             exit 1
           fi
@@ -349,7 +359,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          dmg_files=(dist-electron/OpenFic-*-mac-${{ matrix.arch }}.dmg)
+          dmg_files=(dist-electron/OpenFix-*-mac-${{ matrix.arch }}.dmg)
           ((${#dmg_files[@]} == 1))
 
           mount_dir=$(mktemp -d)
@@ -375,11 +385,11 @@ jobs:
           is_mounted=true
           app_sources=("$mount_dir"/*.app)
           ((${#app_sources[@]} == 1))
-          ditto "${app_sources[0]}" "$install_dir/OpenFic.app"
+          ditto "${app_sources[0]}" "$install_dir/OpenFix.app"
           hdiutil detach "$mount_dir" -quiet
           is_mounted=false
 
-          "$install_dir/OpenFic.app/Contents/MacOS/OpenFic" --user-data-dir="$user_data_dir" > "$app_log" 2>&1 &
+          "$install_dir/OpenFix.app/Contents/MacOS/OpenFix" --user-data-dir="$user_data_dir" > "$app_log" 2>&1 &
           app_pid=$!
           for _ in {1..10}; do
             if ! kill -0 "$app_pid" 2>/dev/null; then

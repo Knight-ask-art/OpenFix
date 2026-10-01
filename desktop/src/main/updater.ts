@@ -8,9 +8,8 @@ import { configureSystemProxy } from "./proxy.js";
 
 const { autoUpdater } = electronUpdater;
 
-/** Empty until OpenFix has its own GitHub releases. Must not use upstream OpenFic. */
-const UPDATE_GITHUB_OWNER = "";
-const UPDATE_GITHUB_REPO = "";
+const UPDATE_GITHUB_OWNER = "Knight-ask-art";
+const UPDATE_GITHUB_REPO = "OpenFix";
 
 function hasProductUpdateFeed(): boolean {
   return Boolean(UPDATE_GITHUB_OWNER && UPDATE_GITHUB_REPO);
