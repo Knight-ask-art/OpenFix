@@ -295,6 +295,10 @@ class TestAgentAPI:
                 "is_readonly": True,
             },
             {
+                "key": "search_story_memory",
+                "is_readonly": True,
+            },
+            {
                 "key": "update_index",
                 "is_readonly": False,
             },

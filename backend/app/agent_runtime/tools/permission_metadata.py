@@ -52,6 +52,7 @@ _PERMISSION_METADATA_BY_TOOL_NAME = {
     "recycle_subagent": ToolPermissionMetadata("recycle_subagent", "allow"),
     "reference_skill": ToolPermissionMetadata("reference_skill", "allow"),
     "search_chapters": ToolPermissionMetadata("search_chapters", "allow"),
+    "search_story_memory": ToolPermissionMetadata("search_story_memory", "allow"),
     "update_index": ToolPermissionMetadata("update_index", "allow"),
     "web_fetch": ToolPermissionMetadata("web_fetch", "allow"),
     "web_search": ToolPermissionMetadata("web_search", "allow"),

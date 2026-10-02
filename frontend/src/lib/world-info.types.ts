@@ -129,3 +129,43 @@ export interface WorldInfoEntrySearchResponse {
   totalEntries: number;
   totalMatches: number;
 }
+
+/** 世界设定类型。 */
+export type WorldEntryType =
+  | "location"
+  | "organization"
+  | "nation"
+  | "faction"
+  | "rule"
+  | "history"
+  | "power_system"
+  | "technology"
+  | "custom";
+
+/** 世界设定扩展信息。 */
+export interface WorldEntryMeta {
+  entryId: string;
+  projectId: string;
+  entryType: WorldEntryType;
+  customTypeLabel: string;
+  tags: string[];
+  linkedCharacterIds: string[];
+  linkedChapterIds: string[];
+  aiVisible: boolean;
+  updatedAt: string;
+}
+
+/** 更新世界设定扩展信息请求。 */
+export interface WorldEntryMetaUpdate {
+  entryType?: WorldEntryType;
+  customTypeLabel?: string;
+  tags?: string[];
+  linkedCharacterIds?: string[];
+  linkedChapterIds?: string[];
+  aiVisible?: boolean;
+}
+
+export interface WorldEntryMetaListResponse {
+  items: WorldEntryMeta[];
+  total: number;
+}

@@ -13,6 +13,7 @@ from app.agent_runtime.persistence.child_runs import (
     get_child_run_agent_number,
     list_child_runs_for_parent,
 )
+from app.agent_runtime.context.source_snapshot import sanitize_agent_context_sources
 from app.agent_runtime.persistence.types import PersistedMessage
 from app.api.schemas.task import TaskMessage
 
@@ -136,6 +137,8 @@ def _is_subagent_internal_row(
     row: PersistedMessage,
     subagent_tool_call_ids: set[str],
 ) -> bool:
+    if row.message_type == "context_snapshot":
+        return False
     if row.agent_id in SUBAGENT_AGENT_IDS:
         return True
     return bool(row.role == "tool" and row.tool_call_id in subagent_tool_call_ids)
@@ -279,6 +282,24 @@ def _project_rows(
                     message_type="compaction",
                     display_channel=row.display_channel,
                     payload={"kind": "compaction"},
+                    tool_calls=[],
+                )
+            )
+            continue
+
+        if row.message_type == "context_snapshot":
+            projected.append(
+                _base_message(
+                    row,
+                    content="",
+                    message_type="context_snapshot",
+                    display_channel="hidden",
+                    payload={
+                        "kind": "context_snapshot",
+                        "context_sources": sanitize_agent_context_sources(
+                            row.metadata.get("context_sources")
+                        ),
+                    },
                     tool_calls=[],
                 )
             )

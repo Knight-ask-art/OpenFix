@@ -1,16 +1,19 @@
 import { Box, Button, Flex, Select, Text } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router";
 
 import { ConfirmDialog, Spinner } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import { useProjects } from "@/features/projects";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
+import { fetchChapters } from "@/lib/api-client";
 import { getRecentProjects } from "@/lib/local-db";
 import type { RecentProject } from "@/lib/recent-projects";
 
+import { OutlineAiActions } from "../components/outline-ai-actions";
 import { OutlineEditor } from "../components/outline-editor";
 import { OutlineTree } from "../components/outline-tree";
 import {
@@ -22,6 +25,7 @@ import {
   type OutlineLevel,
   type OutlineNode,
 } from "../lib/outline-api";
+import type { OutlineAiSplitItem } from "../lib/outline-ai-api";
 
 import "./outline-page.css";
 
@@ -37,6 +41,7 @@ function readStoredOutlineProject(): string | null {
 
 export function OutlinePage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const { closeSidebar, isMobile, isSidebarOpen, openSidebar } = useAppShell();
   const queryClient = useQueryClient();
   const mobileSidebarSwipeHandlers = useMobileSidebarSwipe({
@@ -57,10 +62,27 @@ export function OutlinePage() {
     staleTime: Infinity,
   });
 
-  const [projectId, setProjectId] = useState<string | null>(() => readStoredOutlineProject());
+  const projectIdFromUrl = searchParams.get("projectId");
+  const [projectId, setProjectId] = useState<string | null>(
+    () => projectIdFromUrl ?? readStoredOutlineProject(),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isEditorDirty, setIsEditorDirty] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<OutlineNode | null>(null);
+  const appliedUrlProjectIdRef = useRef<string | null>(projectIdFromUrl);
+
+  // 深层链接：URL 上的 projectId 变化时（例如从助手建议跳转）切换到该项目的
+  // 大纲。用 ref 记录已应用的参数，避免覆盖用户在下拉框里的手动选择。
+  useEffect(() => {
+    if (!projectIdFromUrl) return;
+    if (appliedUrlProjectIdRef.current === projectIdFromUrl) return;
+    appliedUrlProjectIdRef.current = projectIdFromUrl;
+    setProjectId(projectIdFromUrl);
+    setSelectedId(null);
+    setIsEditorDirty(false);
+    setExpandedIds(new Set());
+  }, [projectIdFromUrl]);
 
   useEffect(() => {
     if (projectId) return;
@@ -82,6 +104,16 @@ export function OutlinePage() {
     enabled: Boolean(projectId),
   });
 
+  const { data: chapterTree } = useQuery({
+    queryKey: ["project-chapter-tree", projectId],
+    queryFn: () => fetchChapters(projectId ?? ""),
+    enabled: Boolean(projectId),
+  });
+  const chapters = useMemo(
+    () => (chapterTree?.volumes ?? []).flatMap((volume) => volume.chapters ?? []),
+    [chapterTree],
+  );
+
   const invalidate = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["outlines", projectId] });
   }, [projectId, queryClient]);
@@ -99,6 +131,7 @@ export function OutlinePage() {
         setExpandedIds((current) => new Set(current).add(created.parent_id as string));
       }
       setSelectedId(created.id);
+      setIsEditorDirty(false);
       invalidate();
     },
   });
@@ -114,6 +147,39 @@ export function OutlinePage() {
     onSuccess: (_count, outlineId) => {
       if (selectedId === outlineId) setSelectedId(null);
       setDeleteTarget(null);
+      invalidate();
+    },
+  });
+
+  // AI 拆分章节：仅创建用户确认过的候选子节点，逐条串行以保证排序稳定。
+  const applySplitMutation = useMutation({
+    mutationFn: async ({ parent, items }: { parent: OutlineNode; items: OutlineAiSplitItem[] }) => {
+      if (!projectId) throw new Error("no project");
+      const level = defaultChildLevel(parent.level);
+      let completedCount = 0;
+      for (const item of items) {
+        try {
+          await createOutline(projectId, {
+            level,
+            title: item.title,
+            content: item.content,
+            parent_id: parent.id,
+          });
+          completedCount += 1;
+        } catch {
+          const error = new Error("split apply failed") as Error & {
+            completedCount: number;
+          };
+          error.completedCount = completedCount;
+          throw error;
+        }
+      }
+    },
+    onSuccess: (_result, variables) => {
+      setExpandedIds((current) => new Set(current).add(variables.parent.id));
+      invalidate();
+    },
+    onError: () => {
       invalidate();
     },
   });
@@ -137,6 +203,7 @@ export function OutlinePage() {
   const handleProjectChange = (value: string) => {
     setProjectId(value);
     setSelectedId(null);
+    setIsEditorDirty(false);
     setExpandedIds(new Set());
     try {
       localStorage.setItem(OUTLINE_PROJECT_STORAGE_KEY, value);
@@ -256,7 +323,10 @@ export function OutlinePage() {
                 addChildLabel={t("outline.addChild")}
                 emptyLabel={t("outline.emptyTree")}
                 levelLabels={levelLabels}
-                onSelect={(node) => setSelectedId(node.id)}
+                onSelect={(node) => {
+                  setIsEditorDirty(false);
+                  setSelectedId(node.id);
+                }}
                 onToggleExpand={handleToggleExpand}
                 onAddChild={handleAddChild}
               />
@@ -264,20 +334,40 @@ export function OutlinePage() {
           </Box>
           <Box className="outline-page__editor">
             {selectedNode ? (
-              <OutlineEditor
-                key={selectedNode.id}
-                node={selectedNode}
-                isSaving={updateMutation.isPending}
-                labels={confirmLabels}
-                levelLabels={levelLabels}
-                childCount={childCount}
-                onSave={(payload) =>
-                  updateMutation.mutate(
-                    { outlineId: selectedNode.id, payload },
-                  )
-                }
-                onDelete={() => setDeleteTarget(selectedNode)}
-              />
+              <>
+                <OutlineAiActions
+                  key={selectedNode.id}
+                  projectId={projectId ?? ""}
+                  node={selectedNode}
+                  chapters={chapters}
+                  isApplying={applySplitMutation.isPending || updateMutation.isPending}
+                  hasUnsavedChanges={isEditorDirty}
+                  onApplyDraft={async ({ title, content }) => {
+                    await updateMutation.mutateAsync({
+                      outlineId: selectedNode.id,
+                      payload: { title, content },
+                    });
+                  }}
+                  onApplySplit={async (items) => {
+                    await applySplitMutation.mutateAsync({ parent: selectedNode, items });
+                  }}
+                />
+                <OutlineEditor
+                  key={selectedNode.id}
+                  node={selectedNode}
+                  isSaving={updateMutation.isPending}
+                  onDirtyChange={setIsEditorDirty}
+                  labels={confirmLabels}
+                  levelLabels={levelLabels}
+                  childCount={childCount}
+                  onSave={(payload) =>
+                    updateMutation.mutate(
+                      { outlineId: selectedNode.id, payload },
+                    )
+                  }
+                  onDelete={() => setDeleteTarget(selectedNode)}
+                />
+              </>
             ) : (
               <Flex
                 className="outline-page__editor-empty"

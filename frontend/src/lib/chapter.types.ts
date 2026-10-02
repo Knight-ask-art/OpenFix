@@ -96,3 +96,27 @@ export interface ChapterMove {
 export interface ChapterMoveToVolume {
   volumeId: string;
 }
+
+/** 章节状态。 */
+export type ChapterStatus = "draft" | "writing" | "revising" | "done";
+
+/** 章节产品附加信息（状态与本章目标字数）。 */
+export interface ChapterMeta {
+  chapterId: string;
+  projectId: string;
+  status: ChapterStatus;
+  targetWordCount: number;
+  lastAiCheckAt: string | null;
+  updatedAt: string;
+}
+
+/** 更新章节附加信息请求。 */
+export interface ChapterMetaUpdate {
+  status?: ChapterStatus;
+  targetWordCount?: number;
+}
+
+export interface ChapterMetaListResponse {
+  items: ChapterMeta[];
+  total: number;
+}

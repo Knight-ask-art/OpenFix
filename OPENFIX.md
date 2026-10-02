@@ -87,6 +87,8 @@ upstream  → OpenFic 官方
 
 用户可见品牌已改为 OpenFix（`appId: com.openfix.app`）。桌面版本号仍为 `0.11.1`，因为 Runtime 仍会 `pip install openfic==${app.getVersion()}`。Phase 5 更新源与 Windows Release 资产链路现已配置为 `Knight-ask-art/OpenFix`；真实 Release、签名与安装后升级尚未验收。
 
+OpenFix 自有标识首轮设计已落地：以打开的书页和校订符号组成透明 PNG 图标，侧栏、登录页、favicon、PWA 与桌面打包配置统一引用 `frontend/public/openfix-logo.png`。应用内运行时、桌面安装包和平台图标效果仍待点验。
+
 **[docs/04](../docs/04-fork-and-packaging-roadmap.md) Phase 1（Fork + 本机跑通）已结束。** 开发模式可启动。自有仓库 `origin` 已接入：`https://github.com/Knight-ask-art/OpenFix`（2026-09-23 由 OpenFic 改名而来），分支均已推送。
 
 **TASK-002（Sidebar / Navigation）已完成**（分支 `feature/navigation`）：一级导航改为首页 / 写作 / 大纲 / 人物 / 世界；Prompt Chains 与 Dashboard 从一级导航隐藏，路由 `/prompt-chains`、`/dashboard` 保留可用；`/outline` 为占位页（`frontend/src/features/outline/`）。已通过 lint / type-check / build 及浏览器冒烟。
@@ -193,9 +195,9 @@ upstream  → OpenFic 官方
 * 完成标记存 localStorage；已有项目或已配置 chat 模型的老用户自动静默跳过（内置 embedding/rerank 不算已配置）。
 * 纯前端，无后端改动；lint / type-check / build 通过；浏览器 E2E：新用户全流程（创建项目 → 跳转写作页）、flag 清除后自动跳过回归，均验证通过。
 
-**里程碑：V0.4 内容（Outline、DOCX 导入/导出、自动备份）已全部完成**（对应 [docs/03](../docs/03-source-change-list.md) 第 40 节，另已提前做完 V0.5 的 Story Memory 多数据源与一致性检查两项）。TASK-014 已完成首轮；Phase 5 的更新源与 Windows Release 资产配置已接入，真实 Release、签名和升级验收仍待执行；AI Context UI 也未完成。
+**里程碑：V0.4 内容（Outline、DOCX 导入/导出、自动备份）已全部完成**（对应 [docs/03](../docs/03-source-change-list.md) 第 40 节，另已提前做完 V0.5 的 Story Memory 多数据源与一致性检查两项）。TASK-014 已完成首轮；Phase 5 的更新源与 Windows Release 资产配置已接入，真实 Release、签名和升级验收仍待执行；AI Context UI 的显式读取记录面板已完成首轮实现，完整上下文追踪仍待推进。
 
-下一步：完成 Phase 5 的真实 Windows Release、签名配置和安装后自动升级验收，再继续 AI Context UI。
+下一步：继续补齐 V0.5 AI Context UI 的上下文来源覆盖；Phase 5 真实 Windows Release、签名配置和安装后自动升级验收仍需签名身份及干净 Windows 环境。
 
 **TASK-014（V1 整体测试 / 发布校验）已完成首轮**（分支 `feature/release-verification`）：
 
@@ -212,9 +214,17 @@ upstream  → OpenFic 官方
 * Fork 中的 tag 不再运行继承的 PyPI `openfic` 或 Docker 发布任务。
 * 这轮没有创建 tag、上传 Release、签名或执行安装后升级；当前更新链路尚未完成真实发布验收。
 
-下一步：配置 Windows 签名身份，发布一版测试 Release，在干净 Windows 11 环境验证安装、检查更新、下载、安装升级和数据保留；之后继续 AI Context UI。
+后续 Phase 5 验收：配置 Windows 签名身份，发布一版测试 Release，在干净 Windows 11 环境验证安装、检查更新、下载、安装升级和数据保留。当前没有创建 tag、上传 Release、签名或安装后升级验证。
 
-**V0.4 安装包已重新产出**（2026-09-27，`desktop/dist-electron/`）：
+**V0.5 AI Context UI（显式读取记录首轮，2026-10-02）**：
+
+* Agent 侧边栏新增「对话 / 上下文」切换；上下文面板读取当前主会话或子会话中已完成且成功的资料工具记录。
+* 展示章节正文、目录、检索与摘要，以及人物、世界设定、笔记的名称、章节序号和来源类型；合并重复资料，不展示正文内容。
+* 本轮没有新增 PRD 所列的独立「建议」视图；该视图仍需单独定义数据来源和交互。
+* 面板只反映显式读取工具返回，不包含当前选中章节、自动注入内容、尚未接入 Agent 的上下文 API 或模型的完整输入。因此这是可核对的读取记录视图，不代表完整 Prompt / Context 追踪。
+* 验证：前端 type-check、lint、production build、格式检查和 `git diff --check` 通过；未执行测试或应用内 E2E / Tauri 打包验收。
+
+**V0.4 安装包已重新产出**（2026-09-27，`desktop/dist-electron/`；该产物已被下方 2026-10-02 的包取代，SHA256 仅供参考）：
 
 * 产物：`OpenFix-0.11.1-win-x86_64-setup.exe`（120.5 MB，SHA256 `7B50AD0268D72470099F759678E79E52DDF04B168730762F23084C125FB638D6`）、同名 `.zip`、`.blockmap`。
 * 本机验证：静默覆盖安装成功、启动窗口正常（setup UI bundle 为最新构建）；包内容抽查确认 story memory / consistency / inline-ai / outlines 路由、自动备份（`OpenFix-backup-*`、`autoBackupNow`）、onboarding 与品牌键修复均已进入安装包；该版本构建时的 `app-update.yml` 仍指向禁用端点。
@@ -226,4 +236,215 @@ upstream  → OpenFic 官方
   5. 大纲建树、故事记忆重建、一致性检查出结果卡；
   6. 导入 DOCX、导出 DOCX、自动备份（选目录 + 立即备份 + 轮换）；
   7. 重启应用数据完好、升级安装（覆盖装新版本）数据保留。
+
+**V1.0 验收链路复核与安装包重出**（2026-10-02；本轮不新增产品功能，只补验收证据并重出安装包）：
+
+* 本机重新打包并复核 Phase 5 更新链路（Windows 11，未签名）：
+  * `pnpm build` 后以独立 `UV_CACHE_DIR` 运行 `pnpm package` 成功；产物 `desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe`（157,940,977 字节，SHA256 `046DBD054BFEAA2BA48F874D646759AED3320A54506AE8C76588B4DAE15EA024`）与 `OpenFix-0.11.1-win-x86_64.zip`（188,373,359 字节，SHA256 `ABB5BE510FC24040A36C4E19FFADB9A2A0C175A62DD5B9FEF0AC3FED2B428C2A`）。
+  * 新包内 `resources/app-update.yml` 为 `provider: github` / `owner: Knight-ask-art` / `repo: OpenFix`；2026-09-27 旧包仍是禁用端点，这正是静态校验曾失败的根因。
+  * `pnpm verify:release`（`desktop/scripts/verify-release.mjs`）**ALL CHECKS PASSED**（旧包上同一脚本有 4 项失败，全部指向 `app-update.yml` 身份不变量）。
+  * `node scripts/packaged-smoke.mjs` **SMOKE PASSED，15/15**：隔离临时目录静默安装 → 首启向导完成运行时安装 → 主界面 → openapi 146 路由 → 建项目 / 建大纲节点 / 故事记忆状态 / 一致性路由可达 → 清理；脚本自行清理临时目录。
+  * 打包未配置签名身份，electron-builder 的 signtool 步骤无可用证书，产物**未签名**。
+* 用隔离数据目录（`OPENFIC_DATA_DIR` 指向临时目录，未触碰 `backend/data/`）复核后端链路：项目 → 角色 → 世界设定 → 大纲 → 卷 → 章节创建成功；DOCX 导入 preview/confirm 正确（Heading 1 → 卷、Heading 2 → 章）；DOCX 导出任务 succeeded 并下载到 36,709 字节 Word 文档；未配置模型时 Inline AI 与一致性检查均返回 400 +「后台任务模型未配置: light_model」，错误路径无 500；后端重启后既有项目数据完好且不重复执行 migration。
+* 复核结论：`backend/` 中 inline_ai、consistency、outlines、story_memory、docx 相关文件自各自功能提交后未再改动，TASK-006 / 007 / 009 / 011 / 012 记录的真实模型端到端结论对当前代码仍然成立。本轮未改动任何产品源码。
+* 已知环境限制（非代码缺陷）：本机 checkout 为 CRLF（`core.autocrlf=true`），`pnpm format:check` 会对整仓库报格式差异（LF/CRLF 归一化），在 LF checkout / CI 上不出现；`uv build` 曾因 `%LOCALAPPDATA%\uv\cache\builds-v0` 残留临时目录报错，改用独立 `UV_CACHE_DIR` 后成功（未清理用户级 uv 缓存）。
+* V1.0 仍需外部条件才能完成的验收（均未执行）：
+  1. Windows 代码签名身份与签名产物；
+  2. 干净 Windows 11 上「安装 → 检查更新 → 下载 → 覆盖升级 → 数据保留」的人工验收；
+  3. 真实 GitHub Actions 运行与自有仓库 Release 发布（本轮未创建 tag、未上传 Release、未触发远端 workflow）。
+* 尚未实现、需要产品决策后再开工的 PRD 条目（本轮未擅自实现）：PRD §15/§16 人物扩展字段与「人物当前状态」、PRD §17 世界设定类型/标签/关联、PRD §21 独立「AI 页面」预设任务、PRD §20 一致性检查的「当前卷 / 全书」范围、PRD §12 侧边栏「建议」视图（PRD 未给出数据来源与交互定义）、PRD §3 一级导航中的「AI / 设置」入口（现状为 OpenFic 的右侧助手 + 设置弹窗）。
+
+> 上述「尚未实现」清单已被下一节的未提交工作树实现覆盖，保留原文以记录当时的结论。
+
+---
+
+**V1.0 剩余 PRD 条目：未提交工作树复核与修复**（2026-10-02 第二轮；本轮未新增打包产物）
+
+工作树中已存在（尚未提交）的 V1.0 实现，覆盖上一节列出的全部六项：
+
+* PRD §15/§16 人物扩展字段与人物当前状态：`character_profiles` / `character_states`（migration `1023`）、`GET/PUT /characters/{id}/profile`、`GET/PUT /characters/{id}/states`、`DELETE /characters/{id}/states/{state_id}`、`features/characters/components/character-author-panel.tsx`。
+* PRD §17 世界设定类型 / 标签 / 关联 / AI 可见性：`world_entry_meta`（migration `1024`）、`GET/PUT /world-info-entries/{id}/meta`、`GET /projects/{id}/world-entry-meta`、`features/world-info/components/entry-meta-panel.tsx`。
+* PRD §21 独立 AI 页面预设任务：`frontend/src/features/ai/`，路由 `/ai`，一级导航新增「AI」（`sidebar-nav-config.ts`）。8 个预设任务把提示词追加到右侧助手输入框，其中「一致性检查」直接跳转 `/consistency`。
+* PRD §20 一致性检查范围：`scope = chapter | volume | book`，前后端与 i18n 三处枚举一致；`run_consistency_check` 按范围收集章节、分段（48000 字符）调用模型并返回范围标签与章节数。
+* PRD §12 侧边栏「建议」视图：助手侧栏新增「建议」标签页（`agent-suggestions-panel.tsx`），建议来自故事记忆状态与项目计数，全部为跳转入口，不自动调用模型；同时保留「上下文」读取记录面板（上一节记录）。
+* PRD §3 一级导航「AI / 设置」入口：「AI」现为一级导航项；「设置」仍是侧栏底部齿轮按钮（`sidebar-actions.tsx`）与状态栏索引按钮打开的弹窗，没有独立路由——沿用 OpenFic 既有形式，未新建页面。
+* 另有超出上述六项、同样未提交的实现：`project_profiles` / `chapter_meta`（migration `1025`）、项目总览页 `/projects/:projectId/overview`、大纲 AI 四动作（`/projects/{id}/outlines/ai/improve|check-pacing|split-chapters|update-from-chapter`）、新书搭建草案 `POST /story-setup/draft`、Agent 统一故事记忆检索工具 `search_story_memory`（含 `story_memory_read` 工具类别）。
+
+本轮复核修复 3 处缺陷（均在未提交工作树内）：
+
+1. `features/world-info/components/entry-editor-panel.tsx` + `entry-meta-panel.tsx`：`EntryMetaPanel` 补 `key={entry.id}`，并在扩展信息查询成功前禁用编辑与保存。此前切换世界设定条目时表单保留上一条目的类型/标签/关联，保存会把上一条目的扩展信息写到当前条目（数据错误）。
+2. `i18n/locales/zh-CN.json` + `en.json`：`assistant.suggestions.openSettings` 原文案为「打开故事记忆 / Open story memory」，但该按钮实际打开「设置 → 索引」，改为「打开设置 / Open settings」。
+3. `features/ai/pages/ai-tasks-page.tsx` + `.css`：桌面端把助手宿主移入固定右栏（440px 网格列）。此前宿主是页面 flex 列末端的整宽元素，助手浮层按整页宽度定位并覆盖任务网格（移动端仍走全屏浮层）。
+
+未改动但需记录：`storage/services/__init__.py` 未导出 `chapter_meta_service`、`project_profile_service`、`world_entry_meta_service`，三者靠 `from app.storage.services import x` 的子模块回退生效。补导出属纯风格改动且会给该文件引入 EOL 差异，本轮未改，留待与其它服务导出规则一并整理。
+
+静态复核结论（逐条对照源码、路由、i18n 与既有测试）：
+
+* 迁移链 `1022 → 1023 → 1024 → 1025` 连续、无分叉；新表均已在 `storage/models/__init__.py` 与 `tests/model_registry.py` 注册。
+* 前端调用的每个新接口路径与后端路由逐一对应（project profile / character profile+states / chapter-meta / world-entry-meta / outlines/ai/* / story-setup/draft），未发现 404 路径。
+* 两套语言包 key 集合一致（唯一差异 `resultSummary_one` 为英文复数形式，中文按 i18next 规则用 `resultSummary_other`，属正确差异）；新增页面文案均走 i18n；新增文件无 Emoji、无 `any`。
+* 级联清理已覆盖并已有 API 测试：删除项目 / 章节 / 卷 / 人物时同步清理扩展表与关联 ID（`test_project_and_chapter_meta.py`、`test_character_extensions.py`、`test_world_entry_meta.py`）。
+* 发布校验脚本已跟进：`verify-release.mjs` 增加 `openfix.ai.projectId` / `chapter-meta` / `/profile` 产物标记；`packaged-smoke.mjs` 扩展覆盖项目属性、大纲节点、人物、世界设定扩展、章节状态、一致性路由、DOCX 导出与自动备份。
+
+本轮未执行的验证（环境限制，不代表通过）：
+
+* 后端 `pytest` / `ruff` / `ty` 与前端 `lint` / `type-check` / `build` 均未执行。本会话无法获得运行 Python、Node、pnpm 等命令的授权，所有执行类命令（含通过子代理）均被拒绝，`python -c`、`.venv/Scripts/python.exe -m pytest`、`pnpm --version` 等一律返回「requires approval」。
+* 未重新打包，未运行 `pnpm verify:release` 与 `packaged-smoke.mjs`。上一节记录的安装包 SHA256 与 15/15 冒烟对应的是修复前的代码，本轮 3 处改动未进入任何产物。
+* 因此本轮改动仅经静态复核，未经编译、lint 或运行验证。
+
+仍未完成 / 已知限制（均有源码位置可查）：
+
+1. `ai_visible` 目前只在故事记忆索引构建与状态计数中生效（`retrieval/story_memory.py`）；Agent 资料工具（`agent_runtime/tools/impls/context/world_entry.py`）、`@` 提及候选（`mention_service.py`）与 `canonical_mentions.py` 仍可读到已隐藏条目，且切换开关不会自动重建索引，需手动重建后才完全生效。扩展面板提示「关闭后该设定不会进入故事记忆检索，也不会提供给 AI」在重建前偏乐观。
+2. 人物扩展字段、人物状态、世界设定扩展信息、大纲与笔记的保存都不会把故事记忆索引标记为过期；`compute_story_memory_status` 直接读取索引行状态，因此不会出现「索引陈旧」提示。人物资料面板「这些字段会随人物一起进入故事记忆」需手动重建后才成立。
+3. 全书范围一致性检查是同步请求、按 48000 字符分段顺序调用模型，段数无上限（300 章约 20–30 次调用），前端超时 5 分钟；检查任务化仍属后续工作。
+4. 修订回滚（`agent_runtime/revisions.py`）硬删除人物 / 章节 / 世界条目时不清理扩展表与关联 ID；SQLite 未开启 `PRAGMA foreign_keys`，会残留孤立扩展行。
+5. 删除项目不删除 `characters` 行（`project_service.delete_project` 上游既有行为，非本轮引入）。
+6. 模型声明与迁移存在轻微漂移（`world_entry_meta.ai_visible` 的 `index=True`、`character_profiles.character_id` 的唯一索引形式）；测试用元数据建表、生产用迁移建表，功能不受影响。
+7. `git diff --check` 在 4 个后端文件上报 trailing whitespace（`storage/repos/__init__.py`、`storage/services/chapter_service.py`、`project_service.py`、`world_info_service.py`）。这 4 个文件在 HEAD 中本就是 CRLF/LF 混合（`git show HEAD:<file> | file -` 可复现），新增行沿用 CRLF 即被判为行尾空白，属既有 EOL 状况，不是本轮引入；在 LF checkout / CI 上不出现。
+
+---
+
+**V1.0 本机最终验收与数据保护补洞**（2026-10-02 第三轮；未提交、未推送、未创建 tag / Release）：
+
+* 复核本轮新增的 Agent revision 扩展快照：migration `1027` 接在 `1026` 后；模型已加入 SQLModel registry 与 revision 子表清理；人物作者字段 / 状态、章节扩展与人物状态、世界设定类型 / 标签 / AI 可见性 / 关联都随 Agent 回滚捕获和恢复。原有修改/删除回归测试已适配删除前捕获；SQLite 下创建、更新、删除场景由完整回滚套件覆盖。
+* 修复 `character_extension_repo.replace_states()` 将 `dict[str, object]` 直接展开给 SQLModel 构造器导致的 `ty` 错误，改经 `CharacterState.model_validate()` 校验后写入。同步调整旧删除工具单测对新增快照捕获的 mock，并把 migration-head 断言更新到 `1027`。
+* 后端 fresh gates：`uv run ruff check .`、`uv run ty check app` 通过；`uv run pytest -q` **1870 passed**。4 个新适配的定向回归测试也通过。
+* 前端 fresh gates：`pnpm lint`、`pnpm type-check`、`pnpm build` 通过；桌面端 `pnpm lint`、`pnpm type-check` 通过。构建仍有已知大 bundle warning（主 JS 约 3.9 MB，tokenizer chunk 约 2.3 MB），不影响构建成功。
+* 使用独立 `UV_CACHE_DIR` 重新构建 Windows x64 安装包：`OpenFix-0.11.1-win-x86_64-setup.exe`（158,037,204 bytes，SHA-256 `56af012211773a50bf3999b7a07f9c28d4edaaec57f025fe2d57c1f8a4ae9d0a`）与 `OpenFix-0.11.1-win-x86_64.zip`（188,471,980 bytes，SHA-256 `a3d24a66640818124253dc2eff6968b66e0202e3ed1b15712485f5862e49b447`）。`pnpm verify:release` **ALL CHECKS PASSED**。
+* `node scripts/packaged-smoke.mjs` **SMOKE PASSED，37/37**：临时隔离安装目录与 Electron profile → 首启运行时安装 → 主界面 / 后端 → 11 个 V1 路由标记 → 合成项目、项目属性、大纲、人物字段与状态、世界设定扩展、章节与正文、Story Memory 计数、一致性路由 → DOCX 生成与下载 → 桌面 Data Manager 自动备份产物 → 关闭本次进程并清理临时目录。合成数据目录已由脚本清理。
+* 对前两轮的遗留缺口更新结论：`ai_visible` 已由 Agent 世界书工具、mention 路径和 Story Memory 检索共同执行；扩展源数据改变会让指纹新鲜度变为 stale；revision 回滚已清理孤儿并恢复扩展快照。之前记录的「仍未实现」描述是当时的工作树快照，已被后续实现及本轮门禁覆盖。
+* 仍未由本轮证据关闭的事项：真实模型供应商调用下的 Inline AI / Agent 用户验收；干净 Windows 11 从旧版覆盖升级后的数据保留；真实 GitHub Actions / Release；经证书链验证的代码签名身份与签名产物。当前冒烟使用合成数据，路由可达不等于真实模型调用已验收。
+* `git diff --check` 仍会在上述 4 个已知混合 CRLF/LF 后端文件报告行尾空白；避免为了清掉这类噪声归一化整文件行尾。移除 `test_story_memory.py` 新增用例末尾的多余空行后，本轮没有新增该项 EOF 报告。
+* Claude Code 2.1.280 已尝试继续只读复审，但调用以 `Exceeded USD budget (2)` 结束，没有复审结论；实现报告也不能替代主代理复核。本轮没有提交、推送、签名或发布。
+
+**V1.0 上下文快照与最新本机复核（2026-10-02 第四轮；未提交）**：
+
+* 修复 Agent 上下文来源快照的隐私缺口：快照依据实际模型输入中的工具调用 ID 解析工具名，并且只读取成功工具结果中的标签；章节标题、人物名和世界设定标题不再回退到工具参数。新增哨兵测试，确认参数中的用户文本不会进入快照；父 / 子 Agent 的快照分别持久化到各自会话。
+* 后端完整测试最新记录为 **1880 passed**（`ruff check`、`ty check` 及完整 pytest；FastCtx job `j-qyjop2`）。随后再次运行 `ruff check .`、`ty check app`，并对快照、历史恢复、图、持久化、父 / 子 Agent 等 7 个测试文件定向复跑，**99 passed**。
+* 最新前端 `pnpm lint && pnpm type-check && pnpm build` 通过（429 个文件 0 lint / 类型错误，production build 成功）；桌面端 `pnpm lint && pnpm type-check` 通过。构建仍有既有的大 JS chunk 警告。
+* 当前 Windows x64 产物已复算：`OpenFix-0.11.1-win-x86_64-setup.exe`（158,039,308 bytes，SHA-256 `aedbb0cbc26421f8ff24d7d49382422d81cbf02a8b0c484d35daddc8d3bffb11`）；`OpenFix-0.11.1-win-x86_64.zip`（188,474,245 bytes，SHA-256 `3243b043d0d756dda39a4babf8ff6f5e171d352354c06f18c99fe29b33ae48c3`）。本轮再次运行 `pnpm verify:release`，全部静态检查通过；前一轮 packaged smoke（job `j-5azsnl`）通过，覆盖隔离安装、首启运行时、V1 路由、合成创作链路、DOCX 下载、自动备份和临时目录清理。本轮更新后的 smoke 结果见下节。
+* 用户确认 Claude Code 暂时无法登录。本轮没有新的 Claude Code 实现或审查结论；此前 API Key 环境下的调用曾超预算，不能当作成功委派或通过的复审。
+* 本机代码、构建、产物静态校验和合成冒烟已有通过证据；V1.0 正式发布仍未完成。真实供应商模型用户链路、干净 Windows 11 覆盖升级与数据保留、远端 GitHub Actions / Release、经证书链验证的签名仍待外部条件。本轮未提交、推送、签名、创建 tag 或发布。
+
+---
+
+**V1.0 包冒烟与清理误报修复**（2026-10-02 第五轮；未提交）：
+
+* 修正 packaged smoke 中 `modelId` 定义在章节分支内、却在外层 Agent 会话创建时引用的作用域错误。
+* 首次扩展 smoke 的 job `j-kaqbwp` 完成合成模型链路与重启持久化，但 Data Manager 步骤失败。诊断发现重启后脚本连到 `app://openfic/` webview；该 target 没有 Electron preload 桥，桌面配置文件中的本地实例实际仍在。脚本现改为连接 `app://setup/ui.html` 桌面主窗口 target，再通过 `openficDesktop` 读取配置与运行 Data Manager。
+* 后续 job `j-svnx64` 的 59 条产品与接口断言通过，覆盖 Inline AI 候选不覆盖正文、假模型 Agent 成功回复、一致性检查、DOCX、重启后的项目 / 正文 / 模型 / Agent 对话 / 加密凭据持久化，以及 Data Manager 自动备份文件生成。
+* `j-svnx64` 最后清理隔离 profile 时遇到 Windows `EPERM`；当时脚本没有把 `removeWorkspace()` 的失败加入失败集合，因而虽打印清理失败仍输出 `SMOKE PASSED`。该次结果不能作为全绿 smoke 记录。
+* 确认没有 OpenFix、Electron 或 Python 进程后，核对临时目录解析到本次生成的精确 Temp 路径，并用 `fs.rmSync` 的 `maxRetries=40`、`retryDelay=500` 删除成功，耗时约 37 秒。脚本现使用该重试范围，并把清理结果计入 PASS / FAIL。
+* 截至第五轮记录时，最终脚本改动通过 `node --check`、`pnpm exec eslint scripts/packaged-smoke.mjs`、该文件的 `git diff --check`；遗留 smoke 目录已确认不存在，清理修复后的完整回放尚未完成。第六轮复核见下节；不将前述 `SMOKE PASSED` 当成清理通过。
+* V1.0 正式发布仍待真实供应商模型用户链路、干净 Windows 11 旧版覆盖升级及原数据保留、远端 GitHub Actions / Release、经证书链验证的 Windows 签名身份；Claude Code 暂时无法登录，本轮没有新的子代理审查结果。本轮未提交、推送、签名、创建 tag 或发布。
+
+**V1.0 packaged smoke 首启 DOM 复核（2026-10-02；未提交）**：
+
+* 在空闲调试端口 `19224`、且无现存 `OpenFix.exe` 时，定向回放 job `j-3km75p` 安装并启动了当前包，但在 setup 流程开始前退出：CDP 目标已出现时 `document.body` 仍为空，原 `page.text()` 直接读取 `innerText` 抛错。安装包产品断言未执行；profile `startup.log` 记录桌面 shell 随后完成加载。
+* 将现有 `page.text()` 读取改为在 `document.body` 尚未建立时返回空文本，供既有轮询等待页面就绪。`node --check scripts/packaged-smoke.mjs`、`pnpm exec eslint scripts/packaged-smoke.mjs` 与目标文件 `git diff --check` 通过；最新改动未再通过完整 packaged smoke 验收。
+* `j-3km75p` 异常收尾也遇到 `EPERM`。确认 OpenFix / Python 进程和调试端口均已退出，检查临时路径属于该 job 新建的隔离目录后，已手动移除；此前 `j-svnx64` 的59项产品断言仍是最近一次完成产品链路的证据，但其清理失败不能算全绿。
+* 本机 packaged smoke 与 V1.0 正式发布均保持 `needs-verification`。正式门槛仍包括真实供应商模型用户链路、干净 Windows 11 旧版覆盖升级及数据保留、远端 GitHub Actions / Release、经证书链验证的 Windows 签名；Claude Code 暂时无法登录，本轮无其实现或复审结果。本轮未提交、推送、签名、创建 tag 或发布。
+
+**V1.0 packaged smoke 收尾验收（2026-10-02；本机合成链路通过，未发布）**：
+
+* 对当前 Windows x64 安装包再次执行 `node scripts/packaged-smoke.mjs --port=19226`，FastCtx job `j-sm45t2` 以退出码 0 完成，日志记录 **60 项 PASS / SMOKE PASSED**。
+* 覆盖隔离静默安装、首次启动下载 Python 并安装运行时、主界面与后端连接、11 个 V1 API 标记、项目 / 项目属性 / 大纲 / 人物和状态 / 世界设定扩展 / 章节、合成模型 Inline AI 候选保护与接受、Story Memory、一致性检查、Agent 成功回复、DOCX 生成下载、重启后的项目正文 / 模型配置 / Agent 对话 / 加密凭据保留、Data Manager 非空自动备份，以及本次进程退出和临时目录清理。
+* 脚本的自动备份断言要求找到 `.tar.gz` 且文件大小大于零；该项与临时目录清理均显示 PASS。隔离目录 `C:\Users\20969\AppData\Local\Temp\openfix-smoke-dNRvGD` 已由脚本删除。
+* 本机已打包合成用户链路和收尾清理通过，信心等级 B。它仍不覆盖真实供应商模型验收、干净 Windows 11 从旧版本覆盖升级与数据保留、远端 GitHub Actions / Release、签名证书身份及证书链。Claude Code 暂时无法登录，本轮未取得其独立复审。本轮未提交、推送、签名、创建 tag 或发布；**V1.0 正式发布状态仍为 `needs-verification`**。
+
+**V1.0 当前 Windows x64 包 smoke 异常与旧临时目录清理（2026-10-02；未发布）**：
+
+* 最新静态校验包仍为 `OpenFix-0.11.1-win-x86_64-setup.exe`（158,042,666 bytes，SHA-256 `2891da7d7cece1f41f1c601d610d6636e1295242c7c24345a254b13fd6a24044`）与 portable ZIP（188,477,926 bytes，SHA-256 `2132f7534b788b0c8f39fcf5879fd2c0c2ef5db3b9d338cacabe431ccbc1f955`）。本机 `pnpm verify:release` 通过，安装包 Authenticode 状态为 `NotSigned`；先前 `j-sm45t2` 的通过结果属于旧包，不能替代当前 hash 的验收。
+* 当前包 smoke job `j-8wrmht` 退出码 1。安装、合成创作链路、Inline AI 候选保护与接受、Story Memory、一致性、Agent、本地模型、DOCX、重启后数据 / 凭据保留、非空自动备份均通过。整体 smoke 仍判失败。
+* 后端日志记录冷启动生成 `/openapi.json` 用时 8,163.65 ms；smoke 的 `httpJson` 默认仅等 8,000 ms，超时后回传 `null`，造成 0 路由及所有 marker 断言的 harness 假失败。已将该检查单独放宽为 30 秒。
+* 首启主界面的旧检查依赖 CDP `/json` 出现独立 `app://openfic` target，当前 job 未观察到该 target；同期后端日志出现设置、仪表盘、模型、项目与 socket 请求，结果不足以确认产品界面未加载，也不足以证明 CDP target 已可见。smoke 现从桌面壳直接读取嵌入式 `<webview>` 的 URL 与 loading 状态，并在失败时输出壳内状态；此修订还未打包或回放。
+* 当前 job 的脚本最终清理返回 `EPERM`。在确认没有引用这些临时目录的进程后，已删除并核实以下三个 Temp 路径均不存在：`openfix-smoke-ii8UD4`、`openfix-smoke-UXsCz6`、`openfix-smoke-JUEQH5`，共回收 3,370,651,107 bytes（约 3.37 GB）。smoke 清理增加两轮有界延迟重试；目录清理修订仍需随下一包验收。
+* 当前 `packaged-smoke.mjs` 已通过 `node --check`、本地 ESLint 与目标文件 `git diff --check`。未因 process-artifact-pressure 再运行整包 smoke；新的 shell-webview 检查、30 秒 OpenAPI 等待及清理重试均未在新包中验证。
+* 因此当前包的本机 smoke 保持 `needs-verification`，正式发布也保持 `needs-verification`。真实供应商模型链路、干净 Windows 11 旧版覆盖升级与数据保留、远端 GitHub Actions / Release、Windows 签名证书身份与链验证，以及 Claude Code 复审均未关闭。本轮未提交、推送、签名、创建 tag 或发布。
+
+**V1.0 当前包修订后 smoke 回放**（2026-10-02；本轮仅一次，未发布）：
+
+* 回放仍使用 EXE SHA-256 `2891da7d7cece1f41f1c601d610d6636e1295242c7c24345a254b13fd6a24044`、ZIP SHA-256 `2132f7534b788b0c8f39fcf5879fd2c0c2ef5db3b9d338cacabe431ccbc1f955`；没有重新打包产品。
+* FastCtx job `j-gepsnv` 通过静默安装与 CDP 启动检查。新 profile 首启停在「安装 OpenFix」运行时安装步骤，超过 smoke 的 15 分钟上限后退出 1；前端主界面和后端未就绪，后续路由、一致性、写作、重启及自动备份检查都无法执行。当前证据只能说明运行时安装超过测试时限，不能证明安装最终失败，也不能把依赖它的接口失败归类为单独的产品缺陷。
+* 收尾首次遇到 Windows `EPERM`，延迟重试后清理通过。`openfix-smoke-R0dyMV` 已删除；复核 Temp 中没有 `openfix-smoke-*` 目录，且没有进程命令行引用该隔离路径。没有保留 smoke profile。
+* 截至本次记录时，本机当前包 smoke 与正式发布均为 `needs-verification`；该状态后来由下方 `j-fpiwyo` 受控回放更新。本轮后不再重复生成 smoke 环境。真实供应商、干净 Windows 11 覆盖升级、远端 Release、签名证书链及 Claude Code 复审仍未验收。未提交、推送、签名、创建 tag 或发布。
+* 复核当前工作树的一致性卡片：`查看原文` 展示后端定位到的原文片段，`AI 分析` 调用一致性复核 API；对应 API 与后端测试源码均存在。此前只读审计提出的这项缺口不符合当前代码状态。
+
+**V1.0 当前包修订后 smoke 与临时目录收尾（2026-10-02；本机合成验收通过，未发布）**：
+
+* 在同一 Windows x64 安装包上仅执行一次 30 分钟有界 smoke，FastCtx job `j-fpiwyo` 退出码 0，完整日志记录 63 项 PASS 和 `SMOKE PASSED`。安装包 SHA-256 为 `2891da7d7cece1f41f1c601d610d6636e1295242c7c24345a254b13fd6a24044`；portable ZIP SHA-256 为 `2132f7534b788b0c8f39fcf5879fd2c0c2ef5db3b9d338cacabe431ccbc1f955`，均与本次运行前核对的产物一致。
+* 首次运行时依赖安装约 18 分钟后完成，随后通过前端 webview / 后端连接、11 个 V1 API、项目 / 大纲 / 人物 / 世界设定 / 章节、Inline AI 候选保护、Story Memory、一致性结果原文定位与 AI 分析、Agent、本地模型、DOCX、重启后的正文 / 模型 / Agent 对话 / 加密凭据保留，以及非空自动备份。该 smoke 使用合成数据和本地 OpenAI 兼容假模型，不代表真实供应商验收。
+* 最终清理首次遇到 Windows `EPERM`，一次延迟重试后删除本次隔离目录 `openfix-smoke-Q9rBYd`。退出后复核没有 OpenFix / Python 进程引用该目录、`19544` 调试端口已释放、Temp 下没有 `openfix-smoke-*` 目录；C 盘可用空间约 97 GB。本轮 PIP / UV 缓存路径位于本次 workspace 内，清理时一并删除；没有触碰其他用户级缓存。上一轮清掉的三个旧目录共回收约 3.37 GB。
+* 前一轮 `j-gepsnv` 在 15 分钟时限退出于运行时安装阶段；本次成功回放更新了当前包 smoke 状态。历史失败仅表示该次等待超时，不构成产品路由失败。
+* 当前 Windows x64 包的本机合成 smoke 已通过，信心等级 B；V1.0 正式验收仍为 `needs-verification`。未覆盖真实供应商用户链路、干净 Windows 11 从旧版本覆盖升级与原数据保留、远端 GitHub Actions / Release、Windows 签名身份及证书链。该次 smoke 本身不包含 Claude Code 复审；之后用户确认第三方 API 接入可用，限定只读审计已完成。没有提交、推送、签名、创建 tag 或发布。
+
+**V1.0 续作：旧 smoke 环境核查与清理（2026-10-02；未重跑）**：
+
+* 复查 Windows `%LOCALAPPDATA%/Temp`，没有遗留 `openfix-smoke-*` 安装目录或 profile；当前没有运行中的 OpenFix packaged-smoke job。本轮没有重复安装包冒烟。
+* 删除此前打包任务专用的 5 个隔离 UV 缓存（`openfix-v1-uv-cache`、`openfix-v1-uv-cache-20261002`、`openfix-v1-uv-cache-20261002-context`、`openfix-v1-uv-cache-20261002-runtime-consistency`、`openfix-context-snapshot-uv-cache`），约回收 73 MB；逐一确认路径已不存在。保留日志、品牌图片和隔离测试数据库。
+* 重新核对 packaged-smoke 清理实现：只递归删除本次 `mkdtemp` 创建的 workspace；进程未确认退出时保留环境并让 smoke 失败，清理结果也计入最终 PASS / FAIL。
+* Claude Code CLI 2.1.280 的最小只读调用返回 `READY`；窄范围审查 job `j-7g0itq` 完成，结果为 `No confirmed blocker in this slice.`，范围仅覆盖所列 7 个 Phase 5 / smoke 文件，不代表全仓库复审。未改代码、未运行测试或构建。
+* 当前 x64 包的 63 项 synthetic smoke 通过记录继续有效；真实供应商用户链路、干净 Windows 11 覆盖升级与数据保留、远端 GitHub Actions / Release、签名身份及证书链仍待外部验收。未提交、推送、签名、创建 tag 或发布；V1.0 保持 `needs-verification`。
+
+**V1.0 Phase 5 更新清单门禁与 smoke 缓存隔离（2026-10-02；未发布）**：
+
+* `desktop/scripts/verify-release.mjs` 新增 `--prepared-update-assets` 模式：校验合并后的 `latest.yml` 同时引用 x86_64 / aarch64 安装包和旧客户端 `x64` / `arm64` 查询别名，默认路径指向 x86_64，并核对 `latest-win-x86_64.yml` 与 `latest-win-aarch64.yml` 的版本、文件路径、SHA-512 和大小。
+* `.github/workflows/package.yml` 在 `prepare-windows-update.mjs` 后、上传 Release 资产前调用该模式。Claude Code 窄范围静态复审 job `j-ivjtur` 对照实际清单生成器与 workflow，结论为没有确认的 blocker；不代表真实 GitHub Actions 或 Release 已运行。
+* `git diff --check`、`node --check desktop/scripts/verify-release.mjs`、`pnpm exec eslint scripts/verify-release.mjs` 和 `pnpm verify:release` 均通过；本机包模式输出 `ALL CHECKS PASSED`。本机没有 aarch64 资产或 `latest-win-*` 清单，因此双架构 `--prepared-update-assets` 模式未执行；workflow 也未在 GitHub Actions 运行。本机未找到可用的 actionlint / YAML lint 工具。
+* smoke 清理复审发现首次启动会继承用户级共享 pip / uv 缓存，而重启才重定向到本次 workspace。现已在 `desktop/scripts/packaged-smoke.mjs` 为首启与重启共用 `<openfix-smoke-临时目录>/package-cache`，进程退出后的清理范围和 `--keep` 行为未改动。`node --check`、目标 ESLint 与目标 `git diff --check` 通过；按用户要求未重跑 smoke。
+* Claude Code job `j-3ec9i7` 确认 harness 只清理自身 `mkdtemp` workspace，进程未确认退出时保留目录；本次复核的 Windows Temp 下没有 `openfix-smoke-*`，之前清理的 5 个任务专用 UV 缓存仍不存在。本轮没有删除共享用户缓存、安装包、审计日志或数据库。
+* 本机用户级 pip cache 只读测量约 699 MB；它是跨项目共享目录，无法归因到 OpenFix smoke，因此未执行全局 purge。smoke 进程的运行时目录位于隔离安装目录，未来下载缓存也已定向到本次 workspace；没有发现属于 OpenFix 的遗留 smoke workspace。
+* 当前 x64 包 `j-fpiwyo` 的 63 项合成 smoke 证据继续有效；本次只改发布清单门禁与 smoke harness 缓存环境，未重打包或重跑 smoke。真实供应商用户链路、干净 Windows 11 旧版覆盖升级与数据保留、远端 GitHub Actions / Release、Windows 签名身份及证书链仍未验收。没有提交、推送、签名、创建 tag 或发布；V1.0 保持 `needs-verification`。
+
+**V1.0 续作状态核对（2026-10-02；只更新记录）**：
+
+* 用户说明 Claude Code 通过第三方 API 接入，不要求网页登录；此前记录的登录困难不再是当前 blocker。三项只读 Claude Code 审计 j-j8to3s、j-g2iu09、j-883m9x 均已完成：PRD §20 原文与 AI 分析功能已在当前代码实现；Story Memory 确认隐藏笔记泄漏；Phase 5 确认 package 自动发布保护及 CI 完整 verifier 覆盖缺口。
+* 独立审计曾报告一致性问题卡缺少“查看原文”和“AI 分析”，但当前未提交工作树中两项操作均已实现：前端展示服务端返回的正文来源片段，并通过 consistency analyze API 复核问题；后端测试源码覆盖来源定位与分析请求。该审计缺口结论已用当前文件读回修正。
+* smoke 首启缓存环境隔离已写入脚本并通过两份静态复核；63 项通过的 j-fpiwyo 回放早于这次脚本级环境注入，不能作为新修订运行证据。根据用户要求，本轮没有重跑 smoke。
+* 当前可继续验证的本机代码 / 静态路径之外，正式 V1.0 仍缺真实供应商用户链路、干净 Windows 11 旧版覆盖升级与数据保留、远端 GitHub Actions / 双架构 Release、Windows 签名身份与证书链。V1.0 仍为 needs-verification；没有提交、推送、签名、创建 tag 或发布。
+
+**Phase 5 发布门禁审阅补强（2026-10-02；本机修改，未发布）**：
+
+* Claude Code 只读审计 j-883m9x 确认两项发布接线缺口：tagged Windows x64 package job 没有执行完整 package verifier；本地 package script 没有限制 electron-builder 的发布行为。
+* 已为桌面 package script 增加 --publish never，避免常规打包命令在 tagged checkout 上自行发布；Release workflow 在 Windows x64 包完成架构命名后、上传工件前运行完整 pnpm verify:release。已有合并双架构更新清单的 --prepared-update-assets 检查仍在 gh release upload 前运行。
+* 本机 x64 包的完整发布静态校验输出 ALL CHECKS PASSED；目标文件 git diff --check 通过。未运行测试、构建、smoke 或远端 Actions。
+* 独立审阅还确认当前未签名包缺少 publisherName 时会跳过 Authenticode publisher 校验；签名身份与证书链必须在外部签名验收时补齐，当前未签名产品仍不能视为正式发布。
+* 本地 V1 需求复审 job j-j8to3s 已确认一致性“查看原文”和“AI 分析”已有完整接线与 API 测试。Story Memory 隐藏 / 新鲜度审计 j-g2iu09 与 Phase 5 spec review j-v4r5bc 均已完成；隐藏笔记问题及 Phase 5 修改的复核证据见下节。V1.0 仍为 needs-verification。
+
+**V1.0 Story Memory 隐藏笔记可见性修复与本机回归（2026-10-02；未发布）**：
+
+* Claude Code 审计 j-g2iu09 确认：隐藏笔记此前会进入 Story Memory 索引和状态计数；隐藏切换不改变未过滤的索引指纹，Agent 搜索与一致性上下文可能继续使用旧正文。
+* 修复仅落在 Story Memory 既有所有者：文档构建和笔记计数显式排除隐藏笔记；搜索结果 hydration 即时拒绝隐藏笔记，即使索引被报告为 fresh；一致性检查复用同一 freshness 指纹，在检索前后发现隐藏状态变化时丢弃旧上下文。
+* 新增两条回归测试：`test_hidden_note_excluded_from_story_memory_and_invalidates_fingerprint` 与 `test_search_story_memory_drops_currently_hidden_note`。定向 pytest job `j-5tua8z` 退出 0，**33 passed**，包含隐藏状态后的计数、stale 指纹与输出泄漏哨兵。
+* 另行运行一致性索引过期保护用例 `tests/api/test_consistency.py::test_story_memory_context_drops_results_when_index_goes_stale`，**1 passed**；检索期间 freshness 变 stale 时一致性上下文不会带出旧结果。
+* `uv run ruff check` 四个目标文件、`uv run ty check app`、跟踪文件 `git diff --check` 均通过。Claude Code 规格复核 `j-7j40k6` 与代码质量复核 `j-6w3k25` 均 PASS；Phase 5 规格复核 `j-v4r5bc` 与代码质量复核 `j-1equ2e` 均 PASS。
+* 本轮没有重跑 packaged smoke。合成 x64 smoke 证据仍为既有 job `j-fpiwyo`，不能证明本次后端源代码变更已打入新安装包。真实供应商链路、干净 Windows 11 旧版覆盖升级与数据保留、真实 GitHub Actions / 双架构 Release、Windows 签名身份及证书链仍未验收。
+* V1.0 正式状态仍为 `needs-verification`。没有提交、推送、创建 tag、签名或发布。
+
+**V1.0 续作：当前源码门禁与 x64 本机包（2026-10-02；未发布，未重跑 smoke）**：
+
+* 后端 `uv run ruff check . && uv run ty check app && uv run pytest -q` 通过，完整套件 **1884 passed**（FastCtx job `j-ygbcaf`）。
+* 前端 `pnpm lint && pnpm type-check && pnpm build` 通过：429 个文件零 lint / 类型错误，production build 成功；桌面 `pnpm lint && pnpm type-check` 与 `pnpm build` 也通过（jobs `j-hgt5fn`、`j-ex6kxv`、`j-g2uxy0`）。前端和桌面打包仍报告大 chunk 警告。
+* 当前工作树重新生成 Windows x64 安装包与 ZIP：EXE 158,042,781 bytes，SHA-256 `01294e379ea45c995575e83d9e87d4d89632e2784d83ad2a6994bad1dc3925df`；ZIP 188,478,015 bytes，SHA-256 `ff9a8570fdfb2369943ccdebebda9010cdb4aa257f7944b62ba29e6bce036b08`。`pnpm verify:release` 在新包上输出 `ALL CHECKS PASSED`（job `j-vrh34h`）。
+* 第一次打包在共享 uv cache 的临时文件限额处停止，未进入 Electron Builder；改用本次专用 `UV_CACHE_DIR` 后打包成功。专用缓存仅 2.1 MB，任务结束后已删除；没有清理共享 uv / pip cache。Windows Temp 下无 `openfix-smoke-*` 目录，此前清理的 smoke 专用缓存仍不存在。
+* 历史 `j-fpiwyo` 的 63 项 PASS 属于旧 EXE 与旧 harness；当前源代码包未重新运行 packaged smoke，按用户此前要求不重跑。因此该新安装包只有构建和 x64 静态 release verifier 证据，没有运行时 smoke 证据。构建日志有通用 signtool 阶段，但当前没有签名身份和证书链验证，本记录不将包描述为已签名。
+* 本地源码和包静态门禁通过，但正式 V1.0 仍为 `needs-verification`：真实供应商用户链路、干净 Windows 11 旧版覆盖升级及数据保留、远端 GitHub Actions 与双架构 Release、Windows 签名身份及证书链仍需实际验收。没有提交、推送、创建 tag、签名或发布。
+
+**V1.0 Phase 5 Release 版本护栏（2026-10-03；未发布）**：
+
+* Release 工作流现在把 tag 派生版本传给桌面打包校验和双架构清单校验，并与 `desktop/package.json` 版本比对；版本缺失时 GitHub Actions 会失败，避免将旧版本安装包写入新版本 Release。版本清单校验和内置后端 wheel 校验继续绑定到同一桌面版本。
+* 桌面包校验位于安装包上传前，双架构清单校验位于更新资产上传前。本地未设置 tag 版本环境变量时，原有 `pnpm verify:release` 行为不变。
+* Claude Code 规格与质量复审通过；`node --check`、目标 `git diff --check` 和本机 x64 `pnpm verify:release` 均通过。未执行测试、构建、smoke、双架构正向门禁、GitHub Actions、tag 或 Release。
+* 当前 x64 包仍未运行 smoke；真实供应商、干净 Windows 11 覆盖升级及数据保留、远端双架构 Release、签名身份与证书链仍未验收，V1.0 保持 `needs-verification`。
+
+**V1.0 本地开发里程碑提交检查（2026-10-03）**：
+
+* 用户最新指令明确授权本地提交。提交范围为 OpenFix 仓库内既有 V1.0 创作工作流、人物 / 世界设定 / 项目与章节扩展、Story Memory、AI 候选与上下文保护、一致性检查、回滚保护、PNG 品牌资源及 Phase 5 发布护栏；继续保留外层 ai-novel 仓库和 OpenFic 上游的原状。
+* 本次全量后端检查发现迁移链测试仍期待 `1027`，而跨卷章节回滚修复已经新增 `1028`。测试现明确校验 `1028 → 1027 → 1026` 及唯一迁移头；目标测试 3 passed，Ruff / ty 通过，重新运行完整套件 **1889 passed**（FastCtx job `j-taig3r`）。
+* 前端 `pnpm lint && pnpm type-check` 通过，429 个文件零警告 / 错误（job `j-v44ehv`）。桌面 `pnpm lint && pnpm type-check && pnpm build` 通过（job `j-9za1x2` 的单测前各阶段）；该 build 同时完成前端 production build、setup renderer 和 main TypeScript 编译，保留既有大 chunk warning。
+* 桌面 archive / data-manager 测试以 Windows 自带 tar 复跑 **12 passed**，覆盖真实备份 / 恢复、运行时备份排除、迁移与路径边界。Git Bash PATH 中的 tar 不接受这些原生 Windows 路径；相对符号链接用例在本机遭遇 EPERM，因缺少创建符号链接权限而单独排除，不能算该用例通过。
+* `pnpm verify:release` 在已有 x64 产物上输出 **ALL CHECKS PASSED**；本次没有重新打包或运行 packaged smoke，静态校验不证明这些最新源码修订已经进入安装包。`git -c core.whitespace=cr-at-eol diff --check` 通过，保留既有混合行尾，不进行整文件格式化。提交候选路径和常见凭据模式检查未发现 API 密钥、数据库、安装包或临时缓存。
+* 当前源码仍需继续处理的审阅边界：项目属性查询失败后仍可能以空 genre / target 写入；项目页及 onboarding 的空白创建在 profile PUT 在途时可能重复提交；人物 / 世界书的项目深链可能被异步初始化覆盖，且前 100 项以外的有效项目会被忽略；portable Python 尚未支持发布矩阵中的 Windows / Linux ARM64；非 Windows 发布任务仍需保证带入 fork backend wheel；恢复不含 runtime 的备份时须保留现有运行时。这些属于仓库内剩余工作，本地提交不会把它们自动关闭。
+* 前端只读复核已由协调者核对相关源码，确认上述属性失败保护、重复创建窗口及深链选择问题；当前未从源码证实角色资料串写或建议页必然卡死，未执行对应运行时验收。
+* 正式 V1.0 仍为 `needs-verification`：真实供应商用户链路、干净 Windows 11 旧版覆盖升级与原数据保留、真实双架构 GitHub Actions / Release、Windows 签名身份与证书链，以及当前安装包运行证据仍待完成。后续继续按 §42 与 Phase 5 计划推进，本次提交保存当前开发进度。
 

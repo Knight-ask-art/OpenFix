@@ -54,6 +54,7 @@ import {
   removeDataDir,
   restoreDataDir,
 } from "./data-manager.js";
+import type { BackupDataOptions } from "./data-manager.js";
 import { cancelUpdateDownload, checkForUpdates, downloadUpdate, getUpdateState, installUpdate, openUpdateRelease } from "./updater.js";
 import { createStartupProgressTracker, getStartupProgress } from "./startup-progress.js";
 import { appendLog, exportLogs } from "./logging.js";
@@ -139,6 +140,13 @@ async function isRuntimeDirShared(
     ) return true;
   }
   return false;
+}
+
+async function getBackupDataOptions(dataDir: string, runtimeDir: string): Promise<BackupDataOptions> {
+  if (await arePathsEqual(path.dirname(runtimeDir), dataDir)) {
+    return { excludedTopLevelEntries: [path.basename(runtimeDir)] };
+  }
+  return {};
 }
 
 async function assertSafeRuntimeDataPaths(instancePaths: LocalInstanceDeletionPaths): Promise<void> {
@@ -277,6 +285,7 @@ export function registerIpc(context: IpcContext): void {
             targetPath,
             (message) => appendLog("data", message),
             (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
+            await getBackupDataOptions(target.dataDir, target.runtimeDir),
           );
           await rotateAutoBackups(target.settings.dir ?? "", target.settings.keep);
           appendLog("data", `auto backup done: ${fileName}`);
@@ -638,8 +647,13 @@ export function registerIpc(context: IpcContext): void {
         const emitProgress = (event: DataProgressEvent) =>
           context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
         appendLog("data", `开始备份数据目录：${resolveDataDir(instance)} -> ${request.targetPath}`);
-        await backupDataDir(resolveDataDir(instance), request.targetPath, (message) => appendLog("data", message), (phase, progress) =>
-          emitProgress({ operation: "backup", phase, progress }),
+        const dataDir = resolveDataDir(instance);
+        await backupDataDir(
+          dataDir,
+          request.targetPath,
+          (message) => appendLog("data", message),
+          (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
+          await getBackupDataOptions(dataDir, resolveRuntimeDir(instance.installDir)),
         );
         appendLog("data", `备份完成：${request.targetPath}`);
       });
@@ -683,6 +697,10 @@ export function registerIpc(context: IpcContext): void {
             targetPath,
             (message) => appendLog("data", message),
             (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
+            await getBackupDataOptions(
+              resolveDataDir(instance),
+              resolveRuntimeDir(instance.installDir),
+            ),
           );
           await rotateAutoBackups(settings.dir, settings.keep);
           appendLog("data", `auto backup done: ${fileName}`);

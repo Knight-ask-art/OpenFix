@@ -582,6 +582,9 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
         ), patch(
             "app.agent_runtime.tools.impls.chapter.delete_chapter.chapter_repo"
         ) as mock_repo, patch(
+            "app.agent_runtime.tools.impls.chapter.delete_chapter.capture_chapter_extensions",
+            AsyncMock(return_value={"version": 1}),
+        ), patch(
             "app.agent_runtime.tools.impls.chapter.delete_chapter.record_chapter_diffs",
             AsyncMock(return_value=["chap-1"]),
         ), patch(

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "openfix-v1-completion-20261002",
+  "requiredBaselineRefs": [
+    "新版本/docs/02-prd-v1.md §§17-20,33",
+    "新版本/docs/03-source-change-list.md §42",
+    "OPENFIX.md §§240-302",
+    "HEAD 958efb79c103b05cc9a59405a16bbce2e714d1cd / feature/branding"
+  ],
+  "deliveredContextRefs": [],
+  "acknowledgedBeforePlanRefs": [
+    "新版本/docs/02-prd-v1.md §§17-20,33",
+    "新版本/docs/03-source-change-list.md §42",
+    "OPENFIX.md §§240-302",
+    "HEAD 958efb79c103b05cc9a59405a16bbce2e714d1cd / feature/branding"
+  ],
+  "citedInPlanRefs": [
+    "新版本/docs/02-prd-v1.md §§17-20,33",
+    "新版本/docs/03-source-change-list.md §42",
+    "OPENFIX.md §§240-302",
+    "HEAD 958efb79c103b05cc9a59405a16bbce2e714d1cd / feature/branding"
+  ],
+  "missingRefs": [],
+  "decision": "continue"
+}

@@ -1,0 +1,84 @@
+.ai-tasks-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ai-tasks-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  padding: var(--space-5) var(--space-5) 0;
+}
+
+.ai-tasks-page__project-select {
+  min-width: 200px;
+}
+
+.ai-tasks-page__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  overflow-y: auto;
+}
+
+.ai-tasks-page__empty {
+  padding: var(--space-6);
+}
+
+/* 助手栏与其他页面一样固定在右侧，宿主尺寸决定浮层位置。 */
+.ai-tasks-page__assistant {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--gray-a4);
+  background: var(--color-background);
+}
+
+.ai-tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.ai-task-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+.ai-task-card:hover {
+  border-color: var(--accent-8);
+}
+
+.ai-task-card:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .ai-tasks-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ai-tasks-page__assistant {
+    display: none;
+  }
+}

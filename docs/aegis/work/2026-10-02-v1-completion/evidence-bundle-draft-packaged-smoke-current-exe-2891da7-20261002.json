@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "packaged-smoke-current-exe-2891da7-20261002",
+  "type": "packaged-smoke",
+  "source": "FastCtx job j-8wrmht output log; prior x64 EXE hash 2891da7d7cece1f41f1c601d610d6636e1295242c7c24345a254b13fd6a24044; current source package has newer hashes",
+  "summary": "The historical j-8wrmht attempt exited 1 with UI observation inconclusive, a confirmed 8-second OpenAPI harness timeout and cleanup EPERM. j-fpiwyo later replayed that same old package hash successfully with 63 synthetic checks. The current source has since been rebuilt into a new x64 package and this old-hash bundle is superseded for current package acceptance; retain the original failed attempt details.",
+  "verifier": "Primary agent; failed attempt log, later same-hash replay and current package chronology checked",
+  "sliceId": "packaged-smoke-current-exe-2891da7-20261002",
+  "evidenceStatus": "superseded",
+  "attempts": [
+    {
+      "attemptId": "j-8wrmht",
+      "attemptStatus": "failed",
+      "summary": "Current Windows x64 package smoke exited 1. The synthetic writing, AI candidate guard, consistency, Agent, DOCX, restart persistence, credential and backup checks passed. Initial frontend readiness was not observed through CDP /json although the backend recorded frontend initialization requests. The OpenAPI check used an 8 second client timeout; backend generation took 8.16 seconds, so the empty-route failures are a harness timeout false negative. Final cleanup returned EPERM; three exact Temp smoke directories were later removed after verifying no process referenced them.",
+      "evidenceRefs": [
+        "C:/Users/20969/.fastctx/jobs/j-8wrmht/output.log",
+        "Current package: desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe, sha256 2891da7d7cece1f41f1c601d610d6636e1295242c7c24345a254b13fd6a24044"
+      ],
+      "updatedAt": "2026-10-02"
+    }
+  ],
+  "attemptSummary": {
+    "failed": 1,
+    "attempted": 0,
+    "blocked": 0,
+    "total": 1,
+    "lastAttemptId": "j-8wrmht"
+  },
+  "updatedAt": "2026-10-02"
+}

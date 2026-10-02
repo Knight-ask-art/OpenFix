@@ -213,6 +213,111 @@ async def test_projects_compaction_marker_as_display_only_task_message(
 
 
 @pytest.mark.asyncio
+async def test_projects_latest_context_snapshots_as_hidden_sidecar_messages(
+    db_session: AsyncSession,
+    sample_task,
+) -> None:
+    sid = "session_projection_context_snapshot"
+    old_sources = [
+        {
+            "id": "chapter:order:2",
+            "category": "chapter",
+            "title": "旧章节",
+            "chapterOrder": 2,
+            "sourceTypes": ["chapterBody"],
+        }
+    ]
+    latest_sources = [
+        {
+            "id": "character:title:林洛",
+            "category": "character",
+            "title": "林洛",
+            "sourceTypes": ["characterProfile"],
+            "content": "不得投影",
+        }
+    ]
+    for index, sources in enumerate((old_sources, latest_sources)):
+        await repo.insert_message(
+            db_session,
+            session_id=sid,
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            role="system",
+            content="",
+            status="complete",
+            message_type="context_snapshot",
+            display_channel="hidden",
+            llm_visibility="hidden",
+            metadata={"kind": "agent_context_snapshot", "context_sources": sources},
+            message_id=f"context-snapshot-{index}",
+        )
+
+    messages = await load_task_messages_for_agent_session(db_session, sid)
+
+    assert [message.message_type for message in messages] == [
+        "context_snapshot",
+        "context_snapshot",
+    ]
+    latest = messages[-1]
+    assert latest.content == ""
+    assert latest.display_channel == "hidden"
+    assert latest.payload == {
+        "kind": "context_snapshot",
+        "context_sources": [
+            {
+                "id": "character:title:林洛",
+                "category": "character",
+                "title": "林洛",
+                "sourceTypes": ["characterProfile"],
+            }
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_context_snapshot_survives_parent_projection_with_subagent_dispatch(
+    db_session: AsyncSession,
+    sample_task,
+) -> None:
+    sid = "session_projection_parent_context_snapshot"
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="assistant",
+        agent_id="writer",
+        content="",
+        status="complete",
+        tool_calls=[
+            {
+                "id": "dispatch-writer-child",
+                "name": "dispatch_subagent",
+                "args": {"agent_key": "explore", "task": "读背景"},
+            }
+        ],
+    )
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="system",
+        agent_id="writer",
+        content="",
+        status="complete",
+        message_type="context_snapshot",
+        display_channel="hidden",
+        llm_visibility="hidden",
+        metadata={"context_sources": []},
+    )
+
+    messages = await load_task_messages_for_agent_session(db_session, sid)
+
+    assert [message.message_type for message in messages] == ["context_snapshot"]
+
+
+@pytest.mark.asyncio
 async def test_projection_filters_subagent_internal_rows_from_parent_session(
     db_session: AsyncSession,
     sample_task,

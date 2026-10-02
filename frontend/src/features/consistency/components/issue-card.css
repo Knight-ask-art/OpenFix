@@ -32,3 +32,20 @@
 .consistency-issue__suggestion {
   color: var(--gray-11);
 }
+
+.consistency-issue__sources,
+.consistency-issue__analysis {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.consistency-issue__source {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 11px;
+  border-left: 2px solid var(--accent-8);
+  border-radius: 0 var(--radius-2) var(--radius-2) 0;
+  background: var(--gray-a2);
+}

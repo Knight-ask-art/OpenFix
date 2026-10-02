@@ -32,7 +32,7 @@ extraResources:
     to: app-update.yml
 
 win:
-  icon: resources/icons/openfix.svg
+  icon: ../frontend/public/openfix-logo.png
   artifactName: OpenFix-${version}-win-${arch}.${ext}
   target:
     - nsis
@@ -45,7 +45,7 @@ nsis:
   artifactName: OpenFix-${version}-win-${arch}-setup.${ext}
 
 mac:
-  icon: resources/icons/openfix.svg
+  icon: ../frontend/public/openfix-logo.png
   artifactName: OpenFix-${version}-mac-${arch}.${ext}
   target:
     - dmg
@@ -54,7 +54,7 @@ mac:
   identity: null
 
 linux:
-  icon: resources/icons
+  icon: ../frontend/public/openfix-logo.png
   artifactName: OpenFix-${version}-linux-${arch}.${ext}
   synopsis: An AI writing workbench for long-form fiction
   description: OpenFix is a Windows-first AI writing workbench for long-form fiction, based on OpenFic.

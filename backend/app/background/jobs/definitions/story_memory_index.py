@@ -16,9 +16,10 @@ from app.background.runtime.context import JobContext
 from app.retrieval.service import OpenFicRetrievalService
 from app.retrieval.story_memory import (
     build_story_memory_documents,
+    fingerprint_story_memory_documents,
     story_memory_index_key,
 )
-from app.storage.repos import setting_repo
+from app.storage.repos import retrieval_index_repo, setting_repo
 
 SETTING_KEY_DEFAULT_EMBEDDING_MODEL = "default_embedding_model"
 
@@ -46,6 +47,7 @@ async def handle_story_memory_rebuild(context: JobContext) -> dict[str, int]:
         raise RuntimeError("default_embedding_model changed; start the rebuild again")
 
     documents = await build_story_memory_documents(context.session, project_id)
+    source_fingerprint = fingerprint_story_memory_documents(documents)
     embedding_client = await _build_embedding_client(
         context.session, metadata.embedding_model_ref_id
     )
@@ -55,6 +57,21 @@ async def handle_story_memory_rebuild(context: JobContext) -> dict[str, int]:
         documents,
         embedding_client,
     )
+    index_row = await retrieval_index_repo.get_by_index_key(
+        context.session, story_memory_index_key(project_id)
+    )
+    if index_row is not None:
+        # A partial rebuild must never certify the snapshot as fresh. If a
+        # source changes while embeddings are built, a later freshness check
+        # compares the live documents with this captured snapshot and reports
+        # stale until another rebuild succeeds.
+        index_row.source_fingerprint = (
+            source_fingerprint
+            if result.failed_count == 0
+            and result.succeeded_count == result.total_documents
+            else None
+        )
+        await retrieval_index_repo.update(context.session, index_row)
     await context.session.commit()
     logger.info(
         f"story memory rebuild done: project={project_id}, "

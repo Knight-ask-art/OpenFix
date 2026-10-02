@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections import deque
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -101,6 +102,116 @@ def test_llm_call_uses_build_context_when_config_provided() -> None:
     assert kwargs["agent_name"] == "writer"
     assert kwargs["state"]["transient_context_key"] == "v2"
     assert "transient_context_key" not in runtime_state
+
+
+@pytest.mark.asyncio
+async def test_react_agent_snapshots_only_sources_from_final_model_messages() -> None:
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[_NoopTool()],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=1,
+    )
+    fake_parts = [
+        ContextMessage(
+            role="assistant",
+            content="",
+            tool_calls=[
+                {
+                    "id": "call-read-chapter",
+                    "name": "read_chapter",
+                    "args": {"chapter_ref": {"type": "order", "value": 6}},
+                }
+            ],
+        ),
+        ContextMessage(
+            role="tool",
+            content=json.dumps(
+                {
+                    "success": True,
+                    "data": {
+                        "order": 6,
+                        "title": "雾中来信",
+                        "content": "source body remains in the model request only",
+                    },
+                },
+                ensure_ascii=False,
+            ),
+            tool_call_id="call-read-chapter",
+        ),
+    ]
+    context_snapshot_sink = AsyncMock()
+    agent_event_sink = AsyncMock()
+    model = Mock()
+    model.bind_tools.return_value = model
+    runtime_state: dict[str, object] = {
+        "session_id": "context-snapshot-parent",
+        "task_id": "task-1",
+        "project_id": "project-1",
+        "model_config": {"max_context_tokens": 8000},
+        "active_agent": "writer",
+        "is_completed": False,
+        "error": None,
+        "retry_count": 0,
+        "message_checkpoints": [],
+        "user_request": "继续写",
+        "installed_skill_ids": [],
+    }
+    graph = create_react_agent(config, model=model)
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent.build_context_parts",
+            new=AsyncMock(return_value=fake_parts),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.maybe_auto_compact",
+            new=AsyncMock(return_value=False),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.invoke_model_with_retry",
+            new=AsyncMock(return_value=AIMessage(content="完成")),
+        ) as invoke_model,
+    ):
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="继续写")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={
+                "configurable": {
+                    "runtime_state": runtime_state,
+                    "db_session": AsyncMock(),
+                    "thread_id": "context-snapshot-parent",
+                    "context_snapshot_sink": context_snapshot_sink,
+                    "agent_event_sink": agent_event_sink,
+                }
+            },
+        )
+
+    invoke_args = invoke_model.await_args
+    assert invoke_args is not None
+    model_messages = invoke_args.args[1]
+    assert any(isinstance(message, ToolMessage) for message in model_messages)
+    expected_snapshot = {
+        "session_id": "context-snapshot-parent",
+        "agent_id": "writer",
+        "context_sources": [
+            {
+                "id": "chapter:order:6",
+                "category": "chapter",
+                "title": "雾中来信",
+                "sourceTypes": ["chapterBody"],
+                "chapterOrder": 6,
+            }
+        ],
+    }
+    context_snapshot_sink.assert_awaited_once_with(expected_snapshot)
+    agent_event_sink.assert_awaited_once_with(
+        "agent:context_snapshot",
+        expected_snapshot,
+    )
 
 
 @pytest.mark.asyncio
@@ -677,7 +788,16 @@ def test_auto_compaction_stays_silent_below_threshold() -> None:
 
     mocked_compact.assert_not_awaited()
     mocked_invoke.assert_awaited_once()
-    assert events == []
+    assert events == [
+        (
+            "agent:context_snapshot",
+            {
+                "session_id": "s1",
+                "agent_id": "writer",
+                "context_sources": [],
+            },
+        )
+    ]
 
 
 def test_llm_call_marks_consumed_injected_user_messages_sent() -> None:

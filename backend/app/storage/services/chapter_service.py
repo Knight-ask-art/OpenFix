@@ -17,10 +17,13 @@ from app.memory.chapter.sequence import global_order_index
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
 from app.storage.repos import (
+    character_extension_repo,
+    chapter_meta_repo,
     chapter_repo,
     chapter_summary_repo,
     project_repo,
     volume_repo,
+    world_entry_meta_repo,
 )
 from app.storage.services import writing_activity_service
 
@@ -566,7 +569,10 @@ async def delete_chapter(
             session, project_id, affected_ranges
         )
 
-    # 删除章节
+    # 删除章节及其产品级附加信息
+    await chapter_meta_repo.delete_by_chapter(session, chapter.id)
+    await character_extension_repo.delete_states_for_chapters(session, [chapter.id])
+    await world_entry_meta_repo.remove_chapter_links(session, project_id, [chapter.id])
     await chapter_repo.delete(session, chapter)
 
     if record_activity:
@@ -642,6 +648,14 @@ async def delete_chapters_in_volume(session: AsyncSession, volume_id: str) -> No
             session, project_id, affected_ranges
         )
 
+    deleted_chapter_ids = [chapter.id for chapter in chapters]
+    await chapter_meta_repo.delete_by_chapters(session, deleted_chapter_ids)
+    await character_extension_repo.delete_states_for_chapters(
+        session, deleted_chapter_ids
+    )
+    await world_entry_meta_repo.remove_chapter_links(
+        session, project_id, deleted_chapter_ids
+    )
     await chapter_repo.delete_by_volume(session, volume_id)
     for chapter in chapters:
         await writing_activity_service.record_activity(

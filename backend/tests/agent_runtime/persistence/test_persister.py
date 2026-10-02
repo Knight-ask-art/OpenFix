@@ -61,6 +61,68 @@ async def test_persister_normal_chat_model_stream(
 
 
 @pytest.mark.asyncio
+async def test_persister_stores_only_sanitized_context_snapshot_metadata(
+    db_session: AsyncSession, db_session_factory, sample_task
+):
+    sid = "session_context_snapshot"
+    persister = MessagePersister(
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+    )
+
+    await persister.persist_context_snapshot(
+        {
+            "session_id": sid,
+            "agent_id": "writer",
+            "context_sources": [
+                {
+                    "id": "chapter:order:4",
+                    "category": "chapter",
+                    "title": "雨夜",
+                    "chapterOrder": 4,
+                    "sourceTypes": ["chapterBody"],
+                    "content": "正文不能存入快照",
+                    "prompt": "提示词不能存入快照",
+                }
+            ],
+        }
+    )
+    await persister.persist_context_snapshot(
+        {
+            "session_id": "another-session",
+            "context_sources": [],
+        }
+    )
+
+    messages = await repo.list_by_session(db_session, sid)
+    assert len(messages) == 1
+    snapshot = messages[0]
+    assert snapshot.role == "system"
+    assert snapshot.agent_id == "writer"
+    assert snapshot.content == ""
+    assert snapshot.message_type == "context_snapshot"
+    assert snapshot.display_channel == "hidden"
+    assert snapshot.llm_visibility == "hidden"
+    assert snapshot.metadata == {
+        "kind": "agent_context_snapshot",
+        "version": 1,
+        "context_sources": [
+            {
+                "id": "chapter:order:4",
+                "category": "chapter",
+                "title": "雨夜",
+                "sourceTypes": ["chapterBody"],
+                "chapterOrder": 4,
+            }
+        ],
+    }
+    assert "正文不能存入快照" not in json.dumps(snapshot.metadata, ensure_ascii=False)
+    assert "提示词不能存入快照" not in json.dumps(snapshot.metadata, ensure_ascii=False)
+
+
+@pytest.mark.asyncio
 async def test_persister_extracts_anthropic_text_content_blocks(
     db_session: AsyncSession, db_session_factory, sample_task
 ):

@@ -92,7 +92,8 @@
     "characters": "人物",
     "world": "世界",
     "storyMemory": "故事记忆",
-    "consistency": "检查"
+    "consistency": "检查",
+    "ai": "AI"
   },
   "home": {
     "title": "首页",
@@ -106,7 +107,10 @@
     "wordsUnit": "字",
     "activeDays_one": "{{count}} 天写作",
     "activeDays_other": "{{count}} 天写作",
-    "recentProjects": "最近项目"
+    "recentProjects": "最近项目",
+    "continueMeta": "{{words}} 字 · {{chapters}} 章",
+    "continueLastOpened": "最近打开：{{time}}",
+    "openOverview": "项目概览"
   },
   "settingsAdvanced": {
     "advancedGroup": "高级",
@@ -165,6 +169,7 @@
     "deleteConfirmation": "确定要删除「{{title}}」吗？此操作不可撤销。",
     "projectUpdated": "项目更新成功",
     "projectCreated": "项目创建成功",
+    "profileUpdateFailed": "项目已保存，但类型与预计字数保存失败，请稍后在项目设置中重新填写",
     "updateFailed": "更新失败，请重试",
     "createFailed": "创建失败，请重试",
     "projectDeleted": "项目已删除",
@@ -229,7 +234,48 @@
     "created": "角色已创建",
     "deleted": "角色已删除",
     "nameExists": "角色名称已存在",
-    "updateFailed": "角色保存失败"
+    "updateFailed": "角色保存失败",
+    "editorViewLabel": "人物编辑视图",
+    "editorViewDescription": "人物描述",
+    "editorViewAuthor": "作者设定",
+    "authorProfile": "作者设定",
+    "authorProfileHint": "这些字段会随人物一起进入故事记忆，供 AI 检索。",
+    "saveAuthorProfile": "保存作者设定",
+    "authorProfileSaved": "作者设定已保存",
+    "authorProfileSaveFailed": "作者设定保存失败",
+    "currentState": "当前状态",
+    "currentStateHint": "记录人物当前所处的位置与状态；可按章节分别保存。",
+    "stateChapter": "状态所属章节",
+    "stateChapterProjectLevel": "项目级最新状态",
+    "saveCurrentState": "保存当前状态",
+    "currentStateSaved": "当前状态已保存",
+    "currentStateSaveFailed": "当前状态保存失败",
+    "stateHistory": "已保存 {{count}} 条状态记录",
+    "profile": {
+      "alias": "别名",
+      "age": "年龄",
+      "gender": "性别",
+      "identity": "身份",
+      "faction": "阵营",
+      "personality": "性格",
+      "appearance": "外貌",
+      "background": "背景",
+      "goal": "目标",
+      "motivation": "动机",
+      "fear": "恐惧",
+      "secret": "秘密",
+      "abilities": "能力",
+      "weakness": "弱点",
+      "arc": "人物弧"
+    },
+    "state": {
+      "location": "当前地点",
+      "physicalState": "身体状态",
+      "mentalState": "心理状态",
+      "goal": "当前目标",
+      "relationshipNote": "当前关系变化",
+      "notes": "备注"
+    }
   },
   "import": {
     "title": "导入项目",
@@ -282,7 +328,21 @@
     "titleRequired": "请输入项目标题",
     "titleTooLong": "标题不能超过 200 个字符",
     "descriptionLabel": "项目简介",
-    "descriptionPlaceholder": "输入项目简介（可选）"
+    "descriptionPlaceholder": "输入项目简介（可选）",
+    "genreLabel": "类型",
+    "genreUnset": "未选择",
+    "genres": {
+      "xuanhuan": "玄幻",
+      "fantasy": "奇幻",
+      "urban": "都市",
+      "scifi": "科幻",
+      "mystery": "悬疑",
+      "history": "历史",
+      "romance": "言情",
+      "other": "其他"
+    },
+    "targetWordCountLabel": "预计字数",
+    "targetWordCountPlaceholder": "例如：300000"
   },
   "coverCropper": {
     "cropCover": "裁剪封面",
@@ -582,7 +642,16 @@
         "rebuildSuccess": "索引重建任务已提交",
         "rebuildFailed": "索引重建失败"
       }
-    }
+    },
+    "chapterStatus": {
+      "label": "章节状态",
+      "draft": "草稿",
+      "writing": "写作中",
+      "revising": "待修改",
+      "done": "完成"
+    },
+    "chapterTarget": "本章目标",
+    "chapterTargetProgress": "{{current}} / {{target}} 字"
   },
   "editor": {
     "paragraph": "正文",
@@ -742,7 +811,37 @@
     "batchDeleteSelected": "删除所选项",
     "batchDeleteConfirm": "确定要删除这 {{count}} 个条目吗？此操作不可撤销。",
     "batchDeleted": "已删除 {{count}} 个条目",
-    "batchToggled": "已更新 {{count}} 个条目"
+    "batchToggled": "已更新 {{count}} 个条目",
+    "editorViewLabel": "条目编辑视图",
+    "editorViewContent": "条目内容",
+    "editorViewMeta": "设定信息",
+    "saveMeta": "保存设定信息",
+    "metaSaved": "设定信息已保存",
+    "metaSaveFailed": "设定信息保存失败",
+    "metaTypeSection": "设定类型",
+    "metaType": "类型",
+    "metaCustomType": "自定义类型名称",
+    "metaCustomTypePlaceholder": "例如：学派、禁忌",
+    "metaTags": "标签",
+    "metaTagsPlaceholder": "用逗号分隔，例如：北城、阴雨、主城",
+    "metaAiVisible": "对 AI 可见",
+    "metaAiVisibleHint": "关闭后该设定不会进入故事记忆检索，也不会提供给 AI。",
+    "metaLinksSection": "关联",
+    "metaLinkedCharacters": "关联人物",
+    "metaLinkedChapters": "关联章节",
+    "metaNoCharacters": "当前项目还没有人物。",
+    "metaNoChapters": "当前项目还没有章节。",
+    "entryTypes": {
+      "location": "地点",
+      "organization": "组织",
+      "nation": "国家",
+      "faction": "势力",
+      "rule": "规则",
+      "history": "历史",
+      "power_system": "能力体系",
+      "technology": "技术",
+      "custom": "自定义"
+    }
   },
   "settings": {
     "agentSettingsLocked": "Agent 会话运行中，相关设置暂不可修改。",
@@ -1918,6 +2017,41 @@
     "cachedTokens": "缓存 Tokens：{{count}}",
     "totalCost": "累计费用：$ {{cost}}",
     "contextUsage": "上下文占用",
+    "contextSources": {
+      "viewLabel": "Agent 侧边栏内容视图",
+      "conversationTab": "对话",
+      "contextTab": "上下文",
+      "panelLabel": "提供给 Agent 的资料与摘要",
+      "description": "最近一次模型输入中可识别的来源（{{count}} 项）。",
+      "empty": "最近一次模型输入中没有可识别的资料来源。",
+      "scopeNotice": "这里只显示最新一次模型输入的来源元数据：成功返回的资料读取和压缩后的对话摘要；不显示提示词、正文、当前选中章节或其他自动注入内容。",
+      "chapterTitle": "第 {{order}} 章 · {{title}}",
+      "chapterNumber": "第 {{order}} 章",
+      "chapterRange": "第 {{start}}–{{end}} 章摘要",
+      "categories": {
+        "conversation": "对话上下文",
+        "chapters": "章节",
+        "characters": "人物",
+        "worldEntries": "世界设定",
+        "outlines": "大纲",
+        "notes": "笔记"
+      },
+      "sources": {
+        "compactionSummary": "压缩后的对话摘要",
+        "chapterBody": "正文读取",
+        "chapterCatalog": "章节目录",
+        "chapterSearch": "章节检索",
+        "chapterSummary": "章节摘要",
+        "rangeSummary": "区间摘要",
+        "characterList": "人物列表",
+        "characterProfile": "人物资料",
+        "worldEntryList": "设定目录",
+        "worldEntryContent": "设定内容",
+        "noteList": "笔记目录",
+        "noteContent": "笔记内容",
+        "storyMemorySearch": "故事记忆检索"
+      }
+    },
     "loadingTask": "加载任务中...",
     "scrollToBottom": "回到底部",
     "summaryWarningTitle": "上下文摘要可能不完整",
@@ -2301,6 +2435,31 @@
       "replaceWith": "替换为",
       "result": "结果",
       "toolApprovalQuestion": "是否允许调用 {{toolName}}？"
+    },
+    "suggestions": {
+      "tab": "建议",
+      "panelLabel": "基于项目状态的建议",
+      "description": "以下建议根据当前项目的真实数据生成，只是入口，不会自动执行任何操作。",
+      "loading": "正在读取项目状态…",
+      "empty": "暂无建议。",
+      "loadFailed": "读取项目状态失败，暂时无法给出建议。",
+      "retry": "重新读取",
+      "scopeNotice": "这些只是可执行的入口，不会自动调用模型，也不会修改正文。",
+      "storyMemoryNotIndexed": "故事记忆尚未建立索引，AI 检索会缺少人物与世界设定。",
+      "storyMemoryStale": "故事记忆索引可能不是最新的，建议重建。",
+      "embeddingMissing": "尚未配置向量模型，故事记忆无法建立索引。",
+      "noCharacters": "已有正文但还没有人物，建议先建立人物卡。",
+      "noWorldEntries": "已有正文但还没有世界设定，建议补充世界观。",
+      "noOutlines": "已有正文但还没有大纲，建议先搭大纲。",
+      "consistencyHint": "可以按章节、卷或全书检查前后设定是否存在可能的问题。",
+      "aiTasksHint": "AI 页面提供继续写作、分析剧情等预设任务。",
+      "openStoryMemory": "打开故事记忆",
+      "openSettings": "打开设置",
+      "openCharacters": "打开人物",
+      "openWorld": "打开世界",
+      "openOutline": "打开大纲",
+      "openConsistency": "一致性检查",
+      "openAiTasks": "打开 AI 页面"
     }
   },
   "settingsExtra": {
@@ -2409,7 +2568,38 @@
     "delete": "删除",
     "deleteConfirm": "删除「{{title}}」及其全部子节点，无法恢复。",
     "deleteWithChildren_one": "含 {{count}} 个子节点",
-    "deleteWithChildren_other": "含 {{count}} 个子节点"
+    "deleteWithChildren_other": "含 {{count}} 个子节点",
+    "ai": {
+      "improve": "AI 完善大纲",
+      "checkPacing": "AI 检查节奏",
+      "splitChapters": "AI 拆分章节",
+      "updateFromChapter": "AI 根据正文更新大纲",
+      "pickChapter": "参考章节",
+      "noChapters": "该项目还没有章节，请先写正文。",
+      "chapterOption": "第 {{order}} 章 {{title}}",
+      "failed": "AI 请求失败，请稍后重试。",
+      "candidateTitle": "候选标题",
+      "candidateContent": "候选内容",
+      "notes": "说明：{{notes}}",
+      "pacingResult": "节奏检查结果",
+      "pacingNoIssues": "未发现明显的节奏问题。",
+      "pacingDisclaimer": "以上只是模型的初步观察，可能存在问题，请自行判断。",
+      "saveBeforeUsing": "大纲还有未保存的修改。请先保存，再运行或采纳 AI 建议。",
+      "splitRequiresVolume": "请先选择一个卷节点再拆分章节。",
+      "applyFailed": "保存失败，候选内容仍保留，请检查后重试。",
+      "severity": {
+        "info": "提示",
+        "warning": "可能存在问题",
+        "high": "建议重点检查"
+      },
+      "splitResult": "候选章节（{{count}} 条）",
+      "apply": "采纳并保存",
+      "applySplit": "创建为子节点",
+      "applySplitFailed": "创建子节点失败，请检查后重试。",
+      "applySplitPartial": "已创建 {{count}} 个子节点；剩余候选已保留，可重试。",
+      "regenerate": "重新生成",
+      "dismiss": "放弃"
+    }
   },
   "storyMemory": {
     "title": "故事记忆",
@@ -2434,6 +2624,7 @@
       "waiting": "待索引",
       "building": "索引中",
       "ready": "已索引",
+      "stale": "索引陈旧",
       "failed": "失败",
       "needsRebuild": "需要重建"
     }
@@ -2443,6 +2634,7 @@
     "check": "开始检查",
     "checking": "正在分析，请稍候…",
     "checkFailed": "检查失败",
+    "partialResultWarning": "有 {{count}} 段结果无法读取（第 {{segments}} 段）。下方只显示其余已完成段落的结果，请重新检查完整范围。",
     "idleHint": "选择章节后点击「开始检查」。",
     "disclaimer": "结果仅供参考：AI 只能提示可能存在的问题，请结合原文判断，可忽略或重新检查。",
     "noIssues": "未发现明显的一致性问题。",
@@ -2454,6 +2646,16 @@
     "dismissed": "已忽略",
     "restore": "恢复",
     "suggestionPrefix": "建议：",
+    "viewOriginal": "查看原文",
+    "hideOriginal": "收起原文",
+    "sourceUnavailable": "没有匹配到可定位的正文原文",
+    "sourceChapter": "第 {{order}} 章 · {{title}}",
+    "analyze": "AI 分析",
+    "analysisTitle": "问题复核",
+    "analyzingIssue": "正在复核这条问题…",
+    "analysisFailed": "AI 分析失败",
+    "analysisModel": "分析模型：{{model}}",
+    "close": "关闭",
     "untitledChapter": "未命名章节",
     "severity": {
       "info": "提示",
@@ -2468,8 +2670,19 @@
       "location": "地点",
       "world_rule": "世界观规则",
       "foreshadowing": "伏笔",
-      "naming": "称谓"
-    }
+      "naming": "称谓",
+      "character_info": "人物信息",
+      "item": "物品",
+      "character_state": "人物状态",
+      "plot": "前后剧情"
+    },
+    "scopeLabel": "检查范围",
+    "scope": {
+      "chapter": "当前章节",
+      "volume": "当前卷",
+      "book": "全书"
+    },
+    "resultSummaryScoped": "范围：{{scope}}（{{label}}，共 {{chapters}} 章）· 发现 {{count}} 个可疑点 · 模型：{{model}}"
   },
   "onboarding": {
     "title": "欢迎使用 OpenFix",
@@ -2482,7 +2695,7 @@
     "import": "导入已有小说",
     "importDesc": "支持 TXT、Markdown、DOCX 与 ZIP。",
     "inspire": "从灵感开始",
-    "inspireDesc": "先到大纲页梳理全书结构，再回来写正文。",
+    "inspireDesc": "输入一段灵感，由 AI 生成设定草案，经你确认后再保存。",
     "connectAI": "先了解如何连接 AI",
     "aiTitle": "连接 AI",
     "aiRecommend": "推荐使用 OpenAI、Claude、DeepSeek 或 Gemini 等兼容服务。",
@@ -2490,6 +2703,126 @@
     "aiAlreadyConfigured": "检测到你已配置模型，可以直接开始写作。",
     "aiOptional": "不连接 AI 也能正常写作，所有编辑功能都可用。",
     "gotIt": "我知道了",
-    "created": "项目已创建"
+    "created": "项目已创建",
+    "storySetup": {
+      "title": "AI 辅助搭建",
+      "intro": "写下你的灵感，AI 会生成故事简介、世界背景、主角草案、核心冲突与初始大纲。生成结果只是草案，未经你确认不会写入项目。",
+      "model": "模型：{{model}}",
+      "inspirationLabel": "你的灵感",
+      "inspirationPlaceholder": "例如：我想写一本近未来悬疑小说，主角是一名失去部分记忆的记者。",
+      "charCount": "{{count}} / {{max}}",
+      "generate": "生成草案",
+      "regenerate": "重新生成",
+      "generateFailed": "生成失败：{{reason}}",
+      "modelMissing": "尚未配置可用的写作模型。你可以先创建普通项目，稍后在设置中连接 AI。",
+      "unknownError": "请稍后重试。",
+      "backToCreate": "改用普通创建",
+      "reviewTitle": "确认要保存的内容",
+      "reviewHint": "可先编辑条目；只有点击创建后才会写入项目。取消勾选即可跳过该条目。",
+      "item": {
+        "synopsis": "故事简介",
+        "worldBackground": "世界背景",
+        "protagonist": "主角草案",
+        "coreConflict": "核心冲突",
+        "initialOutline": "初始大纲"
+      },
+      "itemSeparator": "、",
+      "protagonistName": "姓名",
+      "protagonistNamePlaceholder": "主角姓名",
+      "protagonistDescription": "人物设定",
+      "protagonistIdentity": "身份 / 职业",
+      "protagonistGoal": "人物目标",
+      "protagonistMotivation": "行动动机",
+      "projectSection": "项目信息",
+      "projectTitle": "小说名称",
+      "projectTitlePlaceholder": "给这本小说起个名字",
+      "projectTitleRequired": "请填写小说名称。",
+      "genre": "类型",
+      "targetWordCount": "预计字数",
+      "nothingSelected": "未勾选任何条目，将只创建一个空白项目。",
+      "create": "创建项目并保存所选内容",
+      "createFailed": "项目创建失败，请重试。",
+      "profileFailed": "项目已创建，但类型、简介或预计字数未能保存。你可以重试。",
+      "partialSaved": "项目已创建，但以下内容未能保存：{{items}}。可重试未完成的内容。",
+      "retry": "重试未完成的内容",
+      "openProject": "打开项目"
+    }
+  },
+  "aiTasks": {
+    "title": "AI 任务",
+    "description": "选择预设任务，内容会填入右侧 AI 对话框，由你确认后再发送。",
+    "noProject": "请先选择或创建一个项目。",
+    "promptInserted": "已填入 AI 对话框，请确认后发送。",
+    "footnote": "预设任务只会预填提示词，不会自动调用模型，也不会改动正文。",
+    "presets": {
+      "continueWriting": {
+        "title": "继续写作",
+        "description": "根据前文与设定续写下一段。",
+        "prompt": "请阅读当前章节与最近的剧情，给出接下来可以续写的内容方向，并说明依据。"
+      },
+      "analyzePlot": {
+        "title": "分析剧情",
+        "description": "梳理当前剧情走向与潜在问题。",
+        "prompt": "请分析目前的剧情走向：主要冲突是什么，节奏是否合理，有哪些线索还没有回收。"
+      },
+      "designCharacter": {
+        "title": "设计人物",
+        "description": "为故事补充一个合适的新角色。",
+        "prompt": "请根据现有世界观与剧情，设计一个可以推动故事的人物，给出身份、动机、与主角的关系。"
+      },
+      "buildWorld": {
+        "title": "完善世界观",
+        "description": "补充世界设定中缺失的部分。",
+        "prompt": "请检查现有世界设定，指出还缺少哪些关键设定，并给出补充建议。"
+      },
+      "checkConsistency": {
+        "title": "检查一致性",
+        "description": "检查前后设定是否存在可能的问题。",
+        "prompt": "请检查当前章节与人物、世界观设定之间是否存在可能的不一致。"
+      },
+      "summarizeChapter": {
+        "title": "总结章节",
+        "description": "为最近章节生成摘要。",
+        "prompt": "请总结最近几章的主要事件、人物状态变化和遗留的悬念。"
+      },
+      "analyzeRelationships": {
+        "title": "分析人物关系",
+        "description": "梳理人物之间的关系与变化。",
+        "prompt": "请根据已有内容，梳理主要人物之间的关系、立场与近期变化。"
+      },
+      "brainstorm": {
+        "title": "头脑风暴",
+        "description": "围绕剧情展开多个可选方向。",
+        "prompt": "请围绕当前剧情给出 5 个不同的发展方向，并分别说明优缺点。"
+      }
+    }
+  },
+  "projectOverview": {
+    "notFound": "未找到该项目。",
+    "continueWriting": "继续写作",
+    "stats": {
+      "words": "总字数",
+      "chapters": "章节数",
+      "characters": "人物数",
+      "worldEntries": "世界设定"
+    },
+    "progress": {
+      "title": "当前进度",
+      "volume": "当前卷：{{title}}",
+      "noVolume": "尚未创建卷。",
+      "words": "{{current}} / {{target}} 字",
+      "noTarget": "尚未设置预计字数，可在项目设置中补充。"
+    },
+    "chapterStatus": {
+      "title": "章节状态"
+    },
+    "recentCharacters": "最近人物",
+    "todo": {
+      "title": "待处理",
+      "revisingChapters": "{{count}} 个章节标记为待修改",
+      "storyMemory": "检查故事记忆索引是否最新",
+      "aiTasks": "使用 AI 预设任务推进写作"
+    },
+    "chapterCountNote": "当前项目共 {{count}} 个章节。"
   }
 }

@@ -27,10 +27,13 @@ from app.api.schemas.world_info import (
     WorldInfoImportPreviewEntry,
     WorldInfoImportPreviewResponse,
     WorldInfoEntryUpdate,
+    WorldEntryMetaListResponse,
+    WorldEntryMetaResponse,
+    WorldEntryMetaUpdateRequest,
 )
-from app.core.errors import NotFoundError
+from app.core.errors import NotFoundError, ValidationError
 from app.storage.database import get_session
-from app.storage.services import world_info_entry_service
+from app.storage.services import world_entry_meta_service, world_info_entry_service
 
 router = APIRouter(tags=["world-info"])
 
@@ -545,3 +548,83 @@ async def search_entries(
         )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+# ============== 世界设定扩展信息 ==============
+
+
+def _meta_to_response(meta) -> WorldEntryMetaResponse:
+    return WorldEntryMetaResponse(
+        entry_id=meta.entry_id,
+        project_id=meta.project_id,
+        entry_type=meta.entry_type,
+        custom_type_label=meta.custom_type_label,
+        tags=meta.tags,
+        linked_character_ids=meta.linked_character_ids,
+        linked_chapter_ids=meta.linked_chapter_ids,
+        ai_visible=meta.ai_visible,
+        updated_at=meta.updated_at,
+    )
+
+
+@router.get(
+    "/world-info-entries/{entry_id}/meta",
+    response_model=WorldEntryMetaResponse,
+    summary="获取世界设定扩展信息",
+)
+async def get_entry_meta(
+    entry_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WorldEntryMetaResponse:
+    """获取设定类型、标签、关联与 AI 可见性；未设置时返回默认值。"""
+    try:
+        meta = await world_entry_meta_service.get_meta(session, entry_id)
+        return _meta_to_response(meta)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.put(
+    "/world-info-entries/{entry_id}/meta",
+    response_model=WorldEntryMetaResponse,
+    summary="更新世界设定扩展信息",
+)
+async def update_entry_meta(
+    entry_id: str,
+    data: WorldEntryMetaUpdateRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WorldEntryMetaResponse:
+    """更新设定类型、标签、关联人物 / 章节与 AI 可见性。"""
+    try:
+        meta = await world_entry_meta_service.update_meta(
+            session,
+            entry_id,
+            entry_type=data.entry_type,
+            custom_type_label=data.custom_type_label,
+            tags=data.tags,
+            linked_character_ids=data.linked_character_ids,
+            linked_chapter_ids=data.linked_chapter_ids,
+            ai_visible=data.ai_visible,
+        )
+        return _meta_to_response(meta)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get(
+    "/projects/{project_id}/world-entry-meta",
+    response_model=WorldEntryMetaListResponse,
+    summary="获取项目内世界设定扩展信息列表",
+)
+async def list_project_entry_meta(
+    project_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WorldEntryMetaListResponse:
+    """返回项目内已显式设置过扩展信息的条目。"""
+    metas = await world_entry_meta_service.list_meta_by_project(session, project_id)
+    return WorldEntryMetaListResponse(
+        items=[_meta_to_response(meta) for meta in metas],
+        total=len(metas),
+    )

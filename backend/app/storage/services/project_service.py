@@ -12,7 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import NotFoundError
 from app.core.storage import delete_cover_file, save_cover_file
 from app.storage.models.project import Project
-from app.storage.repos import chapter_repo, project_repo, volume_repo
+from app.storage.repos import (
+    character_extension_repo,
+    chapter_meta_repo,
+    chapter_repo,
+    project_profile_repo,
+    project_repo,
+    volume_repo,
+    world_entry_meta_repo,
+)
 from app.storage.services import task_service, volume_service
 from app.storage.services.revision_service import delete_revision_data_by_project
 
@@ -172,9 +180,16 @@ async def delete_project(session: AsyncSession, project_id: str) -> None:
     await task_service.delete_all_tasks(session, project_id)
     await delete_revision_data_by_project(session, project_id)
 
+    # 先删除扩展数据，避免外键与孤立记录
+    await character_extension_repo.delete_states_by_project(session, project_id)
+    await character_extension_repo.delete_profiles_by_project(session, project_id)
+    await world_entry_meta_repo.delete_by_project(session, project_id)
+
     # 删除项目下的所有章节
+    await chapter_meta_repo.delete_by_project(session, project_id)
     await chapter_repo.delete_by_project(session, project_id)
     await volume_repo.delete_by_project(session, project_id)
+    await project_profile_repo.delete_by_project(session, project_id)
 
     # 删除封面文件（如果存在）
     if project.cover_path:

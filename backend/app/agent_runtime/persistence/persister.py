@@ -11,6 +11,7 @@ from langgraph.errors import GraphInterrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.content_blocks import extract_reasoning_content, extract_text_content
+from app.agent_runtime.context.source_snapshot import sanitize_agent_context_sources
 from app.agent_runtime.persistence import repo
 from app.agent_runtime.persistence.child_runs import (
     get_child_run_agent_number,
@@ -333,6 +334,32 @@ class MessagePersister:
                 "node_status": node_status,
                 "current_node": payload.get("current_node"),
                 "previous_node": payload.get("previous_node"),
+            },
+        )
+
+    async def persist_context_snapshot(self, payload: dict) -> None:
+        """Persist only bounded labels from the final model input, never its text."""
+        if payload.get("session_id") != self.session_id:
+            return
+
+        agent_id = payload.get("agent_id")
+        if not isinstance(agent_id, str) or not agent_id:
+            agent_id = None
+        context_sources = sanitize_agent_context_sources(
+            payload.get("context_sources")
+        )
+        await self._write(
+            role="system",
+            status="complete",
+            content="",
+            agent_id=agent_id,
+            message_type="context_snapshot",
+            display_channel="hidden",
+            llm_visibility="hidden",
+            metadata={
+                "kind": "agent_context_snapshot",
+                "version": 1,
+                "context_sources": context_sources,
             },
         )
 

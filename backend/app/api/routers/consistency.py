@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Consistency Router - 章节一致性检查 API。"""
 
-from typing import Annotated
+from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.consistency import (
     ConsistencyCheckRequest,
     ConsistencyCheckResponse,
+    ConsistencyIssueAnalysisRequest,
+    ConsistencyIssueAnalysisResponse,
     ConsistencyIssueResponse,
+    ConsistencySourceResponse,
 )
 from app.background.llm.resolver import BackgroundModelUnavailableError
 from app.core.consistency import service as consistency_service
-from app.core.errors import ValidationError
+from app.core.errors import NotFoundError, ValidationError
 from app.storage.database import get_session
 
 router = APIRouter(tags=["consistency"])
@@ -34,12 +37,19 @@ async def check_consistency(
         result = await consistency_service.run_consistency_check(
             session,
             project_id=project_id,
+            scope=data.scope,
             chapter_id=data.chapter_id,
+            volume_id=data.volume_id,
             model_id=data.model_id,
         )
     except BackgroundModelUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except NotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
         ) from exc
     except ValidationError as exc:
@@ -50,17 +60,78 @@ async def check_consistency(
         ) from exc
 
     return ConsistencyCheckResponse(
+        scope=cast(Literal["chapter", "volume", "book"], result.scope),
+        label=result.label,
         chapter_id=result.chapter_id,
+        volume_id=result.volume_id,
+        chapter_count=result.chapter_count,
         model=result.model,
-        context_source=result.context_source,
+        context_source=cast(Literal["story_memory", "inventory"], result.context_source),
+        failed_segments=result.failed_segments,
         issues=[
             ConsistencyIssueResponse(
                 type=issue.type,
-                severity=issue.severity,
+                severity=cast(Literal["info", "warning", "high"], issue.severity),
                 message=issue.message,
                 evidence=issue.evidence,
                 suggestion=issue.suggestion,
+                sources=[
+                    ConsistencySourceResponse(
+                        chapter_id=source.chapter_id,
+                        chapter_order=source.chapter_order,
+                        chapter_title=source.chapter_title,
+                        excerpt=source.excerpt,
+                        quote=source.quote,
+                    )
+                    for source in issue.sources
+                ],
             )
             for issue in result.issues
         ],
+    )
+
+
+@router.post(
+    "/projects/{project_id}/consistency/analyze",
+    response_model=ConsistencyIssueAnalysisResponse,
+    summary="基于项目当前正文与资料复核一条一致性问题",
+)
+async def analyze_consistency_issue(
+    project_id: str,
+    data: ConsistencyIssueAnalysisRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ConsistencyIssueAnalysisResponse:
+    try:
+        result = await consistency_service.analyze_consistency_issue(
+            session,
+            project_id=project_id,
+            scope=data.scope,
+            chapter_id=data.chapter_id,
+            volume_id=data.volume_id,
+            issue_type=data.issue.type,
+            severity=data.issue.severity,
+            message=data.issue.message,
+            evidence=data.issue.evidence,
+            suggestion=data.issue.suggestion,
+        )
+    except BackgroundModelUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except NotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except ValidationError as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    return ConsistencyIssueAnalysisResponse(
+        model=result.model,
+        analysis=result.analysis,
     )

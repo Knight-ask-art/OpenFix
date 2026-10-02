@@ -12,6 +12,7 @@ from app.storage.models.project import Project
 from app.storage.models.volume import Volume
 from app.storage.models.world_info import WorldInfo
 from app.storage.models.world_info_entry import WorldInfoEntry
+from app.storage.models.world_entry_meta import WorldEntryMeta
 
 
 async def _seed_story_graph(session) -> tuple[Volume, Chapter]:
@@ -194,6 +195,49 @@ async def test_compile_canonical_mentions_supports_note_world_info_and_character
         f" @world_info_entry:{world_entry.name} \n"
         f" @character:{character.name} "
     )
+
+
+@pytest.mark.asyncio
+async def test_hidden_world_entry_mentions_do_not_include_title_or_snapshot(session):
+    _note, world_entry, _character = await _seed_note_world_and_character(session)
+    session.add(
+        WorldEntryMeta(
+            entry_id=world_entry.id,
+            project_id="proj_mentions_extra",
+            ai_visible=False,
+        )
+    )
+    await session.commit()
+
+    compiled = await compile_canonical_mentions(
+        (
+            '<of-mention world_info_entry_id="wie_mentions" />\n'
+            '<of-mention world_info_entry_id="wie_mentions" line_start="1" '
+            'line_end="2">隐藏快照内容不可进入模型。</of-mention>'
+        ),
+        session,
+    )
+
+    assert compiled.count("[世界设定已对 AI 隐藏]") == 2
+    assert world_entry.name not in compiled
+    assert "背景一" not in compiled
+    assert "隐藏快照内容不可进入模型" not in compiled
+
+
+@pytest.mark.asyncio
+async def test_world_entry_mentions_without_session_fail_closed():
+    compiled = await compile_canonical_mentions(
+        (
+            '<of-mention world_info_entry_id="wie_no_session" label="秘密设定名" />\n'
+            '<of-mention world_info_entry_id="wie_no_session" line_start="1" '
+            'line_end="2" label="秘密设定名">秘密快照正文不可进入模型。</of-mention>'
+        ),
+        None,
+    )
+
+    assert compiled.count("[世界设定已对 AI 隐藏]") == 2
+    assert "秘密设定名" not in compiled
+    assert "秘密快照正文不可进入模型" not in compiled
 
 
 @pytest.mark.asyncio

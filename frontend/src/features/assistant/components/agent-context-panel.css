@@ -1,0 +1,117 @@
+.agent-context-panel {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agent-context-panel__intro {
+  padding: 2px 0 10px;
+  border-bottom: 1px solid var(--gray-a4);
+}
+
+.agent-context-panel__description,
+.agent-context-panel__scope-note {
+  margin: 0;
+  color: var(--gray-11);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+}
+
+.agent-context-panel__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.agent-context-section {
+  min-width: 0;
+}
+
+.agent-context-section__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--gray-11);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.agent-context-section__count {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--gray-a3);
+  color: var(--gray-11);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.agent-context-section__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-context-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  border: 1px solid var(--gray-a4);
+  border-radius: 8px;
+  background: var(--color-background);
+}
+
+.agent-context-item__title {
+  overflow-wrap: anywhere;
+  color: var(--gray-12);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.agent-context-item__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.agent-context-source-tag {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--accent-a3);
+  color: var(--accent-11);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.agent-context-panel__empty {
+  margin: 4px 0;
+  padding: 14px 12px;
+  border: 1px dashed var(--gray-a5);
+  border-radius: 8px;
+  color: var(--gray-11);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  text-align: center;
+}
+
+.agent-context-panel__scope-note {
+  padding-top: 10px;
+  border-top: 1px solid var(--gray-a4);
+}

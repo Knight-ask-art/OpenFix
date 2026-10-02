@@ -33,6 +33,7 @@ from app.api.routers import (
     characters,
     chapter_context,
     chapter_exports,
+    chapter_meta,
     chapters,
     commands,
     consistency,
@@ -45,7 +46,9 @@ from app.api.routers import (
     model_providers,
     models,
     notes,
+    outline_ai,
     outlines,
+    project_profile,
     projects,
     prompt_chains,
     retrieval_index,
@@ -53,6 +56,7 @@ from app.api.routers import (
     settings,
     skill_reference_docs,
     skills,
+    story_setup,
     tasks,
     volumes,
     world_info,
@@ -709,10 +713,13 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix=app_settings.api_v1_prefix)
     app.include_router(runtime_config.router, prefix=app_settings.api_v1_prefix)
     app.include_router(projects.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(project_profile.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(chapter_meta.router, prefix=app_settings.api_v1_prefix)
     app.include_router(volumes.router, prefix=app_settings.api_v1_prefix)
     app.include_router(chapters.router, prefix=app_settings.api_v1_prefix)
     app.include_router(notes.router, prefix=app_settings.api_v1_prefix)
     app.include_router(outlines.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(outline_ai.router, prefix=app_settings.api_v1_prefix)
     app.include_router(commands.router, prefix=app_settings.api_v1_prefix)
     app.include_router(consistency.router, prefix=app_settings.api_v1_prefix)
     app.include_router(characters.router, prefix=app_settings.api_v1_prefix)
@@ -721,6 +728,7 @@ def create_app() -> FastAPI:
     app.include_router(settings.router, prefix=app_settings.api_v1_prefix)
     app.include_router(import_router.router, prefix=app_settings.api_v1_prefix)
     app.include_router(inline_ai.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(story_setup.router, prefix=app_settings.api_v1_prefix)
     app.include_router(model_providers.router, prefix=app_settings.api_v1_prefix)
     app.include_router(model_provider_catalog.router, prefix=app_settings.api_v1_prefix)
     app.include_router(models.router, prefix=app_settings.api_v1_prefix)

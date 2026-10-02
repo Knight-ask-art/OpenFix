@@ -171,3 +171,12 @@ async def test_transform_success_with_fake_model(
     assert audit_log.latency_ms >= 0
     assert audit_log.extra_data is not None
     assert "inline_ai_action" in audit_log.extra_data
+
+
+@pytest.mark.asyncio
+async def test_story_setup_generate_endpoint_is_removed(client: AsyncClient) -> None:
+    """story-setup 只保留 /draft 一个契约，旧的 /generate 不再提供。"""
+    response = await client.post(
+        "/api/v1/story-setup/generate", json={"inspiration": "近未来悬疑小说"}
+    )
+    assert response.status_code == 404

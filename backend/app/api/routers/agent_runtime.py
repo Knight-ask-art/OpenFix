@@ -111,6 +111,7 @@ TOOL_DISPLAY_ORDER = {
     "list_chapters": 7,
     "read_chapter": 8,
     "search_chapters": 9,
+    "search_story_memory": 9.5,
     "update_index": 10,
     "read_chapter_summaries": 11,
     "read_range_summaries": 12,

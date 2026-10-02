@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "openfix-v1-completion-20261002",
+  "taskIntentRef": "docs/aegis/work/2026-10-02-v1-completion/task-intent-draft.json",
+  "baselineRefs": [
+    "新版本/docs/03-source-change-list.md §42",
+    "docs/aegis/plans/2026-10-01-phase5-windows-release-updates.md"
+  ],
+  "scopeStatus": "当前源码验证通过并获用户明确本地提交授权；保存 V1 开发里程碑，仍继续完整 §42 目标。迁移唯一头已随跨卷回滚修复更新为 1028。",
+  "compatStatus": "保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。",
+  "retirementStatus": "仅同步迁移链测试与当前验收记录；未新增运行时实现或兼容分支，未清理用户数据。继续遵守不重跑 packaged smoke 的指令。",
+  "newRiskSignals": [
+    "当前源码已确认项目属性查询失败后的写入保护缺口、项目页及 onboarding 的 profile PUT 在途重复创建窗口、人物 / 世界书项目深链选择缺口及 ARM64 Python asset 支持缺口；非 Windows fork wheel 和 restore runtime 保护继续按原计划修复，不能只等待外部条件。",
+    "Windows 符号链接用例缺少本机权限，当前 x64 包未覆盖最新源码；外部供应商、升级、远端 release、签名和双架构环境仍待验收。"
+  ],
+  "decision": "needs-verification"
+}

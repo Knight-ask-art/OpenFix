@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
@@ -13,6 +14,21 @@ from app.agent_runtime.persistence import compaction_repo, repo as message_repo
 from app.agent_runtime.attachments import delete_attachments_for_message_ids
 from app.agent_runtime.persistence.child_runs import rollback_child_runs_for_parent_revisions
 from app.agent_runtime.persistence.model import AgentRunMessage
+from app.agent_runtime.revision_extensions import (
+    ENTITY_CHAPTER,
+    ENTITY_CHARACTER,
+    ENTITY_WORLD_ENTRY,
+    capture_chapter_extensions,
+    capture_character_extensions,
+    capture_world_entry_extensions,
+    delete_chapter_extensions,
+    delete_character_extensions,
+    delete_world_entry_extensions,
+    map_payloads,
+    restore_chapter_extensions,
+    restore_character_extensions,
+    restore_world_entry_extensions,
+)
 from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.storage.models.chapter import Chapter
@@ -21,6 +37,7 @@ from app.storage.models.commit import Commit
 from app.storage.models.note import Note
 from app.storage.models.note import NoteCategory
 from app.storage.models.revision import Revision
+from app.storage.models.revision_extension_snapshot import RevisionExtensionSnapshot
 from app.storage.models.revision_character_snapshot import RevisionCharacterSnapshot
 from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
 from app.storage.models.revision_note_snapshot import (
@@ -39,6 +56,7 @@ from app.storage.repos import (
     revision_character_snapshot_repo,
     revision_chapter_snapshot_repo,
     revision_content_blob_repo,
+    revision_extension_snapshot_repo,
     revision_note_snapshot_repo,
     revision_repo,
     revision_world_entry_snapshot_repo,
@@ -172,6 +190,7 @@ async def _snapshot_from_image(
         title=image.title,
         content=content,
         content_blob_id=content_blob_id,
+        volume_id=image.volume_id,
         word_count=image.word_count,
         chapter_order=image.order,
     )
@@ -207,6 +226,33 @@ async def _store_content(
     if content is None or len(content) < revision_content_blob_repo.INLINE_THRESHOLD:
         return content, None
     return None, await revision_content_blob_repo.put(session, content)
+
+
+async def _record_extension_snapshot(
+    session: AsyncSession,
+    *,
+    revision_id: str,
+    entity_type: str,
+    entity_id: str,
+    payload: dict | None,
+    capture: Callable[[], Awaitable[dict]],
+) -> None:
+    """在核心表快照之外记录 V1 扩展表负载。
+
+    删除类调用方必须在改动前捕获 ``payload`` 传进来：删除路径走到这里时扩展行
+    已经在同一事务里级联删掉了。未提供 ``payload`` 时说明核心行仍然存在
+    （新增 / 编辑路径），直接按当前库内状态捕获。
+    """
+    resolved = payload if payload is not None else await capture()
+    await revision_extension_snapshot_repo.create(
+        session,
+        RevisionExtensionSnapshot(
+            revision_id=revision_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            payload_json=json.dumps(resolved, ensure_ascii=False),
+        ),
+    )
 
 
 async def _commit_from_images(
@@ -327,6 +373,7 @@ async def record_chapter_diffs(
     project_id: str,
     before: dict[str, ChapterImage],
     after: dict[str, ChapterImage],
+    before_extensions: dict[str, dict] | None = None,
 ) -> list[str]:
     existing_snapshots = await revision_chapter_snapshot_repo.list_by_revision(
         session, revision_id
@@ -350,6 +397,17 @@ async def record_chapter_diffs(
                 await _snapshot_from_image(session, revision_id, project_id, chapter_id, old),
             )
             snapshotted.add(chapter_id)
+            if old is not None:
+                await _record_extension_snapshot(
+                    session,
+                    revision_id=revision_id,
+                    entity_type=ENTITY_CHAPTER,
+                    entity_id=chapter_id,
+                    payload=(before_extensions or {}).get(chapter_id),
+                    capture=lambda chapter_id=chapter_id: capture_chapter_extensions(
+                        session, project_id=project_id, chapter_id=chapter_id
+                    ),
+                )
     return affected
 
 
@@ -641,6 +699,7 @@ async def record_world_entry_diffs(
     project_id: str,
     before: dict[str, WorldEntryImage],
     after: dict[str, WorldEntryImage],
+    before_extensions: dict[str, dict] | None = None,
 ) -> list[str]:
     existing_snapshots = await revision_world_entry_snapshot_repo.list_by_revision(
         session, revision_id
@@ -659,6 +718,17 @@ async def record_world_entry_diffs(
                 await _snapshot_from_world_entry_image(session, revision_id, project_id, entry_id, old),
             )
             snapshotted.add(entry_id)
+            if old is not None:
+                await _record_extension_snapshot(
+                    session,
+                    revision_id=revision_id,
+                    entity_type=ENTITY_WORLD_ENTRY,
+                    entity_id=entry_id,
+                    payload=(before_extensions or {}).get(entry_id),
+                    capture=lambda entry_id=entry_id: capture_world_entry_extensions(
+                        session, entry_id=entry_id
+                    ),
+                )
     return affected
 
 
@@ -735,6 +805,7 @@ async def record_character_diffs(
     project_id: str,
     before: dict[str, CharacterImage],
     after: dict[str, CharacterImage],
+    before_extensions: dict[str, dict] | None = None,
 ) -> list[str]:
     existing_snapshots = await revision_character_snapshot_repo.list_by_revision(
         session, revision_id
@@ -753,6 +824,17 @@ async def record_character_diffs(
                 await _snapshot_from_character_image(session, revision_id, project_id, character_id, old),
             )
             snapshotted.add(character_id)
+            if old is not None:
+                await _record_extension_snapshot(
+                    session,
+                    revision_id=revision_id,
+                    entity_type=ENTITY_CHARACTER,
+                    entity_id=character_id,
+                    payload=(before_extensions or {}).get(character_id),
+                    capture=lambda character_id=character_id: capture_character_extensions(
+                        session, project_id=project_id, character_id=character_id
+                    ),
+                )
     return affected
 
 
@@ -782,6 +864,24 @@ async def _fallback_volume_id(session: AsyncSession, project_id: str) -> str:
     if not volumes:
         raise NotFoundError(f"项目缺少卷，无法恢复章节: {project_id}")
     return volumes[0].id
+
+
+async def _parking_order(
+    session: AsyncSession,
+    volume_id: str,
+    counters: dict[str, int],
+) -> int:
+    """为参与回滚的章节分配一个临时顺序（各卷从当前最大序号往后递增）。
+
+    删除 / 插入 / 跨卷移动都会连带改动同卷其它章节的 order，回滚时若直接把快照
+    里的 order 写回去，会与当时的库内状态撞 UNIQUE(volume_id, order)。因此先把
+    参与回滚的章节停到卷末尾，再用 ``chapter_repo.update_orders`` 一次性落回快照
+    顺序（与写入 / 移动章节时的两阶段做法一致）。
+    """
+    if volume_id not in counters:
+        counters[volume_id] = await chapter_repo.get_max_order(session, volume_id)
+    counters[volume_id] += 1
+    return counters[volume_id]
 
 
 async def _resolve_note_category_id(
@@ -864,6 +964,7 @@ async def rollback_revision_for_session(
     restore_by_category: dict[str, RevisionNoteCategorySnapshot] = {}
     restore_by_world_entry: dict[str, RevisionWorldEntrySnapshot] = {}
     restore_by_character: dict[str, RevisionCharacterSnapshot] = {}
+    extension_snapshots: list[RevisionExtensionSnapshot] = []
     for revision in revisions:
         snapshots = await revision_chapter_snapshot_repo.list_by_revision(
             session, revision.id
@@ -896,7 +997,13 @@ async def rollback_revision_for_session(
             restore_by_character.setdefault(
                 character_snapshot.character_id, character_snapshot
             )
+        extension_snapshots.extend(
+            await revision_extension_snapshot_repo.list_by_revision(session, revision.id)
+        )
 
+    chapter_extensions = map_payloads(extension_snapshots, ENTITY_CHAPTER)
+    character_extensions = map_payloads(extension_snapshots, ENTITY_CHARACTER)
+    world_entry_extensions = map_payloads(extension_snapshots, ENTITY_WORLD_ENTRY)
     restored_message_content = ""
     restored_attachments: list[dict] = []
     if target.user_message_id:
@@ -954,6 +1061,8 @@ async def rollback_revision_for_session(
     affected_volume_ids: set[str] = set()
     deletes = [item for item in restore_by_chapter.values() if not item.exists]
     upserts = [item for item in restore_by_chapter.values() if item.exists]
+    parking_counters: dict[str, int] = {}
+    restored_orders: dict[str, int] = {}
     for snapshot in [*deletes, *upserts]:
         affected.append(snapshot.chapter_id)
         current = await chapter_repo.get_by_id(session, snapshot.chapter_id)
@@ -966,6 +1075,13 @@ async def rollback_revision_for_session(
         if after_image is None:
             if current is not None:
                 await chapter_repo.delete(session, current)
+            # 章节 service 删除时会级联清理扩展行；回滚直接走 repo，必须自行清理，
+            # 顺带清掉修复前遗留的孤立扩展行（无匹配时是空操作）。
+            await delete_chapter_extensions(
+                session,
+                project_id=snapshot.project_id,
+                chapter_id=snapshot.chapter_id,
+            )
         elif current is None:
             volume_id = after_image.volume_id or await _fallback_volume_id(
                 session, after_image.project_id
@@ -979,18 +1095,31 @@ async def rollback_revision_for_session(
                     title=after_image.title,
                     content=after_image.content,
                     word_count=after_image.word_count,
-                    order=after_image.order,
+                    order=await _parking_order(session, volume_id, parking_counters),
                 ),
             )
+            restored_orders[after_image.id] = after_image.order
         else:
+            parking_volume_id = after_image.volume_id or current.volume_id
+            parking_order = await _parking_order(
+                session, parking_volume_id, parking_counters
+            )
             if after_image.volume_id:
                 current.volume_id = after_image.volume_id
             current.title = after_image.title
             current.content = after_image.content
             current.word_count = after_image.word_count
-            current.order = after_image.order
+            restored_orders[after_image.id] = after_image.order
+            current.order = parking_order
             current.updated_at = datetime.now(UTC)
             await chapter_repo.update_chapter(session, current)
+        if after_image is not None:
+            await restore_chapter_extensions(
+                session,
+                project_id=snapshot.project_id,
+                chapter_id=snapshot.chapter_id,
+                payload=chapter_extensions.get(snapshot.chapter_id, {}),
+            )
         if _has_changed(before_image, after_image):
             await commit_repo.create(
                 session,
@@ -1010,6 +1139,9 @@ async def rollback_revision_for_session(
                 before=before_image,
                 after=after_image,
             )
+
+    if restored_orders:
+        await chapter_repo.update_orders(session, restored_orders)
 
     for volume_id in affected_volume_ids:
         await refresh_volume_chapter_count(session, volume_id)
@@ -1098,6 +1230,7 @@ async def rollback_revision_for_session(
         if after_entry_image is None:
             if current_entry is not None:
                 await world_info_entry_repo.delete(session, current_entry)
+            await delete_world_entry_extensions(session, entry_id=entry_snapshot.entry_id)
         elif current_entry is None:
             await world_info_entry_repo.create(
                 session,
@@ -1122,7 +1255,20 @@ async def rollback_revision_for_session(
             current_entry.is_enabled = after_entry_image.is_enabled
             current_entry.updated_at = datetime.now(UTC)
             await world_info_entry_repo.update_entry(session, current_entry)
+        if after_entry_image is not None:
+            await restore_world_entry_extensions(
+                session,
+                project_id=entry_snapshot.project_id,
+                entry_id=entry_snapshot.entry_id,
+                payload=world_entry_extensions.get(entry_snapshot.entry_id, {}),
+            )
 
+    # 人物状态可以绑定章节；章节在上面的循环里已按回滚结果增删，这里取回滚后的
+    # 章节集合，用于丢弃指向已删除章节的状态（与章节删除时的级联行为一致）。
+    existing_chapter_ids = {
+        chapter.id
+        for chapter in await chapter_repo.list_metadata_by_project(session, target.project_id)
+    }
     affected_characters: list[str] = []
     character_deletes = [item for item in restore_by_character.values() if not item.exists]
     character_upserts = [item for item in restore_by_character.values() if item.exists]
@@ -1135,6 +1281,11 @@ async def rollback_revision_for_session(
         if after_character_image is None:
             if current_character is not None:
                 await character_repo.delete(session, current_character)
+            await delete_character_extensions(
+                session,
+                project_id=character_snapshot.project_id,
+                character_id=character_snapshot.character_id,
+            )
         elif current_character is None:
             await character_repo.create(
                 session,
@@ -1152,6 +1303,14 @@ async def rollback_revision_for_session(
             current_character.is_favorited = after_character_image.is_favorited
             current_character.updated_at = datetime.now(UTC)
             await character_repo.update(session, current_character)
+        if after_character_image is not None:
+            await restore_character_extensions(
+                session,
+                project_id=character_snapshot.project_id,
+                character_id=character_snapshot.character_id,
+                payload=character_extensions.get(character_snapshot.character_id, {}),
+                existing_chapter_ids=existing_chapter_ids,
+            )
 
     await refresh_project_stats(session, target.project_id)
     await compaction_repo.delete_intersecting_or_after(

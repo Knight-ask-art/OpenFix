@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "packaged-smoke-harness-replay-20261002",
+  "type": "packaged-smoke",
+  "source": "FastCtx jobs j-gepsnv and j-fpiwyo on historical EXE hash 2891da7d7cece1f41f1c601d610d6636e1295242c7c24345a254b13fd6a24044; current source package has newer hashes",
+  "summary": "The 30-minute replay j-fpiwyo passed 63 synthetic checks on the recorded historical EXE hash, while the earlier 15-minute j-gepsnv attempt timed out during runtime installation. Later smoke harness cache-environment changes and current-source packaging occurred after these runs. The run remains evidence for its exact package and harness only and is superseded for current package acceptance; the newly generated x64 artifacts have not been smoke-tested.",
+  "verifier": "Primary agent; original attempt logs, later harness changes and current package hashes checked",
+  "sliceId": "packaged-smoke-harness-replay-20261002",
+  "evidenceStatus": "superseded",
+  "attempts": [
+    {
+      "attemptId": "j-gepsnv",
+      "attemptStatus": "failed",
+      "summary": "Current EXE hash 2891da7d7cece1f41f1c601d610d6636e1295242c7c24345a254b13fd6a24044 timed out during fresh-profile runtime installation after 15 minutes. Frontend and backend checks could not run. Workspace cleanup hit EPERM once, retried and passed; Temp directory and job processes were verified absent.",
+      "evidenceRefs": [
+        "C:/Users/20969/.fastctx/jobs/j-gepsnv/output.log"
+      ],
+      "updatedAt": "2026-10-02"
+    },
+    {
+      "attemptId": "j-fpiwyo",
+      "attemptStatus": "attempted",
+      "summary": "Current EXE SHA-256 2891da7d7cece1f41f1c601d610d6636e1295242c7c24345a254b13fd6a24044; replay used the 30-minute runtime-install bound and the run record directs PIP/UV cache to a per-run workspace. Job exited 0 with 63 PASS checks. Initial runtime installation completed after about 18 minutes; all synthetic V1 flows, restart persistence, backup, process shutdown, and automatic cleanup passed. The smokeSpawnEnv source change that explicitly sets cache variables for both app launches occurred later, so this replay does not verify that code-level change. The first cleanup attempt received EPERM, then the script retry removed the workspace successfully.",
+      "evidenceRefs": [
+        "C:/Users/20969/.fastctx/jobs/j-fpiwyo/output.log",
+        "post-run process and port checks; no openfix-smoke-* Temp directories; about 97 GB free on C:"
+      ],
+      "updatedAt": "2026-10-02"
+    }
+  ],
+  "attemptSummary": {
+    "failed": 1,
+    "blocked": 0,
+    "attempted": 1,
+    "total": 2,
+    "lastAttemptId": "j-fpiwyo"
+  },
+  "updatedAt": "2026-10-02"
+}

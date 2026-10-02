@@ -472,6 +472,32 @@ async def test_mentions_kind_filter_world_info_entry_only(client: AsyncClient) -
 
 
 @pytest.mark.asyncio
+async def test_mentions_omit_ai_hidden_world_entries(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+    world_info = (
+        await client.get(f"/api/v1/projects/{project_id}/world-info")
+    ).json()
+    entry = (
+        await client.post(
+            f"/api/v1/world-info/{world_info['id']}/entries",
+            json={"name": "作者秘密设定", "content": "隐藏正文"},
+        )
+    ).json()
+    await client.put(
+        f"/api/v1/world-info-entries/{entry['id']}/meta",
+        json={"ai_visible": False},
+    )
+
+    response = await client.get(
+        f"/api/v1/projects/{project_id}/mentions",
+        params={"query": "作者秘密", "kind": "world_info_entry"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"items": []}
+
+
+@pytest.mark.asyncio
 async def test_mentions_project_404(client: AsyncClient) -> None:
     resp = await client.get(
         "/api/v1/projects/nonexistent/mentions",

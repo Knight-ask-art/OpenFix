@@ -19,6 +19,7 @@ from app.storage.repos import (
     world_info_entry_repo,
     world_info_repo,
 )
+from app.storage.services.world_entry_meta_service import is_entry_ai_visible
 
 
 @dataclass(frozen=True)
@@ -179,6 +180,8 @@ async def search_all_mention_candidates(
             )
             base_index = len(scored_candidates)
             for offset, entry in enumerate(matched_entries):
+                if not await is_entry_ai_visible(session, entry.id):
+                    continue
                 entry_title = _display_title(entry.name)
                 scored_candidates.append(
                     (

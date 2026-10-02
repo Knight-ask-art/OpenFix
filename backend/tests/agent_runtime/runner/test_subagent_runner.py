@@ -304,6 +304,30 @@ async def test_subagent_runner_uses_child_thread_history_and_parent_task(
                 seq=0,
             )
         )
+        await repo.insert_message(
+            session,
+            session_id="parent-session",
+            task_id="task-1",
+            project_id="project-1",
+            role="system",
+            status="complete",
+            content="",
+            message_type="context_snapshot",
+            display_channel="hidden",
+            llm_visibility="hidden",
+            metadata={
+                "kind": "agent_context_snapshot",
+                "version": 1,
+                "context_sources": [
+                    {
+                        "id": "character:title:parent-only",
+                        "category": "character",
+                        "title": "Parent only",
+                        "sourceTypes": ["characterProfile"],
+                    }
+                ],
+            },
+        )
         await session.commit()
 
     captured: dict = {}
@@ -312,6 +336,20 @@ async def test_subagent_runner_uses_child_thread_history_and_parent_task(
         async def astream_events(self, initial_state, config=None, version=None):
             captured["initial_state"] = initial_state
             captured["config"] = config
+            await config["configurable"]["context_snapshot_sink"](
+                {
+                    "session_id": "child-thread",
+                    "agent_id": "writer",
+                    "context_sources": [
+                        {
+                            "id": "character:title:child-only",
+                            "category": "character",
+                            "title": "Child only",
+                            "sourceTypes": ["characterProfile"],
+                        }
+                    ],
+                }
+            )
             yield {
                 "event": "on_chain_start",
                 "name": "writer",
@@ -383,6 +421,22 @@ async def test_subagent_runner_uses_child_thread_history_and_parent_task(
 
     async with db_session_factory() as session:
         child_messages = await repo.list_by_session(session, "child-thread")
+        parent_messages = await repo.list_by_session(session, "parent-session")
+
+    child_snapshots = [
+        message
+        for message in child_messages
+        if message.message_type == "context_snapshot"
+    ]
+    parent_snapshots = [
+        message
+        for message in parent_messages
+        if message.message_type == "context_snapshot"
+    ]
+    assert len(child_snapshots) == 1
+    assert child_snapshots[0].metadata["context_sources"][0]["title"] == "Child only"
+    assert len(parent_snapshots) == 1
+    assert parent_snapshots[0].metadata["context_sources"][0]["title"] == "Parent only"
 
     assert any(
         message.role == "assistant"

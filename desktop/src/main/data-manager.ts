@@ -25,6 +25,11 @@ export interface DataDirInspection {
   sizeBytes: number;
 }
 
+export interface BackupDataOptions {
+  /** App-managed directories outside the user's project data, relative to the data root. */
+  excludedTopLevelEntries?: readonly string[];
+}
+
 async function pathExists(filePath: string): Promise<boolean> {
   try {
     await stat(filePath);
@@ -106,12 +111,19 @@ export async function backupDataDir(
   targetPath: string,
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
+  options: BackupDataOptions = {},
 ): Promise<void> {
   await mkdir(path.dirname(targetPath), { recursive: true });
   const stagingDir = await mkdtemp(path.join(os.tmpdir(), "openfic-backup-"));
   const tmpPath = `${targetPath}.tmp`;
   try {
-    await copyDirectoryWithRetry(dataDir, stagingDir, onLog, onPhase);
+    await copyDirectoryWithRetry(
+      dataDir,
+      stagingDir,
+      onLog,
+      onPhase,
+      new Set(options.excludedTopLevelEntries ?? []),
+    );
     await writeFile(path.join(stagingDir, BACKUP_MANIFEST_NAME), JSON.stringify(await computeBackupManifest(stagingDir), null, 2));
     onPhase?.("pack");
     const archive = pack();
@@ -132,6 +144,7 @@ async function copyDirectoryWithRetry(
   targetDir: string,
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
+  excludedTopLevelEntries: ReadonlySet<string> = new Set(),
 ): Promise<void> {
   let entries: Dirent[];
   try {
@@ -145,6 +158,7 @@ async function copyDirectoryWithRetry(
   const copyable: { name: string; core: boolean }[] = [];
   for (const entry of entries) {
     const name = entry.name;
+    if (excludedTopLevelEntries.has(name)) continue;
     if (isExcludedRuntimeEntry(name)) continue;
     if (name === BACKUP_MANIFEST_NAME) continue;
     const size = await measureTreeSize(path.join(sourceDir, name));

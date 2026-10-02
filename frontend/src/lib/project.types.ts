@@ -56,3 +56,23 @@ export interface ProjectListParams {
   sortBy?: "updated_at" | "created_at" | "title";
   sortOrder?: "asc" | "desc";
 }
+
+/** 项目产品属性（类型、简介、目标字数等）。 */
+export interface ProjectProfile {
+  projectId: string;
+  genre: string;
+  synopsis: string;
+  targetWordCount: number;
+  dailyWordGoal: number;
+  status: "planning" | "drafting" | "revising" | "completed";
+  updatedAt: string;
+}
+
+/** 更新项目产品属性请求。 */
+export interface ProjectProfileUpdate {
+  genre?: string;
+  synopsis?: string;
+  targetWordCount?: number;
+  dailyWordGoal?: number;
+  status?: "planning" | "drafting" | "revising" | "completed";
+}

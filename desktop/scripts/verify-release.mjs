@@ -17,9 +17,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const outputDir = path.resolve(process.argv[2] ?? path.join(desktopDir, "dist-electron"));
+const cliArgs = process.argv.slice(2);
+const verifyPreparedUpdateAssets = cliArgs.includes("--prepared-update-assets");
+const outputDirectoryArgument = cliArgs.find((argument) => argument !== "--prepared-update-assets");
+const outputDir = path.resolve(outputDirectoryArgument ?? path.join(desktopDir, "dist-electron"));
 const desktopPackage = JSON.parse(readFileSync(path.join(desktopDir, "package.json"), "utf8"));
 const version = desktopPackage.version;
+const expectedReleaseVersion = process.env.OPENFIX_RELEASE_VERSION?.trim() || null;
+const isGitHubActions = process.env.GITHUB_ACTIONS === "true";
 const updateRepository = { owner: "Knight-ask-art", repo: "OpenFix" };
 
 const failures = [];
@@ -78,7 +83,93 @@ function verifyUpdateManifest(name, content, expectedArchitecture = null) {
   }
 }
 
-console.log(`verify-release: ${outputDir} (version ${version})\n`);
+function printResultsAndExit() {
+  for (const { name, ok, detail } of checks) {
+    console.log(`${ok ? "PASS" : "FAIL"} ${name}${!ok && detail ? `  (${detail})` : ""}`);
+  }
+
+  console.log(`\n${failures.length === 0 ? "ALL CHECKS PASSED" : `${failures.length} CHECK(S) FAILED`}`);
+  process.exit(failures.length === 0 ? 0 : 1);
+}
+
+if (expectedReleaseVersion || isGitHubActions) {
+  // CI release guard: the v* tag that triggered the workflow must match the
+  // desktop package version, otherwise installers and manifests would be
+  // published under a version the release tag does not describe. GitHub Actions
+  // always passes OPENFIX_RELEASE_VERSION, so an absent or blank value there is a
+  // workflow wiring bug and must fail instead of silently skipping the assertion.
+  check(
+    "release tag version matches desktop package version",
+    expectedReleaseVersion === version,
+    expectedReleaseVersion
+      ? `release tag ${expectedReleaseVersion}, desktop package ${version}`
+      : "OPENFIX_RELEASE_VERSION is unset or blank in GitHub Actions",
+  );
+}
+
+console.log(
+  `verify-release: ${outputDir} (version ${version}, ${verifyPreparedUpdateAssets ? "prepared update assets" : "package"})\n`,
+);
+
+if (verifyPreparedUpdateAssets) {
+  // This mode runs after both Windows architecture artifacts are downloaded and
+  // prepare-windows-update has generated the release manifests. The ordinary
+  // package verifier runs earlier, before these cross-architecture files exist.
+  const compatibilityManifestPath = path.join(outputDir, "latest.yml");
+  if (existsSync(compatibilityManifestPath)) {
+    const compatibilityManifest = readFileSync(compatibilityManifestPath, "utf8");
+    verifyUpdateManifest("latest.yml", compatibilityManifest);
+    const compatibilityUrls = [
+      ...compatibilityManifest.matchAll(/^[ \t]*-[ \t]+url:[ \t]*(.+)$/gm),
+    ].map((match) => match[1].trim());
+    for (const { architecture, legacyArchitecture } of [
+      { architecture: "x86_64", legacyArchitecture: "x64" },
+      { architecture: "aarch64", legacyArchitecture: "arm64" },
+    ]) {
+      const installer = `OpenFix-${version}-win-${architecture}-setup.exe`;
+      check(
+        `latest.yml references ${architecture} installer`,
+        compatibilityUrls.some((reference) => getAssetFileName(reference) === installer),
+        compatibilityUrls.join(", "),
+      );
+      check(
+        `latest.yml retains ${legacyArchitecture} compatibility alias`,
+        compatibilityUrls.some((reference) => {
+          const [assetReference, query = ""] = reference.split("?", 2);
+          return (
+            getAssetFileName(assetReference) === installer &&
+            new URLSearchParams(query).get("arch") === legacyArchitecture
+          );
+        }),
+        compatibilityUrls.join(", "),
+      );
+    }
+    const compatibilityPath = compatibilityManifest.match(/^path:\s*(.+)$/m)?.[1]?.trim() ?? "";
+    const compatibilityPathQuery = compatibilityPath.split("?", 2)[1] ?? "";
+    check(
+      "latest.yml default path targets the x86_64 installer",
+      getAssetFileName(compatibilityPath) === `OpenFix-${version}-win-x86_64-setup.exe` &&
+        new URLSearchParams(compatibilityPathQuery).get("arch") === "x64",
+      compatibilityPath,
+    );
+  } else {
+    check("latest.yml exists after Windows update preparation", false);
+  }
+
+  for (const architecture of ["x86_64", "aarch64"]) {
+    const manifestPath = path.join(outputDir, `latest-win-${architecture}.yml`);
+    if (!existsSync(manifestPath)) {
+      check(`latest-win-${architecture}.yml exists`, false);
+      continue;
+    }
+    verifyUpdateManifest(
+      `latest-win-${architecture}.yml`,
+      readFileSync(manifestPath, "utf8"),
+      architecture,
+    );
+  }
+  printResultsAndExit();
+}
 
 // 1. 产物齐全 + 架构后缀已规范化
 const artifacts = listFiles(outputDir);
@@ -165,7 +256,15 @@ if (existsSync(frontendIndex)) {
   const bundleName = readFileSync(frontendIndex, "utf8").match(/assets\/(index-[^"']+\.js)/)?.[1];
   if (bundleName && existsSync(path.join(assetsDir, bundleName))) {
     const bundle = readFileSync(path.join(assetsDir, bundleName), "utf8");
-    for (const marker of ["/story-memory", "/consistency", "/inline-ai/transform", "openfix.onboarding.completed"]) {
+    for (const marker of [
+      "/story-memory",
+      "/consistency",
+      "/inline-ai/transform",
+      "openfix.onboarding.completed",
+      "openfix.ai.projectId",
+      "chapter-meta",
+      "/profile",
+    ]) {
       check(`前端产物含 ${marker}`, bundle.includes(marker));
     }
   } else {
@@ -175,9 +274,4 @@ if (existsSync(frontendIndex)) {
   check("win-unpacked 内含 frontend-dist", false, "缺失 frontend-dist");
 }
 
-for (const { name, ok, detail } of checks) {
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}${!ok && detail ? `  (${detail})` : ""}`);
-}
-
-console.log(`\n${failures.length === 0 ? "ALL CHECKS PASSED" : `${failures.length} CHECK(S) FAILED`}`);
-process.exit(failures.length === 0 ? 0 : 1);
+printResultsAndExit();

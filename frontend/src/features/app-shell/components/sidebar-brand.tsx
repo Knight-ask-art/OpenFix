@@ -116,9 +116,10 @@ export function SidebarBrand({
                 transition={{ duration: 0.1 }}
                 style={{ display: "flex" }}
               >
-                <span
+                <img
+                  src="/openfix-logo.png"
                   className="sidebar-brand-logo"
-                  aria-hidden="true"
+                  alt=""
                 />
               </motion.div>
             )}
@@ -135,7 +136,9 @@ export function SidebarBrand({
           <span
             className="sidebar-brand-wordmark"
             aria-hidden="true"
-          />
+          >
+            OpenFix
+          </span>
         </motion.div>
       </MotionFlex>
 

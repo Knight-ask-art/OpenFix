@@ -177,3 +177,40 @@ class WorldInfoEntrySearchResponse(BaseModel):
     results: list[WorldInfoEntrySearchResult] = Field(description="搜索结果列表")
     total_entries: int = Field(description="匹配的条目总数")
     total_matches: int = Field(description="匹配项总数")
+
+
+# ============== 世界设定扩展信息 Schemas ==============
+
+
+class WorldEntryMetaUpdateRequest(BaseModel):
+    """更新世界设定扩展信息请求（未提供的字段保持不变）。"""
+
+    entry_type: str | None = Field(default=None, description="设定类型")
+    custom_type_label: str | None = Field(
+        default=None, max_length=100, description="自定义类型名称（entry_type 为 custom 时使用）"
+    )
+    tags: list[str] | None = Field(default=None, description="标签列表")
+    linked_character_ids: list[str] | None = Field(default=None, description="关联人物 ID")
+    linked_chapter_ids: list[str] | None = Field(default=None, description="关联章节 ID")
+    ai_visible: bool | None = Field(default=None, description="是否对 AI 可见")
+
+
+class WorldEntryMetaResponse(BaseModel):
+    """世界设定扩展信息响应。"""
+
+    entry_id: str = Field(description="条目 ID")
+    project_id: str = Field(description="所属项目 ID")
+    entry_type: str = Field(description="设定类型")
+    custom_type_label: str = Field(description="自定义类型名称")
+    tags: list[str] = Field(description="标签列表")
+    linked_character_ids: list[str] = Field(description="关联人物 ID")
+    linked_chapter_ids: list[str] = Field(description="关联章节 ID")
+    ai_visible: bool = Field(description="是否对 AI 可见")
+    updated_at: datetime = Field(description="更新时间")
+
+
+class WorldEntryMetaListResponse(BaseModel):
+    """世界设定扩展信息列表响应。"""
+
+    items: list[WorldEntryMetaResponse] = Field(description="扩展信息列表")
+    total: int = Field(description="总数")

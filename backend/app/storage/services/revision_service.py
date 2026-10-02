@@ -23,6 +23,7 @@ from app.storage.models.revision import Revision
 from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
 from app.storage.models.revision_character_snapshot import RevisionCharacterSnapshot
 from app.storage.models.revision_content_blob import RevisionContentBlob
+from app.storage.models.revision_extension_snapshot import RevisionExtensionSnapshot
 from app.storage.models.revision_note_snapshot import (
     RevisionNoteCategorySnapshot,
     RevisionNoteSnapshot,
@@ -38,6 +39,7 @@ _REVISION_CHILD_MODELS = (
     RevisionNoteCategorySnapshot,
     RevisionCharacterSnapshot,
     RevisionWorldEntrySnapshot,
+    RevisionExtensionSnapshot,
 )
 
 # Every column that references a RevisionContentBlob id.

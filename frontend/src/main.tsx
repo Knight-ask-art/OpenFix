@@ -7,12 +7,14 @@ import { BrowserRouter, Routes, Route } from "react-router";
 import App from "./App.tsx";
 import { AppCrashFallback, GlobalLoading, toast } from "./components";
 import { Toaster } from "./components/toaster";
+import { AiTasksPage } from "./features/ai";
 import { AppLayout } from "./features/app-shell";
 import { AuthPage } from "./features/auth";
 import { CharactersPage } from "./features/characters";
 import { ConsistencyPage } from "./features/consistency";
 import { HomePage } from "./features/home";
 import { OutlinePage } from "./features/outline";
+import { ProjectOverviewPage } from "./features/project-overview";
 import { PromptChainsPage } from "./features/prompt-chains";
 import { StoryMemoryPage } from "./features/story-memory";
 import { fetchSettings, updateSettings } from "./features/settings/lib/settings-api";
@@ -228,6 +230,10 @@ function AppContent({
             element={<WritingPage />}
           />
           <Route
+            path="/projects/:projectId/overview"
+            element={<ProjectOverviewPage />}
+          />
+          <Route
             path="/world-info"
             element={<WorldInfoPage />}
           />
@@ -246,6 +252,10 @@ function AppContent({
           <Route
             path="/consistency"
             element={<ConsistencyPage />}
+          />
+          <Route
+            path="/ai"
+            element={<AiTasksPage />}
           />
           <Route
             path="/prompt-chains"

@@ -13,7 +13,7 @@ from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.core.utils.tiktoken import get_encoding
 from app.storage.models.world_info_entry import WorldInfoEntry
-from app.storage.repos import world_info_entry_repo
+from app.storage.repos import world_entry_meta_repo, world_info_entry_repo
 from app.storage.services.world_info_service import get_world_info
 
 
@@ -198,6 +198,7 @@ async def import_entries(
         validate_editor_content(entry.content)
 
     if mode == "overwrite":
+        await world_entry_meta_repo.delete_by_world_info(session, world_info_id)
         await world_info_entry_repo.delete_by_world_info(session, world_info_id)
         existing_entries: list[WorldInfoEntry] = []
     else:
@@ -397,6 +398,8 @@ async def delete_all_entries(session: AsyncSession, world_info_id: str) -> int:
     await get_world_info(session, world_info_id)
     entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     count = len(entries)
+    for entry in entries:
+        await world_entry_meta_repo.delete_by_entry_id(session, entry.id)
     await world_info_entry_repo.delete_by_world_info(session, world_info_id)
     return count
 
@@ -416,7 +419,8 @@ async def delete_entry(session: AsyncSession, entry_id: str) -> None:
     old_order = entry.order
     world_info_id = entry.world_info_id
 
-    # 删除条目
+    # 删除条目及其产品级扩展信息
+    await world_entry_meta_repo.delete_by_entry_id(session, entry.id)
     await world_info_entry_repo.delete(session, entry)
 
     # 将后续条目的 order 减 1
@@ -519,6 +523,9 @@ async def batch_delete_entries(
 ) -> int:
     """批量删除条目。"""
     await get_world_info(session, world_info_id)
+    await world_entry_meta_repo.delete_by_world_info_and_entry_ids(
+        session, world_info_id, entry_ids
+    )
     deleted = await world_info_entry_repo.batch_delete(
         session, world_info_id, entry_ids
     )

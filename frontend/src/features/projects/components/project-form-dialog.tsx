@@ -5,17 +5,26 @@
  */
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Dialog, Button, Flex, Text, TextField, TextArea, Box } from "@radix-ui/themes";
+import { Dialog, Button, Flex, Select, Text, TextField, TextArea, Box } from "@radix-ui/themes";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
-import type { Project } from "@/lib/project.types";
+import type { Project, ProjectProfile } from "@/lib/project.types";
 
+import { PROJECT_GENRES } from "../lib/project-genres";
 import { CoverCropper } from "./cover-cropper";
 
 import "./project-form-dialog.css";
+
+interface ProjectFormSubmitData {
+  title: string;
+  description?: string;
+  cover?: File | null;
+  genre?: string;
+  targetWordCount?: number;
+}
 
 interface ProjectFormDialogProps {
   /** 是否打开对话框 */
@@ -23,9 +32,13 @@ interface ProjectFormDialogProps {
   /** 关闭对话框回调 */
   onOpenChange: (open: boolean) => void;
   /** 提交表单回调 */
-  onSubmit: (data: { title: string; description?: string; cover?: File | null }) => void;
+  onSubmit: (data: ProjectFormSubmitData) => void;
   /** 编辑模式时传入现有项目 */
   project?: Project | null;
+  /** 编辑模式时传入现有产品属性 */
+  profile?: ProjectProfile | null;
+  /** 产品属性是否仍在加载（加载完成前不提交类型与预计字数，避免覆盖已保存的值） */
+  profileLoading?: boolean;
   /** 是否处于加载状态 */
   loading?: boolean;
 }
@@ -35,11 +48,16 @@ export function ProjectFormDialog({
   onOpenChange,
   onSubmit,
   project,
+  profile,
+  profileLoading = false,
   loading = false,
 }: ProjectFormDialogProps) {
   const { t } = useTranslation();
   const isEditMode = !!project;
+  const isProfilePending = isEditMode && profileLoading;
   const [cover, setCover] = useState<File | null>(null);
+  const [genre, setGenre] = useState<string>("");
+  const [targetWordCount, setTargetWordCount] = useState<string>("");
 
   /** 表单验证 Schema */
   const projectFormSchema = z.object({
@@ -80,9 +98,19 @@ export function ProjectFormDialog({
     }
   }, [open, project, reset]);
 
+  useEffect(() => {
+    if (!open) return;
+    setGenre(profile?.genre ?? "");
+    setTargetWordCount(
+      profile && profile.targetWordCount > 0 ? String(profile.targetWordCount) : "",
+    );
+  }, [open, profile]);
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setCover(null);
+      setGenre("");
+      setTargetWordCount("");
       reset({
         title: "",
         description: "",
@@ -93,7 +121,18 @@ export function ProjectFormDialog({
   };
 
   const handleFormSubmit = handleSubmit((data) => {
-    onSubmit({ ...data, cover });
+    const parsedTarget = Number.parseInt(targetWordCount, 10);
+    onSubmit({
+      ...data,
+      cover,
+      // 产品属性未加载完成时保持原值不变。
+      ...(isProfilePending
+        ? {}
+        : {
+            genre,
+            targetWordCount: Number.isFinite(parsedTarget) && parsedTarget > 0 ? parsedTarget : 0,
+          }),
+    });
   });
 
   return (
@@ -175,6 +214,63 @@ export function ProjectFormDialog({
                   placeholder={t("projectForm.descriptionPlaceholder")}
                   rows={5}
                   {...register("description")}
+                />
+              </Box>
+
+              {/* 类型 */}
+              <Box>
+                <Text
+                  as="label"
+                  size="2"
+                  weight="medium"
+                  mb="1"
+                  style={{ display: "block" }}
+                >
+                  {t("projectForm.genreLabel")}
+                </Text>
+                <Select.Root
+                  value={genre || "unset"}
+                  disabled={isProfilePending}
+                  onValueChange={(value) => setGenre(value === "unset" ? "" : value)}
+                >
+                  <Select.Trigger
+                    variant="surface"
+                    style={{ width: "100%" }}
+                    aria-label={t("projectForm.genreLabel")}
+                  />
+                  <Select.Content>
+                    <Select.Item value="unset">{t("projectForm.genreUnset")}</Select.Item>
+                    {PROJECT_GENRES.map((value) => (
+                      <Select.Item
+                        key={value}
+                        value={value}
+                      >
+                        {t(`projectForm.genres.${value}`)}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+              </Box>
+
+              {/* 预计字数 */}
+              <Box>
+                <Text
+                  as="label"
+                  size="2"
+                  weight="medium"
+                  mb="1"
+                  style={{ display: "block" }}
+                >
+                  {t("projectForm.targetWordCountLabel")}
+                </Text>
+                <TextField.Root
+                  value={targetWordCount}
+                  inputMode="numeric"
+                  disabled={isProfilePending}
+                  placeholder={t("projectForm.targetWordCountPlaceholder")}
+                  onChange={(event) =>
+                    setTargetWordCount(event.target.value.replace(/[^0-9]/g, ""))
+                  }
                 />
               </Box>
             </Flex>

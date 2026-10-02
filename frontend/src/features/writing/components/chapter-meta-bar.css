@@ -1,0 +1,11 @@
+.chapter-meta-bar {
+  min-width: 0;
+}
+
+.chapter-meta-bar__status-trigger {
+  min-width: 84px;
+}
+
+.chapter-meta-bar__target-input {
+  width: 72px;
+}

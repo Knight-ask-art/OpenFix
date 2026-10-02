@@ -40,7 +40,7 @@ import type {
   WorldInfoEntryBriefListResponse,
 } from "@/lib/world-info.types";
 
-import { EntryEditor } from "../components/entry-editor";
+import { EntryEditorPanel } from "../components/entry-editor-panel";
 import { EntryList } from "../components/entry-list";
 import { ImportWorldInfoDialog } from "../components/import-world-info-dialog";
 import { useWorldInfoStore } from "../store/use-world-info-store";
@@ -128,14 +128,24 @@ export function WorldInfoPage() {
   const projects = useMemo(() => projectsData?.items ?? [], [projectsData?.items]);
   const projectIdFromUrl = searchParams.get("projectId");
 
+  // 深层链接：URL 上的 projectId 变化时（例如从项目概览跳转）切换项目，
+  // 但不覆盖用户之后在页面内手动选择的项目。
+  const appliedUrlProjectIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!projectIdFromUrl || projects.length === 0) return;
+    if (appliedUrlProjectIdRef.current === projectIdFromUrl) return;
+    appliedUrlProjectIdRef.current = projectIdFromUrl;
+    if (!projects.some((project) => project.id === projectIdFromUrl)) return;
+    if (projectIdFromUrl === currentProjectId) return;
+    setCurrentProject(projectIdFromUrl);
+  }, [currentProjectId, projectIdFromUrl, projects, setCurrentProject]);
+
   useEffect(() => {
     const initProject = async () => {
       if (currentProjectId || projects.length === 0) return;
       const cachedProjectId = await getPreference(LAST_PROJECT_KEY);
       const nextProjectId =
-        (projectIdFromUrl && projects.some((project) => project.id === projectIdFromUrl)
-          ? projectIdFromUrl
-          : null) ??
         (cachedProjectId && projects.some((project) => project.id === cachedProjectId)
           ? cachedProjectId
           : null) ??
@@ -145,7 +155,7 @@ export function WorldInfoPage() {
     };
 
     void initProject();
-  }, [currentProjectId, projectIdFromUrl, projects, setCurrentProject]);
+  }, [currentProjectId, projects, setCurrentProject]);
 
   useEffect(() => {
     if (currentProjectId) void setPreference(LAST_PROJECT_KEY, currentProjectId);
@@ -677,10 +687,10 @@ export function WorldInfoPage() {
       </Flex>
     </Box>
   ) : currentEntryId && selectedEntry ? (
-    <EntryEditor
-      key={selectedEntry.id}
+    <EntryEditorPanel
       entry={selectedEntry}
       worldInfoId={currentWorldInfoId!}
+      projectId={currentProjectId ?? ""}
       entries={entries}
       scrollToLine={scrollToLine}
       onScrollComplete={handleScrollComplete}

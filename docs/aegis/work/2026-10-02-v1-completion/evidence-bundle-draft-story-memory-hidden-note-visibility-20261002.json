@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "story-memory-hidden-note-visibility-20261002",
+  "type": "regression",
+  "source": "FastCtx job j-5tua8z for the two Story Memory suites (33 passed); standalone pytest tests/api/test_consistency.py::test_story_memory_context_drops_results_when_index_goes_stale (1 passed); Claude Code spec review j-7j40k6; Claude Code code-quality review j-6w3k25; uv run ruff check on four target files; uv run ty check app; git diff --check on tracked Story Memory source and test files",
+  "summary": "Hidden notes are excluded from Story Memory document construction and status counts. Hiding a previously indexed note changes the source fingerprint and reports stale; Agent search hydration independently drops hidden notes even when freshness is forced true. The two target Story Memory test modules pass 33 tests, and the consistency stale-context regression passes one test. Ruff, ty, and tracked target diff check pass. Consistency remains protected by freshness checks before and after retrieval. External V1.0 gates remain open.",
+  "verifier": "Primary agent with independent Claude Code spec and code-quality reviews",
+  "sliceId": "story-memory-hidden-note-visibility-20261002",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-02"
+}

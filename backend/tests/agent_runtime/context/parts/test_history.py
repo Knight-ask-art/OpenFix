@@ -38,6 +38,13 @@ async def test_history_filters_non_message_and_hidden_records_first():
             "message_type": "message",
             "display_channel": "hidden",
         },
+        {
+            "role": "system",
+            "content": "",
+            "message_type": "context_snapshot",
+            "display_channel": "hidden",
+            "metadata": {"context_sources": [{"title": "仅供侧栏显示"}]},
+        },
         {"role": "user", "content": "你好", "message_type": "message"},
         {"role": "assistant", "content": "在"},
     ]

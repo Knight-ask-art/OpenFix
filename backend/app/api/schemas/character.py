@@ -85,3 +85,69 @@ class CharacterBatchDeleteResponse(BaseModel):
     """批量删除角色响应。"""
 
     deleted_count: int = Field(description="已删除的角色数量")
+
+
+class CharacterProfileFields(BaseModel):
+    """人物作者扩展字段（全部为可选的自由文本）。"""
+
+    alias: str = Field(default="", max_length=200, description="别名")
+    age: str = Field(default="", max_length=100, description="年龄")
+    gender: str = Field(default="", max_length=50, description="性别")
+    identity: str = Field(default="", max_length=200, description="身份")
+    faction: str = Field(default="", max_length=200, description="阵营")
+    personality: str = Field(default="", description="性格")
+    appearance: str = Field(default="", description="外貌")
+    background: str = Field(default="", description="背景")
+    goal: str = Field(default="", description="目标")
+    motivation: str = Field(default="", description="动机")
+    fear: str = Field(default="", description="恐惧")
+    secret: str = Field(default="", description="秘密")
+    abilities: str = Field(default="", description="能力")
+    weakness: str = Field(default="", description="弱点")
+    arc: str = Field(default="", description="人物弧")
+
+
+class CharacterProfileResponse(CharacterProfileFields):
+    """人物扩展字段响应。"""
+
+    character_id: str = Field(description="角色 ID")
+    updated_at: datetime = Field(description="更新时间")
+
+
+class CharacterProfileUpdateRequest(CharacterProfileFields):
+    """更新人物扩展字段（整体覆盖，未提供的字段清空）。"""
+
+
+class CharacterStateFields(BaseModel):
+    """人物动态状态字段。"""
+
+    location: str = Field(default="", max_length=200, description="当前地点")
+    physical_state: str = Field(default="", max_length=500, description="身体状态")
+    mental_state: str = Field(default="", max_length=500, description="心理状态")
+    goal: str = Field(default="", max_length=500, description="当前目标")
+    relationship_note: str = Field(default="", max_length=500, description="当前关系变化")
+    notes: str = Field(default="", description="备注")
+
+
+class CharacterStateResponse(CharacterStateFields):
+    """人物动态状态响应。"""
+
+    id: str = Field(description="状态 ID")
+    character_id: str = Field(description="角色 ID")
+    project_id: str = Field(description="所属项目 ID")
+    chapter_id: str | None = Field(default=None, description="关联章节 ID，空表示项目级最新状态")
+    created_at: datetime = Field(description="创建时间")
+    updated_at: datetime = Field(description="更新时间")
+
+
+class CharacterStateUpdateRequest(CharacterStateFields):
+    """更新角色在指定章节的状态（未提供章节则更新项目级最新状态）。"""
+
+    chapter_id: str | None = Field(default=None, description="关联章节 ID")
+
+
+class CharacterStateListResponse(BaseModel):
+    """人物动态状态列表响应。"""
+
+    items: list[CharacterStateResponse] = Field(description="状态列表")
+    total: int = Field(description="总数")

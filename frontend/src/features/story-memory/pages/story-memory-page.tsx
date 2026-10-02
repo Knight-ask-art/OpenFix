@@ -10,8 +10,9 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router";
 
 import { toast } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
@@ -79,6 +80,7 @@ function statusBadge(status: StoryMemoryStatus, t: (key: string) => string) {
     registered: { color: "orange", label: t("storyMemory.status.waiting") },
     building: { color: "orange", label: t("storyMemory.status.building") },
     ready: { color: "green", label: t("storyMemory.status.ready") },
+    stale: { color: "orange", label: t("storyMemory.status.stale") },
     failed: { color: "red", label: t("storyMemory.status.failed") },
     needs_rebuild: { color: "orange", label: t("storyMemory.status.needsRebuild") },
   };
@@ -92,6 +94,7 @@ function statusBadge(status: StoryMemoryStatus, t: (key: string) => string) {
 
 export function StoryMemoryPage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const { closeSidebar, isMobile, isSidebarOpen, openSidebar } = useAppShell();
   const queryClient = useQueryClient();
   const mobileSidebarSwipeHandlers = useMobileSidebarSwipe({
@@ -112,7 +115,20 @@ export function StoryMemoryPage() {
     staleTime: Infinity,
   });
 
-  const [projectId, setProjectId] = useState<string | null>(() => readStoredProject());
+  const projectIdFromUrl = searchParams.get("projectId");
+  const [projectId, setProjectId] = useState<string | null>(
+    () => projectIdFromUrl ?? readStoredProject(),
+  );
+  const appliedUrlProjectIdRef = useRef<string | null>(projectIdFromUrl);
+
+  // 深层链接：URL 上的 projectId 变化时（例如从助手建议跳转）切换到该项目，
+  // 且不覆盖用户在下拉框里的手动选择。
+  useEffect(() => {
+    if (!projectIdFromUrl) return;
+    if (appliedUrlProjectIdRef.current === projectIdFromUrl) return;
+    appliedUrlProjectIdRef.current = projectIdFromUrl;
+    setProjectId(projectIdFromUrl);
+  }, [projectIdFromUrl]);
 
   useEffect(() => {
     if (projectId) return;

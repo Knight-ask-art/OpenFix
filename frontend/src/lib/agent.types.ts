@@ -72,6 +72,7 @@ export type AgentMessageType =
   | "approval"
   | "question"
   | "compaction"
+  | "context_snapshot"
   | "node_start"
   | "node_end"
   | "stage_start"

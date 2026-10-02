@@ -12,7 +12,15 @@ from app.core.errors import ConflictError, NotFoundError
 from app.core.storage import delete_character_image, save_character_image
 from app.core.utils.tiktoken import get_encoding
 from app.storage.models.character import Character
-from app.storage.repos import character_repo, project_repo
+from app.storage.models.character_profile import CharacterProfile
+from app.storage.models.character_state import CharacterState
+from app.storage.repos import (
+    character_extension_repo,
+    chapter_repo,
+    character_repo,
+    project_repo,
+    world_entry_meta_repo,
+)
 
 
 @dataclass
@@ -188,6 +196,11 @@ async def delete_character(session: AsyncSession, character_id: str) -> None:
     """删除角色。"""
     character = await get_character(session, character_id)
     image_path = character.image_path
+    await character_extension_repo.delete_states_for_character(session, character.id)
+    await character_extension_repo.delete_profile(session, character.id)
+    await world_entry_meta_repo.remove_character_links(
+        session, character.project_id, [character.id]
+    )
     await character_repo.delete(session, character)
     if image_path:
         delete_character_image(image_path)
@@ -217,8 +230,92 @@ async def batch_delete_characters(
         raise NotFoundError(f"项目不存在: {project_id}")
 
     characters = await character_repo.list_by_project_and_ids(session, project_id, character_ids)
+    deleted_ids = [character.id for character in characters]
+    for character in characters:
+        await character_extension_repo.delete_states_for_character(session, character.id)
+        await character_extension_repo.delete_profile(session, character.id)
+    await world_entry_meta_repo.remove_character_links(session, project_id, deleted_ids)
     deleted_count = await character_repo.batch_delete(session, project_id, character_ids)
     for character in characters:
         if character.image_path:
             delete_character_image(character.image_path)
     return deleted_count
+
+
+async def get_profile(
+    session: AsyncSession,
+    character_id: str,
+) -> CharacterProfile:
+    """获取角色扩展字段；不存在时返回空字段（不落库）。"""
+    await get_character(session, character_id)
+    profile = await character_extension_repo.get_profile(session, character_id)
+    if profile is None:
+        return CharacterProfile(character_id=character_id)
+    return profile
+
+
+async def update_profile(
+    session: AsyncSession,
+    character_id: str,
+    values: dict[str, str],
+) -> CharacterProfile:
+    """更新角色扩展字段。"""
+    character = await get_character(session, character_id)
+    normalized: dict[str, str] = {}
+    for field, value in values.items():
+        if field not in character_extension_repo.PROFILE_TEXT_FIELDS:
+            continue
+        normalized[field] = value.strip() if isinstance(value, str) else ""
+    profile = await character_extension_repo.upsert_profile(session, character.id, normalized)
+    await touch_character(session, character)
+    return profile
+
+
+async def list_states(session: AsyncSession, character_id: str) -> list[CharacterState]:
+    """列出角色全部动态状态。"""
+    await get_character(session, character_id)
+    return await character_extension_repo.list_states(session, character_id)
+
+
+async def update_state(
+    session: AsyncSession,
+    character_id: str,
+    values: dict[str, str],
+    chapter_id: str | None = None,
+) -> CharacterState:
+    """创建或更新角色在指定章节（或项目级）的状态。"""
+    character = await get_character(session, character_id)
+    if chapter_id is not None:
+        chapter = await chapter_repo.get_by_id(session, chapter_id)
+        if chapter is None or chapter.project_id != character.project_id:
+            raise NotFoundError(f"章节不存在: {chapter_id}")
+    normalized: dict[str, str] = {}
+    for field, value in values.items():
+        if field not in character_extension_repo.STATE_TEXT_FIELDS:
+            continue
+        normalized[field] = value.strip() if isinstance(value, str) else ""
+    state = await character_extension_repo.upsert_state(
+        session,
+        character.id,
+        character.project_id,
+        chapter_id,
+        normalized,
+    )
+    await touch_character(session, character)
+    return state
+
+
+async def delete_state(session: AsyncSession, character_id: str, state_id: str) -> None:
+    """删除角色的某条状态记录。"""
+    character = await get_character(session, character_id)
+    state = await character_extension_repo.get_state_by_id(session, state_id)
+    if state is None or state.character_id != character.id:
+        raise NotFoundError(f"状态不存在: {state_id}")
+    await character_extension_repo.delete_state(session, state)
+    await touch_character(session, character)
+
+
+async def touch_character(session: AsyncSession, character: Character) -> None:
+    """更新角色 updated_at，保持列表排序反映最近改动。"""
+    character.updated_at = datetime.now(UTC)
+    await character_repo.update(session, character)

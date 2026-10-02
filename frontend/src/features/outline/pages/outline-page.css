@@ -33,6 +33,16 @@
 .outline-page__editor {
   min-width: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* 编辑器与 AI 动作条共用一个滚动区域，避免嵌套滚动。 */
+.outline-page__editor .outline-editor {
+  flex: 0 0 auto;
+  height: auto;
+  overflow: visible;
 }
 
 .outline-page__editor-empty {

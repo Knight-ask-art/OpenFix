@@ -9,6 +9,7 @@ from app.agent_runtime.revisions import (
     current_revision_id_from_state,
     record_character_diffs,
 )
+from app.agent_runtime.revision_extensions import capture_character_extensions
 from app.agent_runtime.tools.base import AgentTool
 from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -438,6 +439,13 @@ class DeleteCharacterTool(AgentTool):
             character = await _resolve_character_by_name(session, self.project_id, name)
             before = _preview_from_character(character)
             before_images = character_images_by_id([character])
+            # 人物扩展字段 / 状态 / 条目关联会在下面的 service 调用里级联删除，
+            # 必须在删除前捕获，回滚才能把扩展数据写回。
+            before_extensions = {
+                character.id: await capture_character_extensions(
+                    session, project_id=self.project_id, character_id=character.id
+                )
+            }
             await character_service.delete_character(session, character.id)
             await record_character_diffs(
                 session,
@@ -445,6 +453,7 @@ class DeleteCharacterTool(AgentTool):
                 project_id=self.project_id,
                 before=before_images,
                 after={},
+                before_extensions=before_extensions,
             )
             await session.commit()
             return json.dumps(

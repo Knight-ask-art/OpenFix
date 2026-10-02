@@ -15,10 +15,14 @@ from app.storage.models.agent_memory import AgentMemory
 from app.storage.models.agent_rule import AgentRule
 from app.agent_runtime.persistence.model import AgentAttachment, AgentContextCompaction, AgentRunMessage
 from app.storage.models.character import Character
+from app.storage.models.character_profile import CharacterProfile
+from app.storage.models.character_state import CharacterState
 from app.storage.models.chapter import Chapter
+from app.storage.models.chapter_meta import ChapterMeta
 from app.storage.models.chapter_summary import ChapterSummary
 from app.storage.models.commit import Commit
 from app.storage.models.project import Project
+from app.storage.models.project_profile import ProjectProfile
 from app.storage.models.prompt_chain_version import PromptChainVersion
 from app.storage.models.prompt_entry import PromptEntry
 from app.storage.models.revision import Revision
@@ -30,6 +34,7 @@ from app.storage.models.revision_note_snapshot import (
 )
 from app.storage.models.revision_world_entry_snapshot import RevisionWorldEntrySnapshot
 from app.storage.models.revision_content_blob import RevisionContentBlob
+from app.storage.models.revision_extension_snapshot import RevisionExtensionSnapshot
 from app.storage.models.retrieval_index import RetrievalIndex
 from app.storage.models.retrieval_chapter_index_state import RetrievalChapterIndexState
 from app.storage.models.skill import Skill
@@ -42,6 +47,7 @@ from app.storage.models.writing_activity_event import WritingActivityEvent
 from app.storage.models.note import Note, NoteCategory
 from app.storage.models.outline import Outline
 from app.storage.models.world_info import WorldInfo
+from app.storage.models.world_entry_meta import WorldEntryMeta
 from app.storage.models.world_info_entry import WorldInfoEntry
 
 __all__ = [
@@ -55,7 +61,10 @@ __all__ = [
     "BackgroundJobEvent",
     "BackgroundJobItem",
     "Character",
+    "CharacterProfile",
+    "CharacterState",
     "Chapter",
+    "ChapterMeta",
     "ChapterSummary",
     "Commit",
     "Model",
@@ -64,12 +73,14 @@ __all__ = [
     "NoteCategory",
     "Outline",
     "Project",
+    "ProjectProfile",
     "PromptChainVersion",
     "PromptEntry",
     "Revision",
     "RevisionCharacterSnapshot",
     "RevisionChapterSnapshot",
     "RevisionContentBlob",
+    "RevisionExtensionSnapshot",
     "RevisionNoteCategorySnapshot",
     "RevisionNoteSnapshot",
     "RevisionWorldEntrySnapshot",
@@ -82,6 +93,7 @@ __all__ = [
     "TaskMessage",
     "Volume",
     "WritingActivityEvent",
+    "WorldEntryMeta",
     "WorldInfo",
     "WorldInfoEntry",
 ]

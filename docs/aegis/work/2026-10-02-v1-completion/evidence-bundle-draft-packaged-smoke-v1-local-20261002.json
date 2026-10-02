@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "packaged-smoke-v1-local-20261002",
+  "type": "packaged-smoke",
+  "source": "FastCtx job j-sm45t2; older Windows x64 package and harness revision; supersession recorded against the current source package",
+  "summary": "Historical j-sm45t2 run exited 0 with 60 PASS checks on an earlier x64 package and earlier smoke harness. It remains valid for that exact attempt, but is superseded for current package acceptance: j-fpiwyo later tested a different package state, and the current source has since been rebuilt into new x64 artifacts without a smoke replay. Preserve its attempts and log; do not treat its cleanup claim as evidence for the current package.",
+  "verifier": "Primary agent; original run log, later package chronology and current package hash checked",
+  "sliceId": "packaged-smoke-v1-local-20261002",
+  "evidenceStatus": "superseded",
+  "attempts": [
+    {
+      "attemptId": "cdp-webview-bridge",
+      "attemptStatus": "failed",
+      "summary": "Installation, fake-model calls and restart persistence passed, then auto backup failed because the script attached to app://openfic webview without the desktop preload bridge. The persisted config still contained one local instance; manual target inspection confirmed bridge=false on the webview. Cleanup also hit EPERM.",
+      "evidenceRefs": [
+        "C:/Users/20969/.fastctx/jobs/j-kaqbwp/output.log",
+        "profile config shape check and manual CDP target inspection"
+      ],
+      "updatedAt": "2026-10-02"
+    },
+    {
+      "attemptId": "cleanup-eperm",
+      "attemptStatus": "failed",
+      "summary": "Job j-svnx64 passed 59 install, product, fake-model, restart-persistence, encrypted credential and automatic-backup checks, but the final temp cleanup returned EPERM. The script ignored removeWorkspace false and printed SMOKE PASSED. After confirming no OpenFix, Electron or Python process and verifying the exact Temp path, the same workspace was removed with fs.rmSync maxRetries=40 and retryDelay=500.",
+      "evidenceRefs": [
+        "C:/Users/20969/.fastctx/jobs/j-svnx64/output.log",
+        "manual bounded cleanup of C:/Users/20969/AppData/Local/Temp/openfix-smoke-2SfMGg"
+      ],
+      "updatedAt": "2026-10-02"
+    },
+    {
+      "attemptId": "cleanup-retry-hardening",
+      "attemptStatus": "attempted",
+      "summary": "Selected the preload shell page after restart; increased cleanup retries to 40 at 500ms and made cleanup outcome part of smoke failures. Syntax, ESLint and target diff checks pass; the failed smoke directory was removed using the new retry parameters. Full package smoke has not been replayed after this final cleanup edit.",
+      "evidenceRefs": [
+        "desktop/scripts/packaged-smoke.mjs",
+        "FastCtx static-check output"
+      ],
+      "updatedAt": "2026-10-02"
+    }
+  ],
+  "attemptSummary": {
+    "blocked": 0,
+    "attempted": 1,
+    "failed": 2,
+    "total": 3,
+    "lastAttemptId": "cleanup-retry-hardening"
+  },
+  "updatedAt": "2026-10-02"
+}

@@ -5,7 +5,7 @@
  */
 
 import { Box, Button, Container, Flex, Text, Grid } from "@radix-ui/themes";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog, Spinner, toast } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
+import { fetchProjectProfile, updateProjectProfile } from "@/lib/api-client";
 import type { Project } from "@/lib/project.types";
 
 import { ImportDialog } from "../components/import-dialog";
@@ -76,6 +77,12 @@ export function ProjectsPage() {
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
+  const { data: editingProfile, isPending: isEditingProfilePending } = useQuery({
+    queryKey: ["project-profile", editingProject?.id],
+    queryFn: () => fetchProjectProfile(editingProject!.id),
+    enabled: Boolean(editingProject?.id),
+  });
+
   const handleFormDialogOpenChange = (open: boolean) => {
     setFormDialogOpen(open);
 
@@ -119,22 +126,49 @@ export function ProjectsPage() {
     title: string;
     description?: string;
     cover?: File | null;
+    genre?: string;
+    targetWordCount?: number;
   }) => {
+    const { genre, targetWordCount, ...projectFields } = formData;
+    const isEditing = Boolean(editingProject);
+    let projectId = editingProject?.id;
     try {
       if (editingProject) {
         await updateMutation.mutateAsync({
           projectId: editingProject.id,
-          data: formData,
+          data: projectFields,
         });
-        toast.success(t("projects.projectUpdated"));
       } else {
-        await createMutation.mutateAsync(formData);
-        toast.success(t("projects.projectCreated"));
+        const created = await createMutation.mutateAsync(projectFields);
+        projectId = created.id;
       }
-      setFormDialogOpen(false);
-      setEditingProject(null);
     } catch {
-      toast.error(editingProject ? t("projects.updateFailed") : t("projects.createFailed"));
+      // 项目本身未保存成功：保持对话框打开，让用户重试同一个操作。
+      toast.error(isEditing ? t("projects.updateFailed") : t("projects.createFailed"));
+      return;
+    }
+
+    // 项目已保存，产品属性保存失败属于部分成功，不能按创建/更新失败提示，
+    // 否则用户会重复创建同一个项目。
+    let isProfileSaved = true;
+    if (projectId && (genre !== undefined || targetWordCount !== undefined)) {
+      try {
+        await updateProjectProfile(projectId, {
+          genre: genre ?? "",
+          targetWordCount: targetWordCount ?? 0,
+        });
+        void queryClient.invalidateQueries({ queryKey: ["project-profile", projectId] });
+      } catch {
+        isProfileSaved = false;
+      }
+    }
+
+    setFormDialogOpen(false);
+    setEditingProject(null);
+    if (isProfileSaved) {
+      toast.success(isEditing ? t("projects.projectUpdated") : t("projects.projectCreated"));
+    } else {
+      toast.error(t("projects.profileUpdateFailed"));
     }
   };
 
@@ -378,6 +412,8 @@ export function ProjectsPage() {
         onOpenChange={handleFormDialogOpenChange}
         onSubmit={handleFormSubmit}
         project={editingProject}
+        profile={editingProfile ?? null}
+        profileLoading={Boolean(editingProject) && isEditingProfilePending}
         loading={createMutation.isPending || updateMutation.isPending}
       />
 

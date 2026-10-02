@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "v1-local-commit-20261003",
+  "type": "local-verification",
+  "source": "FastCtx j-taig3r (migration target/Ruff/ty/full pytest), j-v44ehv (frontend lint/type), j-9za1x2 (desktop lint/type/build phases); native Windows tar archive/data-manager rerun; pnpm verify:release; current candidate manifest and CRLF-aware diff check.",
+  "summary": "User explicitly authorized a local OpenFix milestone commit. Updated the migration-chain regression to verify the 1028 single head and its 1027 parent. Target tests pass 3; Ruff and ty pass; full backend suite passes 1889. Frontend lint/type-check passes on 429 files. Desktop lint/type-check/build passes, including production frontend and setup/main builds. With Windows system tar first in PATH, archive/data-manager tests pass 12; the symbolic-link test is excluded because this Windows account lacks symlink privilege. Existing x64 release assets pass the static release verifier; no package or packaged smoke is rerun. Candidate path and common-token scans find no secrets, databases, generated packages or temporary caches. Coordinator source review confirms project profile error-state protection, duplicate create submissions during profile PUT on both projects and onboarding, and character/world project deep-link initialization remain open. ARM64 runtime support, non-Windows fork-wheel inclusion and restore runtime preservation also remain open; real-provider, clean-upgrade, remote release and signing gates require acceptance. Current source review does not confirm character profile cross-writes or a deterministic suggestions-page hang; no runtime acceptance of those paths was performed.",
+  "verifier": "Primary coordinator read complete verification results and current source; milestone verification only, not full V1 acceptance.",
+  "sliceId": "v1-local-commit-20261003",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-03"
+}

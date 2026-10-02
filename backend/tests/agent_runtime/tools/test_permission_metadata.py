@@ -47,6 +47,7 @@ def test_runtime_tool_permissions_match_registered_user_tools() -> None:
         {"tool_name": "recycle_subagent", "mode": "allow"},
         {"tool_name": "reference_skill", "mode": "allow"},
         {"tool_name": "search_chapters", "mode": "allow"},
+        {"tool_name": "search_story_memory", "mode": "allow"},
         {"tool_name": "update_index", "mode": "allow"},
         {"tool_name": "web_fetch", "mode": "allow"},
         {"tool_name": "web_search", "mode": "allow"},

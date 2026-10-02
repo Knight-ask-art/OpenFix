@@ -57,6 +57,7 @@ import "./assistant-sidebar.css";
 
 import { useSubagentSession } from "../hooks/use-subagent-session";
 import { useTasks, useUpdateTask } from "../hooks/use-tasks";
+import { buildAgentContextSources } from "../lib/agent-context-sources";
 import {
   createRestoredPendingAgentAttachments,
   type PendingAgentImageAttachment,
@@ -78,6 +79,8 @@ import { createPendingApprovalMessage } from "../lib/subagent-session-approval";
 import { joinSubagentStatusStream, subscribeSubagentStatusEvents } from "../lib/subagent-socket";
 import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-mapping";
 import { AgentInput, AgentMessages, useAgentSidebar } from "./agent";
+import { AgentContextPanel } from "./agent-context-panel";
+import { AgentSuggestionsPanel } from "./agent-suggestions-panel";
 import { ActiveSubagentList } from "./agent/active-subagent-list";
 import { AgentSessionChangesDialog } from "./agent/agent-changes";
 import { AgentSpecialPanels } from "./agent/agent-special-panels";
@@ -327,6 +330,9 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     const [inputValue, setInputValue] = useState("");
     const [pendingAttachments, setPendingAttachments] = useState<PendingAgentImageAttachment[]>([]);
     const [view, setView] = useState<AssistantView>("tasks");
+    const [agentContentView, setAgentContentView] = useState<
+      "conversation" | "context" | "suggestions"
+    >("conversation");
     const [isSessionChangesOpen, setIsSessionChangesOpen] = useState(false);
     const [sessionChangesDialogSummary, setSessionChangesDialogSummary] =
       useState<AgentChangeSummary | null>(null);
@@ -435,6 +441,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         appendToComposer(markup: string) {
           if (!markup.trim()) return;
           setView("tasks");
+          setAgentContentView("conversation");
           setInputValue((current) => appendMentionMarkup(current, markup));
         },
       }),
@@ -713,6 +720,11 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       currentConversation?.kind === "subagent" ? currentConversation.childThreadId : null,
       handleConversationTokenUsage,
     );
+    const contextMessages = isViewingSubagent ? subagentSession.messages : agentSidebar.messages;
+    const contextSources = useMemo(
+      () => buildAgentContextSources(contextMessages),
+      [contextMessages],
+    );
 
     const currentConversationSessionId =
       currentConversation?.kind === "subagent"
@@ -794,6 +806,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         if (cancelled) return;
         setInputValue("");
         setView("tasks");
+        setAgentContentView("conversation");
         setIsLoadingTask(false);
         setCurrentTaskId(null);
         setCurrentTaskTitle("");
@@ -952,6 +965,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         } = {},
       ): Promise<boolean> => {
         setView("tasks");
+        setAgentContentView("conversation");
         setIsLoadingTask(true);
         setActiveSubagents([]);
 
@@ -1090,6 +1104,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       setConversationState(createConversationStackState(""));
       setActiveSubagents([]);
       setView("tasks");
+      setAgentContentView("conversation");
       setIsLoadingTask(false);
       setCurrentTaskId(null);
       setCurrentTaskTitle("");
@@ -1148,6 +1163,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         setCurrentTaskTitle(title.length > 50 ? `${title.slice(0, 50)}...` : title);
       }
 
+      setAgentContentView("conversation");
       agentSidebar.onSend();
     }, [inputValue, agentSidebar]);
 
@@ -1270,6 +1286,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       (subagent: ActiveSubagentState) => {
         if (!parentConversationSessionId) return;
         setView("tasks");
+        setAgentContentView("conversation");
         setConversationState((current) =>
           openSubagentConversation(current, parentConversationSessionId, subagent),
         );
@@ -1291,6 +1308,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         if (!restored) return;
       }
       setConversationState((current) => returnToPrimaryConversation(current));
+      setAgentContentView("conversation");
     }, [agentSidebar.sessionId, conversationState.entries, loadTaskById]);
 
     const recentTasks = tasksData?.items ?? [];
@@ -1611,6 +1629,39 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                 </Tooltip>
               </Flex>
             </Flex>
+            <div
+              className="ai-sidebar-content-switcher"
+              role="group"
+              aria-label={t("assistant.contextSources.viewLabel")}
+            >
+              <button
+                type="button"
+                className="ai-sidebar-content-switcher__button"
+                data-active={agentContentView === "conversation"}
+                aria-pressed={agentContentView === "conversation"}
+                onClick={() => setAgentContentView("conversation")}
+              >
+                {t("assistant.contextSources.conversationTab")}
+              </button>
+              <button
+                type="button"
+                className="ai-sidebar-content-switcher__button"
+                data-active={agentContentView === "context"}
+                aria-pressed={agentContentView === "context"}
+                onClick={() => setAgentContentView("context")}
+              >
+                {t("assistant.contextSources.contextTab")}
+              </button>
+              <button
+                type="button"
+                className="ai-sidebar-content-switcher__button"
+                data-active={agentContentView === "suggestions"}
+                aria-pressed={agentContentView === "suggestions"}
+                onClick={() => setAgentContentView("suggestions")}
+              >
+                {t("assistant.suggestions.tab")}
+              </button>
+            </div>
           </Box>
         )}
 
@@ -1635,7 +1686,18 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           />
         ) : (
           <>
-            <Box className="ai-sidebar-messages ai-sidebar-messages--frame">
+            <Box
+              id="ai-sidebar-active-panel"
+              role="region"
+              aria-label={
+                agentContentView === "context"
+                  ? t("assistant.contextSources.contextTab")
+                  : agentContentView === "suggestions"
+                    ? t("assistant.suggestions.tab")
+                    : t("assistant.contextSources.conversationTab")
+              }
+              className="ai-sidebar-messages ai-sidebar-messages--frame"
+            >
               {agentSidebar.isRollbacking ? (
                 <Flex
                   className="ai-sidebar-rollback-overlay"
@@ -1669,6 +1731,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     {t("assistant.loadingTask")}
                   </Text>
                 </Flex>
+              ) : agentContentView === "suggestions" ? (
+                <AgentSuggestionsPanel projectId={projectId} />
+              ) : hasActiveTask && agentContentView === "context" ? (
+                <AgentContextPanel sources={contextSources} />
               ) : shouldShowSubagentConversation ? (
                 <AgentMessages
                   messages={subagentSession.messages}
@@ -1704,7 +1770,12 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
 
             <div
               className="ai-sidebar-scroll-to-bottom"
-              data-visible={!isLoadingTask && hasActiveTask && !isMessagesAtBottom}
+              data-visible={
+                !isLoadingTask &&
+                hasActiveTask &&
+                agentContentView === "conversation" &&
+                !isMessagesAtBottom
+              }
             >
               <IconButton
                 size="2"

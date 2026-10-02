@@ -179,7 +179,12 @@ export function buildAgentMessagesFromTaskMessages(
 
   taskMessages.forEach((msg, index) => {
     if (isHiddenSystemReminderContent(msg.content)) return;
-    if (hasDispatchSubagent && isSubagentInternalTaskMessage(msg)) return;
+    if (
+      hasDispatchSubagent &&
+      msg.messageType !== "context_snapshot" &&
+      isSubagentInternalTaskMessage(msg)
+    )
+      return;
 
     const content = msg.content;
     const structuredMessageType = msg.messageType ?? undefined;
@@ -189,6 +194,22 @@ export function buildAgentMessagesFromTaskMessages(
     const assistantTimestamp = parseUtcTimestamp(msg.updatedAt || msg.createdAt || taskCreatedAt);
     const isNodeBoundaryMessage =
       structuredMessageType === "node_start" || structuredMessageType === "node_end";
+
+    if (structuredMessageType === "context_snapshot") {
+      agentMessages.push({
+        id: msg.id || `context-snapshot-${task.id}-${index}`,
+        type: "context_snapshot",
+        role: "system",
+        status: "completed",
+        display: "hidden",
+        payload,
+        correlationId: msg.correlationId,
+        timestamp,
+        content: "",
+        agent: msg.agentId as AgentMessage["agent"],
+      });
+      return;
+    }
 
     if (msg.displayChannel === "hidden" && !isNodeBoundaryMessage) return;
 

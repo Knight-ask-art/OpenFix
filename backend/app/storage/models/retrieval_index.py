@@ -40,6 +40,9 @@ class RetrievalIndex(SQLModel, table=True):
     last_error: str | None = Field(default=None)
     last_build_at: datetime | None = Field(default=None)
     last_ready_at: datetime | None = Field(default=None)
+    # Story Memory stores a hash of the source documents it indexed. Other
+    # indexes leave this unset.
+    source_fingerprint: str | None = Field(default=None, max_length=64)
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "requestedOutcome": "按 V1.0 PRD 和源码改造清单第42节完成可在本机完成的产品修复与验收",
+  "goal": "确保创作数据链路稳定，AI 可见性生效，故事记忆索引新鲜度可知且过期结果不进入模型，并完成可执行的打包验收",
+  "successEvidence": [
+    "目标消费者回归测试通过，Story Memory 源创建更新删除与可见性切换后状态正确，前后端类型检查/构建及发布校验和安装包冒烟通过；外部发布门槛独立列明"
+  ],
+  "stopCondition": "done: 全部本机门槛通过且无代码 blocker；blocked: 同一必要外部服务或环境阻塞连续复现三轮；needs-verification: 构建/测试未运行或外部 Windows 签名升级未验收；scope-exceeded: 需要真实发布/签名身份",
+  "nonGoals": [
+    "OpenFic 上游、真实发布/签名、清理项目既有改动、未排期的全书检查任务化"
+  ],
+  "scope": "新版本/OpenFix 中 V1.0 残余实现与本机验收；不修改 OpenFic 上游；2026-10-03 用户明确授权本地里程碑提交；不创建 tag/Release，不签名/推送",
+  "changeKinds": [
+    "bugfix"
+  ],
+  "riskHints": [
+    "中高：多个 AI 消费者、检索 freshness 与现有未提交工作树"
+  ]
+}

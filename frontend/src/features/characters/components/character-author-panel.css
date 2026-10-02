@@ -1,0 +1,34 @@
+.character-author-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-4);
+  overflow-y: auto;
+  height: 100%;
+}
+
+.character-author-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.character-author-section__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.character-author-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.character-author-grid--long {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.character-author-state-list {
+  padding-top: var(--space-2);
+}

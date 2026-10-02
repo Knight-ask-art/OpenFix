@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.agent_runtime.revision_extensions import capture_world_entry_extensions
 from app.agent_runtime.revisions import (
     current_revision_id_from_state,
     record_world_entry_diffs,
@@ -18,7 +19,7 @@ from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
 from app.storage.models.world_info_entry import WorldInfoEntry
 from app.storage.repos import world_info_entry_repo, world_info_repo
-from app.storage.services import world_info_entry_service
+from app.storage.services import world_entry_meta_service, world_info_entry_service
 
 
 class ListWorldEntriesInput(BaseModel):
@@ -160,7 +161,10 @@ async def _resolve_entry_by_title(session, world_info_id: str, title: str) -> Wo
         raise ToolExecutionError(f"世界书条目不存在: {normalized_title}")
     if len(matches) > 1:
         raise ToolExecutionError(f"世界书条目标题不唯一: {normalized_title}")
-    return matches[0]
+    entry = matches[0]
+    if not await world_entry_meta_service.is_entry_ai_visible(session, entry.id):
+        raise ToolExecutionError("世界书条目未向 AI 开放")
+    return entry
 
 
 async def _ensure_title_available(
@@ -201,11 +205,18 @@ class ListWorldEntriesTool(AgentTool):
             entries = await world_info_entry_repo.list_enabled_by_world_info(
                 session, world_info.id
             )
+            visible_entries = [
+                entry
+                for entry in entries
+                if await world_entry_meta_service.is_entry_ai_visible(
+                    session, entry.id
+                )
+            ]
             return json.dumps(
                 {
                     "entries": [
                         {"title": entry.name, "uid": entry.uid, "order": entry.order}
-                        for entry in entries
+                        for entry in visible_entries
                     ]
                 },
                 ensure_ascii=False,
@@ -472,6 +483,11 @@ class DeleteWorldEntryTool(AgentTool):
             entry = await _resolve_entry_by_title(session, world_info.id, title)
             before = _preview_from_entry(entry)
             before_images = world_entry_images_by_id([entry], project_id=self.project_id)
+            # 条目的扩展信息（类型 / 标签 / 关联 / AI 可见性）会在下面的 service
+            # 调用里删除，必须在删除前捕获，回滚才能写回。
+            before_extensions = {
+                entry.id: await capture_world_entry_extensions(session, entry_id=entry.id)
+            }
             await world_info_entry_service.delete_entry(session, entry.id)
             await record_world_entry_diffs(
                 session,
@@ -479,6 +495,7 @@ class DeleteWorldEntryTool(AgentTool):
                 project_id=self.project_id,
                 before=before_images,
                 after={},
+                before_extensions=before_extensions,
             )
             await session.commit()
             return json.dumps(

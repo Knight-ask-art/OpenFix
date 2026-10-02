@@ -15,6 +15,7 @@ from app.storage.repos.note_category_repo import (
 from app.storage.repos.note_repo import get_by_id as get_note_by_id
 from app.storage.repos.volume_repo import get_by_id as get_volume_by_id
 from app.storage.repos.world_info_entry_repo import get_by_id as get_world_info_entry_by_id
+from app.storage.services.world_entry_meta_service import is_entry_ai_visible
 
 _MENTION_RE = re.compile(
     r"<of-mention\b(?P<attrs_self>[^<>]*?)\s*/>"
@@ -96,6 +97,7 @@ class _MentionResolver:
         self._note_cache: dict[str, str | None] = {}
         self._note_category_cache: dict[str, str | None] = {}
         self._world_info_entry_cache: dict[str, str | None] = {}
+        self._world_info_entry_visibility_cache: dict[str, bool] = {}
         self._character_cache: dict[str, str | None] = {}
 
     async def anchor_label(self, mention: CanonicalMention) -> str:
@@ -190,9 +192,25 @@ class _MentionResolver:
         if session is None:
             return None
         entry = await get_world_info_entry_by_id(session, entry_id)
-        title = entry.name.strip() if entry and entry.name else None
+        visible = (
+            True
+            if entry is None
+            else await is_entry_ai_visible(session, entry_id)
+        )
+        self._world_info_entry_visibility_cache[entry_id] = visible
+        title = entry.name.strip() if visible and entry and entry.name else None
         self._world_info_entry_cache[entry_id] = title
         return title
+
+    async def _world_info_entry_is_ai_visible(self, entry_id: str) -> bool:
+        if entry_id in self._world_info_entry_visibility_cache:
+            return self._world_info_entry_visibility_cache[entry_id]
+        if self._session is None:
+            # ai_visible cannot be verified without a session, so fail closed:
+            # the entry stays hidden instead of leaking its label or snapshot.
+            return False
+        await self._resolve_world_info_entry_title(entry_id)
+        return self._world_info_entry_visibility_cache.get(entry_id, True)
 
     async def _resolve_character_name(self, character_id: str) -> str | None:
         if character_id in self._character_cache:
@@ -247,6 +265,13 @@ def _fallback_label(mention: CanonicalMention) -> str:
 async def _compile_compact_mention(
     mention: CanonicalMention, resolver: _MentionResolver
 ) -> str:
+    if (
+        mention.kind == "world_info_entry"
+        and not await resolver._world_info_entry_is_ai_visible(
+            mention.attrs.get("world_info_entry_id", "").strip()
+        )
+    ):
+        return "[世界设定已对 AI 隐藏]"
     anchor = await _build_anchor(mention, resolver)
     if anchor is None:
         return mention.raw
@@ -256,6 +281,13 @@ async def _compile_compact_mention(
 async def _compile_expanded_mention(
     mention: CanonicalMention, resolver: _MentionResolver
 ) -> str:
+    if (
+        mention.kind == "world_info_entry"
+        and not await resolver._world_info_entry_is_ai_visible(
+            mention.attrs.get("world_info_entry_id", "").strip()
+        )
+    ):
+        return "[世界设定已对 AI 隐藏]\n"
     anchor = await _build_anchor(mention, resolver, include_line_range=True)
     if anchor is None:
         return mention.raw

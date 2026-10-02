@@ -15,12 +15,23 @@
 }
 
 .auth-brand {
-  display: block;
-  width: min(100%, 188px);
-  aspect-ratio: 302.1817 / 66.9035;
-  background-color: var(--gray-12);
-  mask: url("/brand.svg") center / contain no-repeat;
-  -webkit-mask: url("/brand.svg") center / contain no-repeat;
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 12px;
+  color: var(--gray-12);
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+}
+
+.auth-brand img {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  object-fit: contain;
 }
 
 .auth-form {

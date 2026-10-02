@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "openfix-v1-completion-20261002",
+  "currentTodo": "按用户最新授权保存 OpenFix 当前 V1.0 开发里程碑；源码门禁通过，正式 V1.0 仍有仓库缺口及外部验收门槛。",
+  "completedTodos": [
+    "修复迁移链测试的陈旧 1027 断言并明确校验 1028 的父迁移；目标 3 passed，Ruff 与 ty 通过，后端完整套件 1889 passed。",
+    "前端 lint/type-check 通过；桌面 lint/type-check/build 通过，包含前端 production build。Windows 自带 tar 下 archive/data-manager 12 passed；符号链接用例因本机权限不足未覆盖。",
+    "核对提交候选路径、凭据模式、CRLF-aware whitespace 与已有 x64 release 资产静态门禁；授权范围为 OpenFix 的当前 V1 开发进度。"
+  ],
+  "activeSlice": "v1-local-commit-20261003",
+  "evidenceRefs": [
+    "C:/Users/20969/.fastctx/jobs/j-taig3r/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-v44ehv/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-9za1x2/output.log",
+    "Windows native tar: node --test excluding the privileged symbolic-link case => 12 passed; pnpm verify:release => ALL CHECKS PASSED"
+  ],
+  "blockedOn": "正式验收仍需真实 provider、干净 Windows 11 旧版升级、远端双架构 Actions/Release、签名身份和当前包运行证据；仓库内项目属性失败保护、项目页及 onboarding 的 profile PUT 在途重复创建保护、人物 / 世界书深链选择、ARM64 runtime、各平台 fork wheel 和恢复运行时保留仍待处理，当前可以继续推进。",
+  "nextStep": "先通过最新 git log/status 核对本地里程碑提交；继续修复仓库内剩余项并对照 §42 验收，保留不重跑 packaged smoke 的用户限制。",
+  "updatedAt": "2026-10-03"
+}

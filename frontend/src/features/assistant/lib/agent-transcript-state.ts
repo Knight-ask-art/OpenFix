@@ -784,6 +784,19 @@ export function applyAgentTranscriptEvent(
       };
     }
 
+    if (event.type === "context_snapshot") {
+      const snapshotMessage = normalizeTranscriptEvent(event);
+      return {
+        state: {
+          ...state,
+          messages: snapshotMessage
+            ? upsertTranscriptMessage(applyHiddenEventToMessages(), snapshotMessage)
+            : applyHiddenEventToMessages(),
+        },
+        message: snapshotMessage,
+      };
+    }
+
     if (event.type === "token_usage") {
       return {
         state: {

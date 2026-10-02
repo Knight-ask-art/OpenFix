@@ -105,6 +105,10 @@ async def test_edit_world_entry_builds_approval_diff_preview() -> None:
             "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo.list_all_by_world_info",
             AsyncMock(return_value=[entry]),
         ),
+        patch(
+            "app.agent_runtime.tools.impls.context.world_entry.world_entry_meta_service.is_entry_ai_visible",
+            AsyncMock(return_value=True),
+        ),
     ):
         preview = await tool.build_interrupt_preview(
             {"title": "旧条目", "old_content": "旧内容", "new_content": "新内容"}

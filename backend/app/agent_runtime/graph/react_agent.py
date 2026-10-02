@@ -50,6 +50,7 @@ from app.agent_runtime.context.compaction.window import (
     select_compaction_window,
 )
 from app.agent_runtime.context.processors.to_langchain import to_langchain_messages
+from app.agent_runtime.context.source_snapshot import build_agent_context_sources
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.llm_invoke import (
     EmptyResponseError,
@@ -685,6 +686,9 @@ def create_react_agent(
         agent_event_sink = configurable.get("agent_event_sink")
         if not callable(agent_event_sink):
             agent_event_sink = None
+        context_snapshot_sink = configurable.get("context_snapshot_sink")
+        if not callable(context_snapshot_sink):
+            context_snapshot_sink = None
         compaction_usage_sink = configurable.get("compaction_usage_sink")
         if not callable(compaction_usage_sink):
             compaction_usage_sink = None
@@ -884,6 +888,25 @@ def create_react_agent(
             messages = to_langchain_messages(candidate_parts)
         else:
             messages.extend(transient_messages)
+
+        context_sources = build_agent_context_sources(messages)
+        context_session_id = configurable.get("thread_id")
+        if not isinstance(context_session_id, str) or not context_session_id:
+            context_session_id = (
+                runtime_state.get("session_id")
+                if isinstance(runtime_state, Mapping)
+                else None
+            )
+        if isinstance(context_session_id, str) and context_session_id:
+            snapshot_payload = {
+                "session_id": context_session_id,
+                "agent_id": react_config.name,
+                "context_sources": context_sources,
+            }
+            if context_snapshot_sink is not None:
+                await context_snapshot_sink(snapshot_payload)
+            if agent_event_sink is not None:
+                await agent_event_sink("agent:context_snapshot", snapshot_payload)
 
         audit = await _start_audit(configurable, messages)
         active_audit = audit

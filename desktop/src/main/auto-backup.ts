@@ -10,6 +10,7 @@ import path from "node:path";
 
 import { appendLog } from "./logging.js";
 import { resolveDataDir } from "./data-location.js";
+import { resolveRuntimeDir } from "./runtime/python.js";
 import type { AutoBackupSettings, DesktopConfig } from "../shared/config.js";
 
 export const AUTO_BACKUP_PREFIX = "OpenFix-backup-";
@@ -21,6 +22,7 @@ export const AUTO_BACKUP_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 export interface AutoBackupTarget {
   instanceId: string;
   dataDir: string;
+  runtimeDir: string;
   settings: AutoBackupSettings;
 }
 
@@ -44,6 +46,7 @@ export function getAutoBackupTarget(config: DesktopConfig | null): AutoBackupTar
   return {
     instanceId: instance.id,
     dataDir: resolveDataDir(instance),
+    runtimeDir: resolveRuntimeDir(instance.installDir),
     settings,
   };
 }

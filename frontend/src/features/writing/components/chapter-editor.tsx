@@ -46,6 +46,7 @@ import {
   isRemoteWritingEntityNewer,
 } from "../lib/writing-working-copy";
 import { useTabsStore } from "../store/use-tabs-store";
+import { ChapterMetaBar } from "./chapter-meta-bar";
 import { FindReplacePanel } from "./find-replace-panel";
 
 const MANUAL_SAVE_EVENT = "openfic:chapter-editor-manual-save";
@@ -712,6 +713,11 @@ function ChapterEditorContent({
         >
           {wordCount} {t("writing.words")}
         </Text>
+        <ChapterMetaBar
+          chapterId={chapter.id}
+          wordCount={wordCount}
+          isLocked={isAgentLocked}
+        />
         <Text
           size="1"
           color="gray"

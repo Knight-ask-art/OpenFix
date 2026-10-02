@@ -4,6 +4,7 @@
 import io
 
 from docx import Document
+from docx.document import Document as DocumentObject
 from docx.text.paragraph import Paragraph
 
 from app.core.txt_parser import (
@@ -38,7 +39,7 @@ def _heading_level(style_name: str) -> int | None:
     return None
 
 
-def _collect_paragraphs(document: Document) -> list[tuple[int | None, str]]:
+def _collect_paragraphs(document: DocumentObject) -> list[tuple[int | None, str]]:
     collected: list[tuple[int | None, str]] = []
     for paragraph in document.paragraphs:
         text = paragraph.text.strip()
@@ -110,9 +111,11 @@ def _parse_with_headings(paragraphs: list[tuple[int | None, str]]) -> ParseResul
             continue
 
         if current_volume is None:
-            ensure_volume(_DEFAULT_VOLUME_TITLE)
+            volume = ensure_volume(_DEFAULT_VOLUME_TITLE)
+        else:
+            volume = current_volume
         current_chapter = ParsedChapter(title=text[:_MAX_TITLE_LENGTH], content="", word_count=0)
-        current_volume.chapters.append(current_chapter)
+        volume.chapters.append(current_chapter)
 
     flush_chapter()
 

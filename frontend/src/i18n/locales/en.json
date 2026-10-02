@@ -92,7 +92,8 @@
     "characters": "Characters",
     "world": "World",
     "storyMemory": "Story memory",
-    "consistency": "Check"
+    "consistency": "Check",
+    "ai": "AI"
   },
   "home": {
     "title": "Home",
@@ -106,7 +107,10 @@
     "wordsUnit": "words",
     "activeDays_one": "{{count}} active day",
     "activeDays_other": "{{count}} active days",
-    "recentProjects": "Recent projects"
+    "recentProjects": "Recent projects",
+    "continueMeta": "{{words}} words · {{chapters}} chapters",
+    "continueLastOpened": "Last opened: {{time}}",
+    "openOverview": "Project overview"
   },
   "settingsAdvanced": {
     "advancedGroup": "Advanced",
@@ -229,7 +233,48 @@
     "created": "Character created",
     "deleted": "Character deleted",
     "nameExists": "Character name already exists",
-    "updateFailed": "Failed to save character"
+    "updateFailed": "Failed to save character",
+    "editorViewLabel": "Character editor view",
+    "editorViewDescription": "Description",
+    "editorViewAuthor": "Author fields",
+    "authorProfile": "Author fields",
+    "authorProfileHint": "These fields are indexed into story memory so the AI can retrieve them.",
+    "saveAuthorProfile": "Save author fields",
+    "authorProfileSaved": "Author fields saved",
+    "authorProfileSaveFailed": "Failed to save author fields",
+    "currentState": "Current state",
+    "currentStateHint": "Track where the character is and how they are doing; can be stored per chapter.",
+    "stateChapter": "State chapter",
+    "stateChapterProjectLevel": "Project-level latest state",
+    "saveCurrentState": "Save current state",
+    "currentStateSaved": "Current state saved",
+    "currentStateSaveFailed": "Failed to save current state",
+    "stateHistory": "{{count}} state records saved",
+    "profile": {
+      "alias": "Alias",
+      "age": "Age",
+      "gender": "Gender",
+      "identity": "Identity",
+      "faction": "Faction",
+      "personality": "Personality",
+      "appearance": "Appearance",
+      "background": "Background",
+      "goal": "Goal",
+      "motivation": "Motivation",
+      "fear": "Fear",
+      "secret": "Secret",
+      "abilities": "Abilities",
+      "weakness": "Weakness",
+      "arc": "Character arc"
+    },
+    "state": {
+      "location": "Current location",
+      "physicalState": "Physical state",
+      "mentalState": "Mental state",
+      "goal": "Current goal",
+      "relationshipNote": "Relationship changes",
+      "notes": "Notes"
+    }
   },
   "import": {
     "title": "Import Project",
@@ -282,7 +327,21 @@
     "titleRequired": "Please enter a project title",
     "titleTooLong": "Title cannot exceed 200 characters",
     "descriptionLabel": "Description",
-    "descriptionPlaceholder": "Enter project description (optional)"
+    "descriptionPlaceholder": "Enter project description (optional)",
+    "genreLabel": "Genre",
+    "genreUnset": "Not set",
+    "genres": {
+      "xuanhuan": "Xuanhuan",
+      "fantasy": "Fantasy",
+      "urban": "Urban",
+      "scifi": "Science fiction",
+      "mystery": "Mystery",
+      "history": "Historical",
+      "romance": "Romance",
+      "other": "Other"
+    },
+    "targetWordCountLabel": "Target word count",
+    "targetWordCountPlaceholder": "e.g. 300000"
   },
   "coverCropper": {
     "cropCover": "Crop Cover",
@@ -582,7 +641,16 @@
         "rebuildSuccess": "Index rebuild job submitted",
         "rebuildFailed": "Failed to rebuild index"
       }
-    }
+    },
+    "chapterStatus": {
+      "label": "Chapter status",
+      "draft": "Draft",
+      "writing": "Writing",
+      "revising": "Needs revision",
+      "done": "Done"
+    },
+    "chapterTarget": "Chapter target",
+    "chapterTargetProgress": "{{current}} / {{target}} words"
   },
   "editor": {
     "paragraph": "Paragraph",
@@ -742,7 +810,37 @@
     "batchDeleteSelected": "Delete Selected",
     "batchDeleteConfirm": "Are you sure you want to delete {{count}} entries? This cannot be undone.",
     "batchDeleted": "{{count}} entries deleted",
-    "batchToggled": "{{count}} entries updated"
+    "batchToggled": "{{count}} entries updated",
+    "editorViewLabel": "Entry editor view",
+    "editorViewContent": "Content",
+    "editorViewMeta": "Setting info",
+    "saveMeta": "Save setting info",
+    "metaSaved": "Setting info saved",
+    "metaSaveFailed": "Failed to save setting info",
+    "metaTypeSection": "Setting type",
+    "metaType": "Type",
+    "metaCustomType": "Custom type name",
+    "metaCustomTypePlaceholder": "e.g. School, Taboo",
+    "metaTags": "Tags",
+    "metaTagsPlaceholder": "Comma separated, e.g. North City, Rainy, Capital",
+    "metaAiVisible": "Visible to AI",
+    "metaAiVisibleHint": "When off, this entry is excluded from story memory retrieval and never given to the AI.",
+    "metaLinksSection": "Links",
+    "metaLinkedCharacters": "Linked characters",
+    "metaLinkedChapters": "Linked chapters",
+    "metaNoCharacters": "This project has no characters yet.",
+    "metaNoChapters": "This project has no chapters yet.",
+    "entryTypes": {
+      "location": "Location",
+      "organization": "Organization",
+      "nation": "Nation",
+      "faction": "Faction",
+      "rule": "Rule",
+      "history": "History",
+      "power_system": "Power system",
+      "technology": "Technology",
+      "custom": "Custom"
+    }
   },
   "settings": {
     "agentSettingsLocked": "An Agent session is running, so related settings are read-only.",
@@ -1855,6 +1953,41 @@
     "cachedTokens": "Cached Tokens: {{count}}",
     "totalCost": "Total Cost: $ {{cost}}",
     "contextUsage": "Context Usage",
+    "contextSources": {
+      "viewLabel": "Agent sidebar content view",
+      "conversationTab": "Conversation",
+      "contextTab": "Context",
+      "panelLabel": "Resources and summaries sent to the Agent",
+      "description": "Recognized sources in the latest model input ({{count}}).",
+      "empty": "The latest model input did not include any recognized resource reads.",
+      "scopeNotice": "Only source metadata from the latest model input is shown. Successful resource reads and compacted conversation summaries are listed; prompts, manuscript text, the selected chapter, and other automatically injected context are not shown.",
+      "chapterTitle": "Chapter {{order}} · {{title}}",
+      "chapterNumber": "Chapter {{order}}",
+      "chapterRange": "Chapter summaries {{start}}–{{end}}",
+      "categories": {
+        "conversation": "Conversation context",
+        "chapters": "Chapters",
+        "characters": "Characters",
+        "worldEntries": "World settings",
+        "outlines": "Outlines",
+        "notes": "Notes"
+      },
+      "sources": {
+        "compactionSummary": "Compacted conversation summary",
+        "chapterBody": "Chapter text",
+        "chapterCatalog": "Chapter list",
+        "chapterSearch": "Chapter search",
+        "chapterSummary": "Chapter summary",
+        "rangeSummary": "Range summary",
+        "characterList": "Character list",
+        "characterProfile": "Character profile",
+        "worldEntryList": "World entry list",
+        "worldEntryContent": "World entry",
+        "noteList": "Note list",
+        "noteContent": "Note content",
+        "storyMemorySearch": "Story memory search"
+      }
+    },
     "loadingTask": "Loading task...",
     "scrollToBottom": "Scroll to bottom",
     "summaryWarningTitle": "Context summaries may be incomplete",
@@ -2238,6 +2371,31 @@
       "replaceWith": "Replace with",
       "result": "Result",
       "toolApprovalQuestion": "Allow calling {{toolName}}?"
+    },
+    "suggestions": {
+      "tab": "Suggestions",
+      "panelLabel": "Suggestions based on project state",
+      "description": "These suggestions come from the project's real data. They are entry points only and never run anything automatically.",
+      "loading": "Reading project state…",
+      "empty": "No suggestions right now.",
+      "loadFailed": "Could not read the project state, so suggestions are unavailable right now.",
+      "retry": "Retry",
+      "scopeNotice": "These are actionable links only: nothing calls a model and nothing edits your prose.",
+      "storyMemoryNotIndexed": "Story memory has no index yet, so AI retrieval is missing characters and world settings.",
+      "storyMemoryStale": "The story memory index may be out of date. Rebuilding is recommended.",
+      "embeddingMissing": "No embedding model is configured, so story memory cannot be indexed.",
+      "noCharacters": "There is prose but no characters yet. Consider creating character cards.",
+      "noWorldEntries": "There is prose but no world settings yet. Consider adding worldbuilding.",
+      "noOutlines": "There is prose but no outline yet. Consider sketching the outline first.",
+      "consistencyHint": "Check a chapter, a volume, or the whole book for possible inconsistencies.",
+      "aiTasksHint": "The AI page offers preset tasks such as continue writing and plot analysis.",
+      "openStoryMemory": "Open story memory",
+      "openSettings": "Open settings",
+      "openCharacters": "Open characters",
+      "openWorld": "Open world",
+      "openOutline": "Open outline",
+      "openConsistency": "Consistency check",
+      "openAiTasks": "Open AI page"
     }
   },
   "settingsExtra": {
@@ -2409,7 +2567,38 @@
     "delete": "Delete",
     "deleteConfirm": "Delete {{title}} and all of its children. This cannot be undone.",
     "deleteWithChildren_one": "{{count}} child",
-    "deleteWithChildren_other": "{{count}} children"
+    "deleteWithChildren_other": "{{count}} children",
+    "ai": {
+      "improve": "Improve outline",
+      "checkPacing": "Check pacing",
+      "splitChapters": "Split into chapters",
+      "updateFromChapter": "Update from chapter text",
+      "pickChapter": "Reference chapter",
+      "noChapters": "This project has no chapters yet. Write some text first.",
+      "chapterOption": "Chapter {{order}} {{title}}",
+      "failed": "The AI request failed. Please try again.",
+      "candidateTitle": "Suggested title",
+      "candidateContent": "Suggested content",
+      "notes": "Notes: {{notes}}",
+      "pacingResult": "Pacing review",
+      "pacingNoIssues": "No obvious pacing problems found.",
+      "pacingDisclaimer": "These are preliminary observations only and may be wrong. Use your own judgement.",
+      "saveBeforeUsing": "The outline has unsaved changes. Save them before running or applying AI suggestions.",
+      "splitRequiresVolume": "Select a volume node before splitting it into chapters.",
+      "applyFailed": "Could not save the candidate. It is still available; check and try again.",
+      "severity": {
+        "info": "Note",
+        "warning": "Possible issue",
+        "high": "Worth checking"
+      },
+      "splitResult": "Suggested chapters ({{count}})",
+      "apply": "Accept and save",
+      "applySplit": "Create as child nodes",
+      "applySplitFailed": "Failed to create child nodes. Please review and retry.",
+      "applySplitPartial": "Created {{count}} child nodes. The remaining candidates are still available to retry.",
+      "regenerate": "Regenerate",
+      "dismiss": "Discard"
+    }
   },
   "storyMemory": {
     "title": "Story memory",
@@ -2434,6 +2623,7 @@
       "waiting": "Queued",
       "building": "Building",
       "ready": "Indexed",
+      "stale": "Out of date",
       "failed": "Failed",
       "needsRebuild": "Needs rebuild"
     }
@@ -2443,6 +2633,7 @@
     "check": "Run check",
     "checking": "Analyzing, please wait...",
     "checkFailed": "Check failed",
+    "partialResultWarning": "{{count}} segment(s) could not be read ({{segments}}). Only completed segments are shown below; rerun the check for complete coverage.",
     "idleHint": "Select a chapter, then run the check.",
     "disclaimer": "Results are advisory: the AI can only flag possible issues. Review against the text; dismiss or re-run as needed.",
     "noIssues": "No obvious inconsistencies found.",
@@ -2455,6 +2646,16 @@
     "dismissed": "Dismissed",
     "restore": "Restore",
     "suggestionPrefix": "Suggestion: ",
+    "viewOriginal": "View original",
+    "hideOriginal": "Hide original",
+    "sourceUnavailable": "No matching passage could be located in the manuscript",
+    "sourceChapter": "Chapter {{order}} · {{title}}",
+    "analyze": "AI analysis",
+    "analysisTitle": "Review this issue",
+    "analyzingIssue": "Reviewing this issue...",
+    "analysisFailed": "AI analysis failed",
+    "analysisModel": "Analysis model: {{model}}",
+    "close": "Close",
     "untitledChapter": "Untitled chapter",
     "severity": {
       "info": "Info",
@@ -2469,8 +2670,19 @@
       "location": "Location",
       "world_rule": "World rules",
       "foreshadowing": "Foreshadowing",
-      "naming": "Naming"
-    }
+      "naming": "Naming",
+      "character_info": "Character info",
+      "item": "Items",
+      "character_state": "Character state",
+      "plot": "Plot continuity"
+    },
+    "scopeLabel": "Check scope",
+    "scope": {
+      "chapter": "Current chapter",
+      "volume": "Current volume",
+      "book": "Whole book"
+    },
+    "resultSummaryScoped": "Scope: {{scope}} ({{label}}, {{chapters}} chapters) · {{count}} possible issues · Model: {{model}}"
   },
   "onboarding": {
     "title": "Welcome to OpenFix",
@@ -2483,7 +2695,7 @@
     "import": "Import an existing novel",
     "importDesc": "TXT, Markdown, DOCX and ZIP are supported.",
     "inspire": "Start from an idea",
-    "inspireDesc": "Sketch the book structure in Outline first.",
+    "inspireDesc": "Describe your idea and let AI draft the setup for you to confirm before saving.",
     "connectAI": "Learn how to connect AI",
     "aiTitle": "Connect AI",
     "aiRecommend": "OpenAI, Claude, DeepSeek and Gemini-compatible services are recommended.",
@@ -2491,6 +2703,126 @@
     "aiAlreadyConfigured": "You already have models configured and can start writing right away.",
     "aiOptional": "AI is optional: every editing feature works without it.",
     "gotIt": "Got it",
-    "created": "Project created"
+    "created": "Project created",
+    "storySetup": {
+      "title": "AI-assisted setup",
+      "intro": "Describe your idea and AI will draft a synopsis, world background, protagonist, core conflict and initial outline. Drafts are only written after you confirm them.",
+      "model": "Model: {{model}}",
+      "inspirationLabel": "Your idea",
+      "inspirationPlaceholder": "For example: a near-future mystery about a journalist who has lost part of her memory.",
+      "charCount": "{{count}} / {{max}}",
+      "generate": "Generate drafts",
+      "regenerate": "Generate again",
+      "generateFailed": "Generation failed: {{reason}}",
+      "modelMissing": "No writing model is configured yet. You can create a normal project now and connect AI later in Settings.",
+      "unknownError": "Please try again later.",
+      "backToCreate": "Use normal creation",
+      "reviewTitle": "Confirm what to save",
+      "reviewHint": "Edit any item first. Nothing is written until you click create. Uncheck an item to skip it.",
+      "item": {
+        "synopsis": "Story synopsis",
+        "worldBackground": "World background",
+        "protagonist": "Protagonist draft",
+        "coreConflict": "Core conflict",
+        "initialOutline": "Initial outline"
+      },
+      "itemSeparator": ", ",
+      "protagonistName": "Name",
+      "protagonistNamePlaceholder": "Protagonist name",
+      "protagonistDescription": "Character profile",
+      "protagonistIdentity": "Identity / occupation",
+      "protagonistGoal": "Character goal",
+      "protagonistMotivation": "Motivation",
+      "projectSection": "Project details",
+      "projectTitle": "Novel title",
+      "projectTitlePlaceholder": "Name your novel",
+      "projectTitleRequired": "Please enter a novel title.",
+      "genre": "Genre",
+      "targetWordCount": "Target word count",
+      "nothingSelected": "No item is selected; only a blank project will be created.",
+      "create": "Create project and save selected items",
+      "createFailed": "Project creation failed. Please try again.",
+      "profileFailed": "The project was created, but genre, synopsis or target word count could not be saved. You can retry.",
+      "partialSaved": "The project was created, but these items could not be saved: {{items}}. You can retry the unfinished items.",
+      "retry": "Retry unfinished items",
+      "openProject": "Open project"
+    }
+  },
+  "aiTasks": {
+    "title": "AI tasks",
+    "description": "Pick a preset task; the prompt is filled into the AI panel for you to review before sending.",
+    "noProject": "Select or create a project first.",
+    "promptInserted": "Prompt inserted into the AI panel. Review it before sending.",
+    "footnote": "Preset tasks only prefill a prompt: nothing calls a model and nothing edits your prose.",
+    "presets": {
+      "continueWriting": {
+        "title": "Continue writing",
+        "description": "Draft the next passage from prior context.",
+        "prompt": "Read the current chapter and the recent plot, then propose directions for what to write next and explain your reasoning."
+      },
+      "analyzePlot": {
+        "title": "Analyze plot",
+        "description": "Review the current plot and open threads.",
+        "prompt": "Analyze the current plot: what is the main conflict, is the pacing reasonable, and which threads are still unresolved?"
+      },
+      "designCharacter": {
+        "title": "Design a character",
+        "description": "Add a fitting new character to the story.",
+        "prompt": "Based on the existing world and plot, design a character who can move the story forward: identity, motivation, and relationship to the protagonist."
+      },
+      "buildWorld": {
+        "title": "Expand worldbuilding",
+        "description": "Fill in missing world settings.",
+        "prompt": "Review the current world settings, point out which key settings are missing, and suggest additions."
+      },
+      "checkConsistency": {
+        "title": "Check consistency",
+        "description": "Look for possible inconsistencies.",
+        "prompt": "Check the current chapter against the character and world settings for possible inconsistencies."
+      },
+      "summarizeChapter": {
+        "title": "Summarize chapters",
+        "description": "Summarize recent chapters.",
+        "prompt": "Summarize the main events, character state changes, and open questions of the recent chapters."
+      },
+      "analyzeRelationships": {
+        "title": "Analyze relationships",
+        "description": "Map character relationships and changes.",
+        "prompt": "Based on existing content, map the main characters' relationships, stances, and recent changes."
+      },
+      "brainstorm": {
+        "title": "Brainstorm",
+        "description": "Explore several possible directions.",
+        "prompt": "Propose 5 different directions the story could take next, with pros and cons for each."
+      }
+    }
+  },
+  "projectOverview": {
+    "notFound": "Project not found.",
+    "continueWriting": "Continue writing",
+    "stats": {
+      "words": "Words",
+      "chapters": "Chapters",
+      "characters": "Characters",
+      "worldEntries": "World settings"
+    },
+    "progress": {
+      "title": "Progress",
+      "volume": "Current volume: {{title}}",
+      "noVolume": "No volume yet.",
+      "words": "{{current}} / {{target}} words",
+      "noTarget": "No target word count yet. Set it in the project dialog."
+    },
+    "chapterStatus": {
+      "title": "Chapter status"
+    },
+    "recentCharacters": "Recent characters",
+    "todo": {
+      "title": "To review",
+      "revisingChapters": "{{count}} chapters marked for revision",
+      "storyMemory": "Check whether the story memory index is current",
+      "aiTasks": "Use AI preset tasks to move the draft forward"
+    },
+    "chapterCountNote": "This project has {{count}} chapters."
   }
 }

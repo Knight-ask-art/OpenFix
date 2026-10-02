@@ -2,6 +2,7 @@ import json
 
 from pydantic import BaseModel, Field
 
+from app.agent_runtime.revision_extensions import capture_chapter_extensions
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.revisions import (
     current_revision_id_from_state,
@@ -69,6 +70,13 @@ class DeleteChapterTool(AgentTool):
                     session, volume.id, deleted_order
                 )
             )
+            # 章节附加信息 / 章节内人物状态 / 条目关联会在下面的 service 调用里
+            # 级联删除，必须在删除前捕获，回滚才能写回。
+            before_extensions = {
+                match.id: await capture_chapter_extensions(
+                    session, project_id=self.project_id, chapter_id=match.id
+                )
+            }
             await chapter_service.delete_chapter(
                 session,
                 match.id,
@@ -88,6 +96,7 @@ class DeleteChapterTool(AgentTool):
                 project_id=self.project_id,
                 before=before,
                 after=after,
+                before_extensions=before_extensions,
             )
             for chapter_id in affected:
                 await record_agent_activity_for_change(

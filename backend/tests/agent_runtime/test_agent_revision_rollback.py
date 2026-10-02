@@ -1514,3 +1514,593 @@ async def test_rollback_revision_restores_deleted_characters(revision_db):
     assert character_after is not None
     assert character_after.name == "已有角色"
     assert character_after.description == "原始角色描述"
+
+
+async def _begin_revision(revision_db, *, content: str):
+    """插入一条用户消息并开启对应的 agent revision。"""
+    from app.agent_runtime.revisions import begin_user_revision
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content=content,
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message=f"用户消息: {content}",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+    return revision
+
+
+async def _rollback(revision_db, revision_id: str):
+    from app.agent_runtime.revisions import rollback_revision_for_session
+
+    async with revision_db() as session:
+        result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision_id,
+        )
+        await session.commit()
+    return result
+
+
+@pytest.mark.asyncio
+async def test_rollback_deleted_character_restores_extension_data(revision_db):
+    """回滚 Agent 删除人物时，作者扩展字段 / 状态 / 条目关联一并恢复。"""
+    from app.agent_runtime.tools.impls.context.character import DeleteCharacterTool
+    from app.storage.repos import (
+        character_extension_repo,
+        character_repo,
+        world_entry_meta_repo,
+    )
+
+    async with revision_db() as session:
+        await character_extension_repo.upsert_profile(
+            session, "char-1", {"identity": "记者", "goal": "查清真相"}
+        )
+        await character_extension_repo.upsert_state(
+            session,
+            "char-1",
+            "proj-1",
+            "chap-1",
+            {"location": "北城", "mental_state": "怀疑身边的人"},
+        )
+        await world_entry_meta_repo.upsert(
+            session,
+            entry_id="entry-1",
+            project_id="proj-1",
+            entry_type="location",
+            tags=["地理"],
+            linked_character_ids=["char-1"],
+            linked_chapter_ids=["chap-1"],
+            ai_visible=False,
+        )
+        await session.commit()
+
+    revision = await _begin_revision(revision_db, content="删除角色")
+
+    tool = DeleteCharacterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    delete_result = json.loads(await tool.ainvoke({"name": "已有角色"}))
+    assert delete_result["success"] is True
+
+    async with revision_db() as session:
+        assert await character_repo.get_by_id(session, "char-1") is None
+        assert await character_extension_repo.get_profile(session, "char-1") is None
+        assert await character_extension_repo.list_states(session, "char-1") == []
+        meta_after_delete = await world_entry_meta_repo.get_by_entry_id(session, "entry-1")
+
+    assert meta_after_delete is not None
+    assert world_entry_meta_repo.get_linked_character_ids(meta_after_delete) == []
+
+    await _rollback(revision_db, revision.id)
+
+    async with revision_db() as session:
+        character_after = await character_repo.get_by_id(session, "char-1")
+        profile_after = await character_extension_repo.get_profile(session, "char-1")
+        states_after = await character_extension_repo.list_states(session, "char-1")
+        meta_after = await world_entry_meta_repo.get_by_entry_id(session, "entry-1")
+
+    assert character_after is not None
+    assert profile_after is not None
+    assert profile_after.identity == "记者"
+    assert profile_after.goal == "查清真相"
+    assert [(state.chapter_id, state.location, state.mental_state) for state in states_after] == [
+        ("chap-1", "北城", "怀疑身边的人")
+    ]
+    assert meta_after is not None
+    assert world_entry_meta_repo.get_linked_character_ids(meta_after) == ["char-1"]
+
+
+@pytest.mark.asyncio
+async def test_rollback_created_character_leaves_no_orphan_extension_rows(revision_db):
+    """回滚 Agent 新建人物时，创建后补写的扩展行不能留下孤立记录。"""
+    from app.agent_runtime.tools.impls.context.character import CreateCharacterTool
+    from app.storage.repos import (
+        character_extension_repo,
+        character_repo,
+        world_entry_meta_repo,
+    )
+
+    revision = await _begin_revision(revision_db, content="创建一个临时角色")
+
+    tool = CreateCharacterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    create_result = json.loads(await tool.ainvoke({"name": "临时角色", "description": "临时描述"}))
+    assert create_result["success"] is True
+    character_id = create_result["metadata"]["character_diff"]["character_id"]
+
+    async with revision_db() as session:
+        await character_extension_repo.upsert_profile(
+            session, character_id, {"identity": "路人"}
+        )
+        await character_extension_repo.upsert_state(
+            session, character_id, "proj-1", None, {"location": "东城"}
+        )
+        await world_entry_meta_repo.upsert(
+            session,
+            entry_id="entry-1",
+            project_id="proj-1",
+            linked_character_ids=[character_id],
+        )
+        await session.commit()
+
+    await _rollback(revision_db, revision.id)
+
+    async with revision_db() as session:
+        assert await character_repo.get_by_id(session, character_id) is None
+        assert await character_extension_repo.get_profile(session, character_id) is None
+        assert await character_extension_repo.list_states(session, character_id) == []
+        meta_after = await world_entry_meta_repo.get_by_entry_id(session, "entry-1")
+
+    assert meta_after is not None
+    assert world_entry_meta_repo.get_linked_character_ids(meta_after) == []
+
+
+@pytest.mark.asyncio
+async def test_rollback_deleted_world_entry_restores_extension_meta(revision_db):
+    """回滚 Agent 删除世界设定条目时，类型 / 标签 / 关联 / AI 可见性一并恢复。"""
+    from app.agent_runtime.tools.impls.context.world_entry import DeleteWorldEntryTool
+    from app.storage.repos import world_entry_meta_repo, world_info_entry_repo
+
+    async with revision_db() as session:
+        await world_entry_meta_repo.upsert(
+            session,
+            entry_id="entry-1",
+            project_id="proj-1",
+            entry_type="organization",
+            tags=["势力", "北境"],
+            linked_character_ids=["char-1"],
+            linked_chapter_ids=["chap-1"],
+            ai_visible=True,
+            custom_type_label="自定义类型",
+        )
+        await session.commit()
+
+    revision = await _begin_revision(revision_db, content="删除世界书条目")
+
+    tool = DeleteWorldEntryTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    delete_result = json.loads(await tool.ainvoke({"title": "已有条目"}))
+    assert delete_result["success"] is True
+
+    async with revision_db() as session:
+        assert await world_info_entry_repo.get_by_id(session, "entry-1") is None
+        assert await world_entry_meta_repo.get_by_entry_id(session, "entry-1") is None
+
+    await _rollback(revision_db, revision.id)
+
+    async with revision_db() as session:
+        entry_after = await world_info_entry_repo.get_by_id(session, "entry-1")
+        meta_after = await world_entry_meta_repo.get_by_entry_id(session, "entry-1")
+
+    assert entry_after is not None
+    assert meta_after is not None
+    assert meta_after.entry_type == "organization"
+    assert world_entry_meta_repo.get_tags(meta_after) == ["势力", "北境"]
+    assert world_entry_meta_repo.get_linked_character_ids(meta_after) == ["char-1"]
+    assert world_entry_meta_repo.get_linked_chapter_ids(meta_after) == ["chap-1"]
+    assert meta_after.ai_visible is True
+    assert meta_after.custom_type_label == "自定义类型"
+
+
+@pytest.mark.asyncio
+async def test_world_entry_extension_round_trip_keeps_ai_visible_false(revision_db):
+    """扩展负载的捕获 / 删除 / 恢复往返要保留 ai_visible=False 这类非默认值。
+
+    删除工具会拒绝删除未向 AI 开放的条目，所以这条路径直接用扩展辅助函数验证。
+    """
+    from app.agent_runtime.revision_extensions import (
+        capture_world_entry_extensions,
+        delete_world_entry_extensions,
+        restore_world_entry_extensions,
+    )
+    from app.storage.repos import world_entry_meta_repo
+
+    async with revision_db() as session:
+        await world_entry_meta_repo.upsert(
+            session,
+            entry_id="entry-1",
+            project_id="proj-1",
+            entry_type="custom",
+            tags=["隐秘"],
+            ai_visible=False,
+            custom_type_label="隐秘设定",
+        )
+        await session.commit()
+
+    async with revision_db() as session:
+        payload = await capture_world_entry_extensions(session, entry_id="entry-1")
+        await delete_world_entry_extensions(session, entry_id="entry-1")
+        await session.commit()
+
+    async with revision_db() as session:
+        assert await world_entry_meta_repo.get_by_entry_id(session, "entry-1") is None
+        await restore_world_entry_extensions(
+            session, project_id="proj-1", entry_id="entry-1", payload=payload
+        )
+        await session.commit()
+
+    async with revision_db() as session:
+        meta_after = await world_entry_meta_repo.get_by_entry_id(session, "entry-1")
+
+    assert meta_after is not None
+    assert meta_after.entry_type == "custom"
+    assert world_entry_meta_repo.get_tags(meta_after) == ["隐秘"]
+    assert meta_after.ai_visible is False
+    assert meta_after.custom_type_label == "隐秘设定"
+
+
+@pytest.mark.asyncio
+async def test_rollback_created_world_entry_leaves_no_orphan_extension_meta(revision_db):
+    """回滚 Agent 新建世界设定条目时，创建后补写的扩展行不能留下孤立记录。"""
+    from app.agent_runtime.tools.impls.context.world_entry import CreateWorldEntryTool
+    from app.storage.repos import world_entry_meta_repo, world_info_entry_repo
+
+    revision = await _begin_revision(revision_db, content="新增世界书条目")
+
+    tool = CreateWorldEntryTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    create_result = json.loads(
+        await tool.ainvoke({"title": "新条目", "content": "新设定内容"})
+    )
+    assert create_result["success"] is True
+    entry_id = create_result["metadata"]["world_entry_diff"]["entry_id"]
+
+    async with revision_db() as session:
+        await world_entry_meta_repo.upsert(
+            session,
+            entry_id=entry_id,
+            project_id="proj-1",
+            entry_type="rule",
+            tags=["规则"],
+        )
+        await session.commit()
+
+    await _rollback(revision_db, revision.id)
+
+    async with revision_db() as session:
+        assert await world_info_entry_repo.get_by_id(session, entry_id) is None
+        assert await world_entry_meta_repo.get_by_entry_id(session, entry_id) is None
+
+
+@pytest.mark.asyncio
+async def test_rollback_deleted_chapter_restores_extension_data(revision_db):
+    """回滚 Agent 删除章节时，章节附加信息 / 章节内人物状态 / 条目关联一并恢复。"""
+    from app.agent_runtime.tools.impls.chapter.delete_chapter import DeleteChapterTool
+    from app.storage.repos import (
+        chapter_meta_repo,
+        chapter_repo,
+        character_extension_repo,
+        world_entry_meta_repo,
+    )
+
+    async with revision_db() as session:
+        await chapter_meta_repo.upsert(
+            session,
+            chapter_id="chap-1",
+            project_id="proj-1",
+            values={"status": "writing", "target_word_count": 3000},
+        )
+        await character_extension_repo.upsert_state(
+            session,
+            "char-1",
+            "proj-1",
+            "chap-1",
+            {"location": "北城"},
+        )
+        await world_entry_meta_repo.upsert(
+            session,
+            entry_id="entry-1",
+            project_id="proj-1",
+            linked_chapter_ids=["chap-1"],
+        )
+        await session.commit()
+
+    revision = await _begin_revision(revision_db, content="删除章节")
+
+    tool = DeleteChapterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    delete_result = json.loads(
+        await tool.ainvoke(
+            {
+                "volume_ref": {"type": "order", "value": 1},
+                "chapter_ref": {"type": "order", "value": 1},
+            }
+        )
+    )
+    assert delete_result["success"] is True
+
+    async with revision_db() as session:
+        assert await chapter_repo.get_by_id(session, "chap-1") is None
+        assert await chapter_meta_repo.get_by_chapter_id(session, "chap-1") is None
+        assert await character_extension_repo.list_states_by_chapter(session, "chap-1") == []
+        meta_after_delete = await world_entry_meta_repo.get_by_entry_id(session, "entry-1")
+
+    assert meta_after_delete is not None
+    assert world_entry_meta_repo.get_linked_chapter_ids(meta_after_delete) == []
+
+    await _rollback(revision_db, revision.id)
+
+    async with revision_db() as session:
+        chapter_after = await chapter_repo.get_by_id(session, "chap-1")
+        meta_after = await chapter_meta_repo.get_by_chapter_id(session, "chap-1")
+        states_after = await character_extension_repo.list_states_by_chapter(session, "chap-1")
+        entry_meta_after = await world_entry_meta_repo.get_by_entry_id(session, "entry-1")
+
+    assert chapter_after is not None
+    assert meta_after is not None
+    assert meta_after.status == "writing"
+    assert meta_after.target_word_count == 3000
+    assert [(state.character_id, state.chapter_id, state.location) for state in states_after] == [
+        ("char-1", "chap-1", "北城")
+    ]
+    assert entry_meta_after is not None
+    assert world_entry_meta_repo.get_linked_chapter_ids(entry_meta_after) == ["chap-1"]
+
+
+@pytest.mark.asyncio
+async def test_rollback_created_chapter_leaves_no_orphan_extension_rows(revision_db):
+    """回滚 Agent 新建章节时，创建后补写的附加信息不能留下孤立记录。"""
+    from app.agent_runtime.tools.impls.chapter.write_chapter import WriteChapterTool
+    from app.storage.repos import chapter_meta_repo, chapter_repo
+
+    revision = await _begin_revision(revision_db, content="插入一个章节")
+
+    tool = WriteChapterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    write_result = json.loads(
+        await tool.ainvoke(
+            {
+                "volume_ref": {"type": "order", "value": 1},
+                "title": "插入章",
+                "content": "新内容",
+                "chapter_ref": {"type": "order", "value": 2},
+            }
+        )
+    )
+    assert write_result["success"] is True
+    chapter_id = write_result["metadata"]["chapter_diff"]["chapter_id"]
+
+    async with revision_db() as session:
+        await chapter_meta_repo.upsert(
+            session,
+            chapter_id=chapter_id,
+            project_id="proj-1",
+            values={"status": "done", "target_word_count": 5000},
+        )
+        await session.commit()
+
+    await _rollback(revision_db, revision.id)
+
+    async with revision_db() as session:
+        assert await chapter_repo.get_by_id(session, chapter_id) is None
+        assert await chapter_meta_repo.get_by_chapter_id(session, chapter_id) is None
+
+
+@pytest.mark.asyncio
+async def test_rollback_uses_earliest_character_snapshot_extension_payload(revision_db):
+    """更早的 revision 已经带过扩展负载时，回滚到它仍能恢复后续被删除的扩展数据。"""
+    from app.agent_runtime.tools.impls.context.character import (
+        DeleteCharacterTool,
+        EditCharacterTool,
+    )
+    from app.storage.repos import character_extension_repo, character_repo
+
+    async with revision_db() as session:
+        await character_extension_repo.upsert_profile(
+            session, "char-1", {"identity": "记者"}
+        )
+        await session.commit()
+
+    first_revision = await _begin_revision(revision_db, content="编辑角色")
+    edit_tool = EditCharacterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": first_revision.id,
+        }
+    )
+    edit_result = json.loads(
+        await edit_tool.ainvoke(
+            {
+                "name": "已有角色",
+                "new_name": "改名角色",
+                "old_description": "原始",
+                "new_description": "更新",
+            }
+        )
+    )
+    assert edit_result["success"] is True
+
+    second_revision = await _begin_revision(revision_db, content="删除角色")
+    delete_tool = DeleteCharacterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": second_revision.id,
+        }
+    )
+    delete_result = json.loads(await delete_tool.ainvoke({"name": "改名角色"}))
+    assert delete_result["success"] is True
+
+    await _rollback(revision_db, first_revision.id)
+
+    async with revision_db() as session:
+        character_after = await character_repo.get_by_id(session, "char-1")
+        profile_after = await character_extension_repo.get_profile(session, "char-1")
+
+    assert character_after is not None
+    assert character_after.name == "已有角色"
+    assert profile_after is not None
+    assert profile_after.identity == "记者"
+
+
+@pytest.mark.asyncio
+async def test_rollback_moving_chapter_into_occupied_order_parks_before_volume_change(
+    revision_db,
+):
+    """跨卷回滚时，先暂存排序再改卷，避免触发卷内唯一约束。"""
+    from app.agent_runtime.revisions import images_by_id, record_chapter_diffs
+    from app.storage.repos import chapter_repo
+
+    revision = await _begin_revision(revision_db, content="移动章节到另一卷")
+
+    async with revision_db() as session:
+        session.add(
+            Volume(
+                id="vol-2",
+                project_id="proj-1",
+                title="第二卷",
+                order=2,
+                chapter_count=1,
+            )
+        )
+        session.add(
+            Chapter(
+                id="chap-3",
+                project_id="proj-1",
+                volume_id="vol-2",
+                title="第三章",
+                content="目标卷已有章节",
+                word_count=7,
+                order=1,
+            )
+        )
+        await session.flush()
+
+        chapter = await chapter_repo.get_by_id(session, "chap-1")
+        assert chapter is not None
+        before = images_by_id([chapter])
+        chapter.volume_id = "vol-2"
+        chapter.order = 2
+        await chapter_repo.update_chapter(session, chapter)
+        after = images_by_id([chapter])
+        await record_chapter_diffs(
+            session,
+            revision_id=revision.id,
+            project_id="proj-1",
+            before=before,
+            after=after,
+        )
+        await session.commit()
+
+    await _rollback(revision_db, revision.id)
+
+    async with revision_db() as session:
+        restored = await chapter_repo.get_by_id(session, "chap-1")
+        unchanged = await chapter_repo.get_by_id(session, "chap-2")
+        target_chapter = await chapter_repo.get_by_id(session, "chap-3")
+
+    assert restored is not None
+    assert (restored.volume_id, restored.order) == ("vol-1", 1)
+    assert unchanged is not None
+    assert (unchanged.volume_id, unchanged.order) == ("vol-1", 2)
+    assert target_chapter is not None
+    assert (target_chapter.volume_id, target_chapter.order) == ("vol-2", 1)
+
+
+@pytest.mark.asyncio
+async def test_restore_character_extensions_skips_malformed_state_snapshot(revision_db):
+    """结构不完整的状态快照应跳过，不得删除当前有效状态。"""
+    from app.agent_runtime.revision_extensions import restore_character_extensions
+    from app.storage.repos import character_extension_repo
+
+    async with revision_db() as session:
+        await character_extension_repo.upsert_state(
+            session,
+            "char-1",
+            "proj-1",
+            None,
+            {"location": "当前状态"},
+        )
+        await session.commit()
+
+    async with revision_db() as session:
+        await restore_character_extensions(
+            session,
+            project_id="proj-1",
+            character_id="char-1",
+            payload={"states": [{"id": "state-corrupt", "location": "损坏负载"}]},
+            existing_chapter_ids={"chap-1"},
+        )
+        await session.commit()
+
+    async with revision_db() as session:
+        states = await character_extension_repo.list_states(session, "char-1")
+
+    assert [(state.project_id, state.location) for state in states] == [
+        ("proj-1", "当前状态")
+    ]

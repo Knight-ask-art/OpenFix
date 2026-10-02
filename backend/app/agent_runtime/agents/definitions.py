@@ -58,6 +58,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "web_fetch",
                 "plan",
                 "chapter_read",
+                "story_memory_read",
                 "chapter_write",
                 "summary_read",
                 "world_read",
@@ -92,6 +93,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "interaction",
                 "plan",
                 "chapter_read",
+                "story_memory_read",
                 "summary_read",
                 "world_read",
                 "note_read",
@@ -119,6 +121,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             model_id=None,
             enabled_tool_categories=(
                 "chapter_read",
+                "story_memory_read",
                 "summary_read",
                 "world_read",
                 "web_search",
@@ -138,6 +141,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             model_id=None,
             enabled_tool_categories=(
                 "chapter_read",
+                "story_memory_read",
                 "summary_read",
                 "world_read",
                 "world_write",
@@ -159,6 +163,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             model_id=None,
             enabled_tool_categories=(
                 "chapter_read",
+                "story_memory_read",
                 "summary_read",
                 "world_read",
                 "plan",
@@ -177,6 +182,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             model_id=None,
             enabled_tool_categories=(
                 "chapter_read",
+                "story_memory_read",
                 "summary_read",
                 "world_read",
                 "plan",
@@ -198,6 +204,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             enabled_tool_categories=(
                 "plan",
                 "chapter_read",
+                "story_memory_read",
                 "chapter_write",
                 "summary_read",
                 "world_read",
@@ -219,6 +226,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             model_id=None,
             enabled_tool_categories=(
                 "chapter_read",
+                "story_memory_read",
                 "summary_read",
                 "world_read",
                 "plan",

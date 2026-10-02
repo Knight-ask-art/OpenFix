@@ -8,8 +8,10 @@ Story Memory retrieval - 把人物、世界设定、大纲、笔记统一索引�
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,15 +33,45 @@ from app.retrieval.types import (
 )
 from app.storage.repos import (
     chapter_repo,
+    character_extension_repo,
     character_repo,
     note_repo,
     outline_repo,
     retrieval_index_repo,
     world_info_entry_repo,
     world_info_repo,
+    world_entry_meta_repo,
 )
+from app.storage.models.retrieval_index import RetrievalIndex
 
 STORY_MEMORY_SOURCES = ("character", "world_entry", "outline", "note")
+
+# 人物扩展字段中会进入 Story Memory 的字段，按「标签：值」拼接。
+CHARACTER_PROFILE_LABELS: tuple[tuple[str, str], ...] = (
+    ("alias", "别名"),
+    ("gender", "性别"),
+    ("age", "年龄"),
+    ("identity", "身份"),
+    ("faction", "阵营"),
+    ("personality", "性格"),
+    ("appearance", "外貌"),
+    ("background", "背景"),
+    ("goal", "目标"),
+    ("motivation", "动机"),
+    ("fear", "恐惧"),
+    ("secret", "秘密"),
+    ("abilities", "能力"),
+    ("weakness", "弱点"),
+    ("arc", "人物弧"),
+)
+
+CHARACTER_STATE_LABELS: tuple[tuple[str, str], ...] = (
+    ("location", "当前地点"),
+    ("physical_state", "身体状态"),
+    ("mental_state", "心理状态"),
+    ("goal", "当前目标"),
+    ("relationship_note", "关系变化"),
+)
 
 
 def story_memory_index_key(project_id: str) -> str:
@@ -54,16 +86,43 @@ def _join_parts(*parts: str) -> str:
     return "\n".join(part for part in parts if part.strip())
 
 
+async def _hidden_world_entry_ids(session: AsyncSession, project_id: str) -> set[str]:
+    metadata = await world_entry_meta_repo.list_by_project(session, project_id)
+    return {item.entry_id for item in metadata if not item.ai_visible}
+
+
 async def build_story_memory_documents(
     session: AsyncSession, project_id: str
 ) -> list[IndexDocument]:
     """收集项目内人物、世界设定、大纲、笔记，构建待索引文档。"""
     documents: list[IndexDocument] = []
 
-    for character in await character_repo.list_all_by_project(session, project_id):
+    characters = await character_repo.list_all_by_project(session, project_id)
+    character_ids = [character.id for character in characters]
+    profiles = await character_extension_repo.get_profiles_by_character_ids(
+        session, character_ids
+    )
+    states = await character_extension_repo.get_latest_project_states_by_character_ids(
+        session, character_ids
+    )
+    for character in characters:
+        profile = profiles.get(character.id)
+        state = states.get(character.id)
+        profile_lines: list[str] = []
+        if profile is not None:
+            for field, label in CHARACTER_PROFILE_LABELS:
+                value = (getattr(profile, field, "") or "").strip()
+                if value:
+                    profile_lines.append(f"{label}：{value}")
+        if state is not None:
+            for field, label in CHARACTER_STATE_LABELS:
+                value = (getattr(state, field, "") or "").strip()
+                if value:
+                    profile_lines.append(f"{label}：{value}")
         text = _join_parts(
             f"人物：{character.name}",
             character.description,
+            "\n".join(profile_lines),
         )
         if text.strip():
             documents.append(
@@ -77,9 +136,12 @@ async def build_story_memory_documents(
 
     world_info = await world_info_repo.get_by_project_id(session, project_id)
     if world_info is not None:
+        hidden_entry_ids = await _hidden_world_entry_ids(session, project_id)
         for entry in await world_info_entry_repo.list_enabled_by_world_info(
             session, world_info.id
         ):
+            if entry.id in hidden_entry_ids:
+                continue
             text = _join_parts(
                 f"世界设定：{entry.name}",
                 entry.content,
@@ -109,7 +171,9 @@ async def build_story_memory_documents(
                 )
             )
 
-    for note in await note_repo.list_by_project(session, project_id):
+    for note in await note_repo.list_by_project(
+        session, project_id, include_hidden=False
+    ):
         text = _join_parts(
             f"笔记：{note.title}",
             note.content,
@@ -125,6 +189,47 @@ async def build_story_memory_documents(
             )
 
     return documents
+
+
+def fingerprint_story_memory_documents(documents: list[IndexDocument]) -> str:
+    """Return a stable fingerprint for the exact source documents being indexed."""
+    canonical_documents = [
+        document.model_dump(mode="json")
+        for document in sorted(documents, key=lambda item: item.document_id)
+    ]
+    serialized = json.dumps(
+        canonical_documents,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+async def story_memory_index_is_fresh(
+    session: AsyncSession,
+    *,
+    project_id: str,
+    index_row: RetrievalIndex | None = None,
+    documents: list[IndexDocument] | None = None,
+) -> bool:
+    """Whether a ready Story Memory index represents the current source snapshot.
+
+    Rows created before source fingerprints were introduced are stale until the
+    next successful rebuild. Building documents for the comparison also detects
+    insertions and deletions, which timestamps alone cannot reliably identify.
+    """
+    row = index_row or await retrieval_index_repo.get_by_index_key(
+        session, story_memory_index_key(project_id)
+    )
+    if row is None or row.status != "ready" or not row.source_fingerprint:
+        return False
+    current_documents = (
+        documents
+        if documents is not None
+        else await build_story_memory_documents(session, project_id)
+    )
+    return fingerprint_story_memory_documents(current_documents) == row.source_fingerprint
 
 
 def build_story_memory_contract(model) -> RetrievalIndexContract:
@@ -204,17 +309,32 @@ async def compute_story_memory_status(
         characters=len(await character_repo.list_all_by_project(session, project_id)),
         chapters=await chapter_repo.count_by_project(session, project_id),
         outlines=len(await outline_repo.list_by_project(session, project_id)),
-        notes=len(await note_repo.list_by_project(session, project_id)),
+        notes=len(
+            await note_repo.list_by_project(session, project_id, include_hidden=False)
+        ),
     )
     world_info = await world_info_repo.get_by_project_id(session, project_id)
     if world_info is not None:
-        counts.world_entries = len(
-            await world_info_entry_repo.list_enabled_by_world_info(session, world_info.id)
-        )
+        hidden_entry_ids = await _hidden_world_entry_ids(session, project_id)
+        visible_entries = 0
+        for entry in await world_info_entry_repo.list_enabled_by_world_info(
+            session, world_info.id
+        ):
+            if entry.id not in hidden_entry_ids:
+                visible_entries += 1
+        counts.world_entries = visible_entries
 
     index_row = await retrieval_index_repo.get_by_index_key(
         session, story_memory_index_key(project_id)
     )
+    index_status = index_row.status if index_row is not None else "not_created"
+    if index_row is not None and index_row.status == "ready":
+        if not await story_memory_index_is_fresh(
+            session,
+            project_id=project_id,
+            index_row=index_row,
+        ):
+            index_status = "stale"
     active_jobs = await background_service.list_jobs(
         session,
         subject_type="project",
@@ -227,7 +347,7 @@ async def compute_story_memory_status(
     return StoryMemoryStatus(
         project_id=project_id,
         embedding_configured=model is not None,
-        index_status=index_row.status if index_row is not None else "not_created",
+        index_status=index_status,
         last_error=index_row.last_error if index_row is not None else None,
         last_ready_at=index_row.last_ready_at if index_row is not None else None,
         rebuild_job_status=active_jobs[0].status if active_jobs else None,

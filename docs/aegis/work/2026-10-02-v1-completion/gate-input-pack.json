@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "baselineRefs": [
+    "新版本/docs/03-source-change-list.md §42",
+    "docs/aegis/plans/2026-10-01-phase5-windows-release-updates.md"
+  ],
+  "impactStatement": "docs/aegis/work/2026-10-02-v1-completion/impact-statement-draft.json",
+  "compatPlan": "复用既有 RetrievalIndex 与 Story Memory API；只在必要时追加向后兼容迁移；保留既有未提交 V1 改动",
+  "retirementPlan": "仅同步迁移链测试与当前验收记录；未新增运行时实现或兼容分支，未清理用户数据。继续遵守不重跑 packaged smoke 的指令。",
+  "evidenceBundle": [
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json"
+  ]
+}

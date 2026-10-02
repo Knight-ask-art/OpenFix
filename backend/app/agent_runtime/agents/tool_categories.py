@@ -22,6 +22,7 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "search_chapters",
             "update_index",
         ),
+        "story_memory_read": ("search_story_memory",),
         "summary_read": (
             "read_chapter_summaries",
             "read_range_summaries",
@@ -71,6 +72,7 @@ TOOL_CATEGORY_DISPLAY: Mapping[str, str] = MappingProxyType(
         "web_fetch": "网页读取",
         "plan": "计划",
         "chapter_read": "章节读取",
+        "story_memory_read": "故事记忆检索",
         "summary_read": "摘要读取",
         "character_read": "角色读取",
         "character_write": "角色写入",

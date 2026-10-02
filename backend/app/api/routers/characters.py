@@ -14,18 +14,66 @@ from app.api.schemas.character import (
     CharacterBatchFavoriteResponse,
     CharacterListItemResponse,
     CharacterListResponse,
+    CharacterProfileResponse,
+    CharacterProfileUpdateRequest,
     CharacterResponse,
     CharacterSearchMatch,
     CharacterSearchResponse,
     CharacterSearchResult,
+    CharacterStateListResponse,
+    CharacterStateResponse,
+    CharacterStateUpdateRequest,
 )
 from app.core.errors import ConflictError, NotFoundError
 from app.core.storage import get_character_image_url
 from app.storage.database import get_session
 from app.storage.models.character import Character
+from app.storage.models.character_profile import CharacterProfile
+from app.storage.models.character_state import CharacterState
 from app.storage.services import character_service
 
 router = APIRouter(tags=["characters"])
+
+
+def to_profile_response(profile: CharacterProfile) -> CharacterProfileResponse:
+    """转换人物扩展字段响应。"""
+    return CharacterProfileResponse(
+        character_id=profile.character_id,
+        alias=profile.alias,
+        age=profile.age,
+        gender=profile.gender,
+        identity=profile.identity,
+        faction=profile.faction,
+        personality=profile.personality,
+        appearance=profile.appearance,
+        background=profile.background,
+        goal=profile.goal,
+        motivation=profile.motivation,
+        fear=profile.fear,
+        secret=profile.secret,
+        abilities=profile.abilities,
+        weakness=profile.weakness,
+        arc=profile.arc,
+        updated_at=profile.updated_at,
+    )
+
+
+def to_state_response(state: CharacterState) -> CharacterStateResponse:
+    """转换人物动态状态响应。"""
+    return CharacterStateResponse(
+        id=state.id,
+        character_id=state.character_id,
+        project_id=state.project_id,
+        chapter_id=state.chapter_id,
+        location=state.location,
+        physical_state=state.physical_state,
+        mental_state=state.mental_state,
+        goal=state.goal,
+        relationship_note=state.relationship_note,
+        notes=state.notes,
+        created_at=state.created_at,
+        updated_at=state.updated_at,
+    )
 
 
 def to_response(character: Character) -> CharacterResponse:
@@ -242,5 +290,102 @@ async def delete_character(
     """删除角色。"""
     try:
         await character_service.delete_character(session, character_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/characters/{character_id}/profile",
+    response_model=CharacterProfileResponse,
+    summary="获取角色作者扩展字段",
+)
+async def get_character_profile(
+    character_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CharacterProfileResponse:
+    """获取角色扩展字段；未填写时返回空字段。"""
+    try:
+        profile = await character_service.get_profile(session, character_id)
+        return to_profile_response(profile)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.put(
+    "/characters/{character_id}/profile",
+    response_model=CharacterProfileResponse,
+    summary="更新角色作者扩展字段",
+)
+async def update_character_profile(
+    character_id: str,
+    data: CharacterProfileUpdateRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CharacterProfileResponse:
+    """整体覆盖角色扩展字段；不修改角色名称与描述。"""
+    try:
+        profile = await character_service.update_profile(
+            session, character_id, data.model_dump()
+        )
+        return to_profile_response(profile)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/characters/{character_id}/states",
+    response_model=CharacterStateListResponse,
+    summary="获取角色动态状态列表",
+)
+async def list_character_states(
+    character_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CharacterStateListResponse:
+    """按更新时间倒序返回角色全部动态状态。"""
+    try:
+        states = await character_service.list_states(session, character_id)
+        return CharacterStateListResponse(
+            items=[to_state_response(state) for state in states],
+            total=len(states),
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.put(
+    "/characters/{character_id}/states",
+    response_model=CharacterStateResponse,
+    summary="更新角色在指定章节的动态状态",
+)
+async def update_character_state(
+    character_id: str,
+    data: CharacterStateUpdateRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CharacterStateResponse:
+    """创建或更新角色状态；chapter_id 为空表示项目级最新状态。"""
+    try:
+        state = await character_service.update_state(
+            session,
+            character_id,
+            data.model_dump(exclude={"chapter_id"}),
+            chapter_id=data.chapter_id,
+        )
+        return to_state_response(state)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.delete(
+    "/characters/{character_id}/states/{state_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="删除角色动态状态记录",
+)
+async def delete_character_state(
+    character_id: str,
+    state_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    """删除单条状态记录。"""
+    try:
+        await character_service.delete_state(session, character_id, state_id)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

@@ -1,6 +1,7 @@
 """SessionRunner 与持久化层的集成测试。"""
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -9,7 +10,6 @@ from langchain_core.messages import AIMessage, HumanMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 from app.agent_runtime.context.types import ContextMessage
@@ -95,15 +95,14 @@ def test_build_runtime_config_passes_compaction_sinks_to_graph():
 
 
 @pytest_asyncio.fixture
-async def isolated_db(monkeypatch):
-    """把全局 _async_session_factory / _engine 替换成内存库，并建表。"""
+async def isolated_db(monkeypatch, tmp_path: Path):
+    """把全局 session factory 替换成临时 SQLite 文件库，并建表。"""
     import app.storage.database as db_mod
 
     register_sqlmodel_models()
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
+        f"sqlite+aiosqlite:///{(tmp_path / 'agent-runtime.sqlite').as_posix()}",
         future=True,
-        poolclass=StaticPool,
     )
     factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with engine.begin() as conn:
@@ -627,6 +626,9 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(
             return None
 
         async def persist_node_event(self, _payload):
+            return None
+
+        async def persist_context_snapshot(self, _payload):
             return None
 
     class _FakeGraph:

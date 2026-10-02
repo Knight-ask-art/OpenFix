@@ -7,18 +7,19 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
+from docx.document import Document as DocumentObject
 
 from app.chapter_export.service import chinese_number
 
 DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
-def _add_title(document: Document, text: str, level: int) -> None:
+def _add_title(document: DocumentObject, text: str, level: int) -> None:
     heading = document.add_heading("", level=level)
     heading.add_run(text)
 
 
-def _add_body(document: Document, content: str) -> None:
+def _add_body(document: DocumentObject, content: str) -> None:
     for line in content.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
         document.add_paragraph(line)
 
@@ -53,6 +54,8 @@ async def write_docx_export(
             if chapter is None:
                 raise ValueError("导出章节已被删除，请重新发起导出")
             title = item.get("title") if isinstance(item.get("title"), str) else chapter.title
+            if not isinstance(title, str):
+                raise ValueError("导出任务章节标题无效")
 
             volume = volume_by_chapter.get(chapter_id)
             if mode == "volumes":

@@ -6,6 +6,7 @@ import { getString, isRecord, normalizeToolResult } from "./tool-result-normaliz
 export const AGENT_SOCKET_EVENTS = [
   "agent:text",
   "agent:pending_message",
+  "agent:context_snapshot",
   "agent:token",
   "agent:reasoning",
   "agent:tool_call",
@@ -106,6 +107,24 @@ export function toAgentEvent(
         message_id: messageId,
         content: getContent(data.content),
         created_at: getString(data.created_at),
+      },
+    };
+  }
+
+  if (eventName === "agent:context_snapshot") {
+    const id = `context-snapshot-${eventId("snapshot", data)}`;
+    return {
+      id,
+      correlation_id: id,
+      type: "context_snapshot",
+      role: "system",
+      status: "completed",
+      display: "hidden",
+      content: "",
+      agent: getString(data.agent_id),
+      payload: {
+        kind: "context_snapshot",
+        context_sources: Array.isArray(data.context_sources) ? data.context_sources : [],
       },
     };
   }

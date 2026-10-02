@@ -39,11 +39,14 @@ export function AuthPage() {
   return (
     <main className="auth-page">
       <section className="auth-panel">
-        <span
+        <div
           className="auth-brand"
           role="img"
           aria-label={t("common.appName")}
-        />
+        >
+          <img src="/openfix-logo.png" alt="" />
+          <span aria-hidden="true">OpenFix</span>
+        </div>
         <form
           className="auth-form"
           onSubmit={handleSubmit}

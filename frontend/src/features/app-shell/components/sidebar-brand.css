@@ -3,9 +3,7 @@
   width: 24px;
   height: 24px;
   flex: 0 0 24px;
-  background-color: var(--gray-11);
-  mask: url("/openfix.svg") center / contain no-repeat;
-  -webkit-mask: url("/openfix.svg") center / contain no-repeat;
+  object-fit: contain;
 }
 
 .sidebar-brand-collapsed,
@@ -32,10 +30,12 @@
 
 .sidebar-brand-wordmark {
   display: block;
-  width: 88px;
   height: 24px;
   flex: 0 0 auto;
-  background-color: var(--gray-11);
-  mask: url("/brand.svg") center / contain no-repeat;
-  -webkit-mask: url("/brand.svg") center / contain no-repeat;
+  color: var(--gray-11);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 24px;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
 }

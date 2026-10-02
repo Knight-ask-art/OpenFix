@@ -578,6 +578,11 @@ class SessionRunner:
                 "runtime_context": runtime_context,
                 "audit_context": audit_context,
                 "node_event_sink": node_event_sink,
+                "context_snapshot_sink": (
+                    self._persister.persist_context_snapshot
+                    if self._persister is not None
+                    else None
+                ),
                 "retry_event_sink": self._emit_retry_event,
                 "agent_event_sink": self._emit_agent_event,
                 "tool_result_sink": self._emit_tool_result,

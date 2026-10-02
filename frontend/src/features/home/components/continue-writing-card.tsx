@@ -1,8 +1,10 @@
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
-import { PenLine } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { LayoutDashboard, PenLine } from "lucide-react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 
+import { fetchProject } from "@/lib/api-client";
 import type { RecentProject } from "@/lib/recent-projects";
 
 import "./continue-writing-card.css";
@@ -13,6 +15,13 @@ interface ContinueWritingCardProps {
 
 export function ContinueWritingCard({ project }: ContinueWritingCardProps) {
   const { t } = useTranslation();
+
+  const { data: projectDetail } = useQuery({
+    queryKey: ["project", project?.projectId],
+    queryFn: () => fetchProject(project!.projectId),
+    enabled: Boolean(project?.projectId),
+    staleTime: 30_000,
+  });
 
   if (!project) {
     return (
@@ -65,12 +74,47 @@ export function ContinueWritingCard({ project }: ContinueWritingCardProps) {
       >
         {project.title}
       </Text>
-      <Button
-        asChild
-        size="2"
+      {projectDetail ? (
+        <Text
+          size="2"
+          color="gray"
+        >
+          {t("home.continueMeta", {
+            words: projectDetail.wordCount.toLocaleString(),
+            chapters: projectDetail.chapterCount,
+          })}
+        </Text>
+      ) : null}
+      <Text
+        size="1"
+        color="gray"
       >
-        <Link to={`/projects/${project.projectId}`}>{t("home.continueAction")}</Link>
-      </Button>
+        {t("home.continueLastOpened", {
+          time: project.openedAt.toLocaleString(),
+        })}
+      </Text>
+      <Flex
+        gap="2"
+        wrap="wrap"
+      >
+        <Button
+          asChild
+          size="2"
+        >
+          <Link to={`/projects/${project.projectId}`}>{t("home.continueAction")}</Link>
+        </Button>
+        <Button
+          asChild
+          size="2"
+          variant="soft"
+          color="gray"
+        >
+          <Link to={`/projects/${project.projectId}/overview`}>
+            <LayoutDashboard size={14} />
+            {t("home.openOverview")}
+          </Link>
+        </Button>
+      </Flex>
     </Box>
   );
 }

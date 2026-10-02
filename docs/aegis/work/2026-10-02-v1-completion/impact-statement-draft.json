@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "affectedLayers": [
+    "backend retrieval / context / storage / agent; frontend story-memory status; desktop release verification"
+  ],
+  "owners": [
+    "world_entry_meta_service and Story Memory index/status/search owners"
+  ],
+  "invariants": [
+    "ai_visible=false 即刻对模型生效；stale index 不可向 Agent 提供旧数据；source snapshot 改变后不得显示 ready"
+  ],
+  "compatBoundary": "复用既有 RetrievalIndex 与 Story Memory API；只在必要时追加向后兼容迁移；保留既有未提交 V1 改动",
+  "nonGoals": [
+    "OpenFic 上游、真实发布/签名、清理项目既有改动、未排期的全书检查任务化"
+  ]
+}

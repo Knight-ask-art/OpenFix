@@ -70,14 +70,42 @@ test("backup and restore round-trips data directory contents", async () => {
   }
 });
 
+test("backup excludes the configured app runtime while keeping project data", async () => {
+  const base = await mkdtemp(path.join(os.tmpdir(), "openfic-data-"));
+  try {
+    const source = await createDataDir(base, "src");
+    const runtime = path.join(source, "runtime", "python");
+    await mkdir(runtime, { recursive: true });
+    await writeFile(path.join(runtime, "python.exe"), "runtime-binary", "utf8");
+    const archivePath = path.join(base, "backup.tar.gz");
+    const restored = path.join(base, "restored");
+
+    await backupDataDir(source, archivePath, undefined, undefined, {
+      excludedTopLevelEntries: ["runtime"],
+    });
+    await restoreDataDir(archivePath, restored);
+
+    assert.equal(await readFile(path.join(restored, "openfic.db"), "utf8"), "sqlite");
+    await assert.rejects(stat(path.join(restored, "runtime")));
+  } finally {
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
 test("migrate copies data and preserves the source directory", async () => {
   const base = await mkdtemp(path.join(os.tmpdir(), "openfic-data-"));
   try {
     const source = await createDataDir(base, "src");
+    await mkdir(path.join(source, "runtime"), { recursive: true });
+    await writeFile(path.join(source, "runtime", "marker.txt"), "keep during migration", "utf8");
     const target = path.join(base, "target");
 
     await migrateDataDir(source, target);
     assert.equal(await readFile(path.join(target, "openfic.db"), "utf8"), "sqlite");
+    assert.equal(
+      await readFile(path.join(target, "runtime", "marker.txt"), "utf8"),
+      "keep during migration",
+    );
     assert.equal(await readFile(path.join(source, "openfic.db"), "utf8"), "sqlite");
   } finally {
     await rm(base, { recursive: true, force: true });

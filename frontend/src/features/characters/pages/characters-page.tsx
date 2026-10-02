@@ -27,7 +27,7 @@ import type { Character, CharacterListItem, CharacterListResponse } from "@/lib/
 import { getPreference, setPreference } from "@/lib/local-db";
 import { countTokens } from "@/lib/tiktoken-utils";
 
-import { CharacterEditor } from "../components/character-editor";
+import { CharacterEditorPanel } from "../components/character-editor-panel";
 import { CharacterList } from "../components/character-list";
 import { CharacterProfileDialog } from "../components/character-profile-dialog";
 import { useCharactersStore } from "../store/use-characters-store";
@@ -100,15 +100,25 @@ export function CharactersPage() {
 
   const projects = useMemo(() => projectsData?.items ?? [], [projectsData?.items]);
 
+  // 深层链接：URL 上的 projectId 变化时（例如从项目概览跳转）切换项目，
+  // 但不覆盖用户之后在页面内手动选择的项目。
+  const projectIdFromUrl = searchParams.get("projectId");
+  const appliedUrlProjectIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!projectIdFromUrl || projects.length === 0) return;
+    if (appliedUrlProjectIdRef.current === projectIdFromUrl) return;
+    appliedUrlProjectIdRef.current = projectIdFromUrl;
+    if (!projects.some((project) => project.id === projectIdFromUrl)) return;
+    if (projectIdFromUrl === currentProjectId) return;
+    setCurrentProject(projectIdFromUrl);
+  }, [currentProjectId, projectIdFromUrl, projects, setCurrentProject]);
+
   useEffect(() => {
     const initProject = async () => {
       if (currentProjectId || projects.length === 0) return;
-      const projectIdFromUrl = searchParams.get("projectId");
       const cachedProjectId = await getPreference(LAST_PROJECT_KEY);
       const nextProjectId =
-        (projectIdFromUrl && projects.some((project) => project.id === projectIdFromUrl)
-          ? projectIdFromUrl
-          : null) ??
         (cachedProjectId && projects.some((project) => project.id === cachedProjectId)
           ? cachedProjectId
           : null) ??
@@ -118,7 +128,7 @@ export function CharactersPage() {
     };
 
     void initProject();
-  }, [currentProjectId, projects, searchParams, setCurrentProject]);
+  }, [currentProjectId, projects, setCurrentProject]);
 
   useEffect(() => {
     if (currentProjectId) void setPreference(LAST_PROJECT_KEY, currentProjectId);
@@ -395,9 +405,9 @@ export function CharactersPage() {
   );
 
   const editorContent = (
-    <CharacterEditor
-      key={selectedCharacter?.id ?? "empty"}
+    <CharacterEditorPanel
       character={selectedCharacter ?? null}
+      projectId={currentProjectId ?? ""}
       isSaving={updateMutation.isPending}
       isLoading={shouldShowCharacterEditorLoading(Boolean(selectedCharacter), isCharacterLoading)}
       isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}

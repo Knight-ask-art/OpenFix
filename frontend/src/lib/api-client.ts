@@ -129,11 +129,21 @@ export async function checkHealth(): Promise<HealthResponse> {
 
 import type { ChapterExport, ChapterExportCreate } from "./chapter-export.types";
 import type {
+  ChapterMeta,
+  ChapterMetaListResponse,
+  ChapterMetaUpdate,
+} from "./chapter.types";
+import type {
   Character,
   CharacterCreate,
   CharacterListItem,
+  CharacterProfile,
+  CharacterProfileInput,
   CharacterSearchResponse,
   CharacterListResponse,
+  CharacterState,
+  CharacterStateInput,
+  CharacterStateListResponse,
   CharacterUpdate,
 } from "./character.types";
 import type { AssistantCommandCandidate } from "./command.types";
@@ -141,6 +151,8 @@ import type { AssistantMentionCandidate } from "./mention.types";
 import type {
   Project,
   ProjectCreate,
+  ProjectProfile,
+  ProjectProfileUpdate,
   ProjectUpdate,
   ProjectListResponse,
   ProjectListParams,
@@ -286,11 +298,101 @@ export async function updateProject(projectId: string, data: ProjectUpdate): Pro
   return transformProject(response.data);
 }
 
+function transformChapterMeta(raw: Record<string, unknown>): ChapterMeta {
+  const status = raw.status as ChapterMeta["status"];
+  return {
+    chapterId: raw.chapter_id as string,
+    projectId: raw.project_id as string,
+    status:
+      status === "writing" || status === "revising" || status === "done" ? status : "draft",
+    targetWordCount: (raw.target_word_count as number) ?? 0,
+    lastAiCheckAt: (raw.last_ai_check_at as string | null) ?? null,
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+/**
+ * 获取项目内章节附加信息列表
+ */
+export async function fetchProjectChapterMeta(
+  projectId: string,
+): Promise<ChapterMetaListResponse> {
+  const response = await apiClient.get(`/projects/${projectId}/chapter-meta`);
+  const data = response.data as Record<string, unknown>;
+  return {
+    items: ((data.items as Record<string, unknown>[]) ?? []).map(transformChapterMeta),
+    total: data.total as number,
+  };
+}
+
+/**
+ * 获取章节附加信息
+ */
+export async function fetchChapterMeta(chapterId: string): Promise<ChapterMeta> {
+  const response = await apiClient.get(`/chapters/${chapterId}/meta`);
+  return transformChapterMeta(response.data);
+}
+
+/**
+ * 更新章节状态与本章目标字数
+ */
+export async function updateChapterMeta(
+  chapterId: string,
+  data: ChapterMetaUpdate,
+): Promise<ChapterMeta> {
+  const response = await apiClient.put(`/chapters/${chapterId}/meta`, {
+    status: data.status,
+    target_word_count: data.targetWordCount,
+  });
+  return transformChapterMeta(response.data);
+}
+
 /**
  * 删除项目
  */
 export async function deleteProject(projectId: string): Promise<void> {
   await apiClient.delete(`/projects/${projectId}`);
+}
+
+function transformProjectProfile(raw: Record<string, unknown>): ProjectProfile {
+  const status = raw.status as ProjectProfile["status"];
+  return {
+    projectId: raw.project_id as string,
+    genre: (raw.genre as string) || "",
+    synopsis: (raw.synopsis as string) || "",
+    targetWordCount: (raw.target_word_count as number) ?? 0,
+    dailyWordGoal: (raw.daily_word_goal as number) ?? 0,
+    status:
+      status === "planning" || status === "revising" || status === "completed"
+        ? status
+        : "drafting",
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+/**
+ * 获取项目产品属性
+ */
+export async function fetchProjectProfile(projectId: string): Promise<ProjectProfile> {
+  const response = await apiClient.get(`/projects/${projectId}/profile`);
+  return transformProjectProfile(response.data);
+}
+
+/**
+ * 更新项目产品属性
+ */
+export async function updateProjectProfile(
+  projectId: string,
+  data: ProjectProfileUpdate,
+): Promise<ProjectProfile> {
+  const response = await apiClient.put(`/projects/${projectId}/profile`, {
+    genre: data.genre,
+    synopsis: data.synopsis,
+    target_word_count: data.targetWordCount,
+    daily_word_goal: data.dailyWordGoal,
+    status: data.status,
+  });
+  return transformProjectProfile(response.data);
 }
 
 // ============================================
@@ -374,6 +476,92 @@ export async function updateCharacter(
 
 export async function deleteCharacter(characterId: string): Promise<void> {
   await apiClient.delete(`/characters/${characterId}`);
+}
+
+function transformCharacterProfile(raw: Record<string, unknown>): CharacterProfile {
+  return {
+    characterId: raw.character_id as string,
+    alias: (raw.alias as string) || "",
+    age: (raw.age as string) || "",
+    gender: (raw.gender as string) || "",
+    identity: (raw.identity as string) || "",
+    faction: (raw.faction as string) || "",
+    personality: (raw.personality as string) || "",
+    appearance: (raw.appearance as string) || "",
+    background: (raw.background as string) || "",
+    goal: (raw.goal as string) || "",
+    motivation: (raw.motivation as string) || "",
+    fear: (raw.fear as string) || "",
+    secret: (raw.secret as string) || "",
+    abilities: (raw.abilities as string) || "",
+    weakness: (raw.weakness as string) || "",
+    arc: (raw.arc as string) || "",
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+function transformCharacterState(raw: Record<string, unknown>): CharacterState {
+  return {
+    id: raw.id as string,
+    characterId: raw.character_id as string,
+    projectId: raw.project_id as string,
+    chapterId: (raw.chapter_id as string | null) ?? null,
+    location: (raw.location as string) || "",
+    physicalState: (raw.physical_state as string) || "",
+    mentalState: (raw.mental_state as string) || "",
+    goal: (raw.goal as string) || "",
+    relationshipNote: (raw.relationship_note as string) || "",
+    notes: (raw.notes as string) || "",
+    createdAt: raw.created_at as string,
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+export async function fetchCharacterProfile(characterId: string): Promise<CharacterProfile> {
+  const response = await apiClient.get(`/characters/${characterId}/profile`);
+  return transformCharacterProfile(response.data);
+}
+
+export async function updateCharacterProfile(
+  characterId: string,
+  data: CharacterProfileInput,
+): Promise<CharacterProfile> {
+  const response = await apiClient.put(`/characters/${characterId}/profile`, data);
+  return transformCharacterProfile(response.data);
+}
+
+export async function fetchCharacterStates(
+  characterId: string,
+): Promise<CharacterStateListResponse> {
+  const response = await apiClient.get(`/characters/${characterId}/states`);
+  const data = response.data as Record<string, unknown>;
+  return {
+    items: ((data.items as Record<string, unknown>[]) ?? []).map(transformCharacterState),
+    total: data.total as number,
+  };
+}
+
+export async function updateCharacterState(
+  characterId: string,
+  data: CharacterStateInput,
+): Promise<CharacterState> {
+  const response = await apiClient.put(`/characters/${characterId}/states`, {
+    chapter_id: data.chapterId ?? null,
+    location: data.location ?? "",
+    physical_state: data.physicalState ?? "",
+    mental_state: data.mentalState ?? "",
+    goal: data.goal ?? "",
+    relationship_note: data.relationshipNote ?? "",
+    notes: data.notes ?? "",
+  });
+  return transformCharacterState(response.data);
+}
+
+export async function deleteCharacterState(
+  characterId: string,
+  stateId: string,
+): Promise<void> {
+  await apiClient.delete(`/characters/${characterId}/states/${stateId}`);
 }
 
 export async function batchFavoriteCharacters(
@@ -1442,6 +1630,9 @@ import type {
   WorldInfoEntryUpdate,
   WorldInfoEntryBriefListResponse,
   WorldInfoEntrySearchResponse,
+  WorldEntryMeta,
+  WorldEntryMetaListResponse,
+  WorldEntryMetaUpdate,
 } from "./world-info.types";
 
 /**
@@ -1585,6 +1776,60 @@ export async function updateWorldInfoEntry(
  */
 export async function deleteWorldInfoEntry(entryId: string): Promise<void> {
   await apiClient.delete(`/world-info-entries/${entryId}`);
+}
+
+function transformWorldEntryMeta(raw: Record<string, unknown>): WorldEntryMeta {
+  return {
+    entryId: raw.entry_id as string,
+    projectId: raw.project_id as string,
+    entryType: (raw.entry_type as WorldEntryMeta["entryType"]) ?? "custom",
+    customTypeLabel: (raw.custom_type_label as string) || "",
+    tags: (raw.tags as string[]) ?? [],
+    linkedCharacterIds: (raw.linked_character_ids as string[]) ?? [],
+    linkedChapterIds: (raw.linked_chapter_ids as string[]) ?? [],
+    aiVisible: raw.ai_visible !== false,
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+/**
+ * 获取世界设定扩展信息
+ */
+export async function fetchWorldEntryMeta(entryId: string): Promise<WorldEntryMeta> {
+  const response = await apiClient.get(`/world-info-entries/${entryId}/meta`);
+  return transformWorldEntryMeta(response.data);
+}
+
+/**
+ * 更新世界设定扩展信息
+ */
+export async function updateWorldEntryMeta(
+  entryId: string,
+  data: WorldEntryMetaUpdate,
+): Promise<WorldEntryMeta> {
+  const response = await apiClient.put(`/world-info-entries/${entryId}/meta`, {
+    entry_type: data.entryType,
+    custom_type_label: data.customTypeLabel,
+    tags: data.tags,
+    linked_character_ids: data.linkedCharacterIds,
+    linked_chapter_ids: data.linkedChapterIds,
+    ai_visible: data.aiVisible,
+  });
+  return transformWorldEntryMeta(response.data);
+}
+
+/**
+ * 获取项目内世界设定扩展信息列表
+ */
+export async function fetchProjectWorldEntryMeta(
+  projectId: string,
+): Promise<WorldEntryMetaListResponse> {
+  const response = await apiClient.get(`/projects/${projectId}/world-entry-meta`);
+  const data = response.data as Record<string, unknown>;
+  return {
+    items: ((data.items as Record<string, unknown>[]) ?? []).map(transformWorldEntryMeta),
+    total: data.total as number,
+  };
 }
 
 /**

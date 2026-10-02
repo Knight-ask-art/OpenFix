@@ -263,6 +263,7 @@ jobs:
     env:
       ELECTRON_CACHE: ${{ github.workspace }}/.electron-cache
       ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
+      OPENFIX_RELEASE_VERSION: ${{ needs.context.outputs.version }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -320,6 +321,10 @@ jobs:
       - name: 统一安装包架构命名
         working-directory: desktop
         run: node scripts/normalize-artifact-names.mjs
+      - name: 校验 Windows x64 发布包不变量
+        if: matrix.artifact_name == 'windows-update-x86_64'
+        working-directory: desktop
+        run: pnpm verify:release
       - name: 校验 Windows 安装包完整性
         if: runner.os == 'Windows'
         shell: bash
@@ -381,6 +386,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OPENFIX_RELEASE_VERSION: ${{ needs.context.outputs.version }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -394,6 +400,9 @@ jobs:
       - name: 整理 Windows 自动更新产物
         working-directory: desktop
         run: node scripts/prepare-windows-update.mjs
+      - name: 校验双架构更新清单与资产
+        working-directory: desktop
+        run: node scripts/verify-release.mjs --prepared-update-assets dist-electron
       - name: 发布 Windows 自动更新产物
         run: |
           gh release upload "${{ needs.context.outputs.release_tag }}" \

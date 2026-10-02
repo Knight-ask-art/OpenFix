@@ -28,6 +28,7 @@ class RevisionChapterSnapshot(SQLModel, table=True):
         default=None,
         description="正文的内容寻址 blob id(长文本时使用)",
     )
+    volume_id: str | None = Field(default=None, index=True)
     word_count: int | None = Field(default=None)
     chapter_order: int | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)

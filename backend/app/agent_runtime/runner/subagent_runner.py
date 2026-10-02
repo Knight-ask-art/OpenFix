@@ -471,6 +471,7 @@ class SubagentRunner:
                         "runtime_state": runtime_state,
                         "audit_context": audit_context,
                         "agent_event_sink": agent_event_sink,
+                        "context_snapshot_sink": persister.persist_context_snapshot,
                         "retry_event_sink": retry_event_sink,
                         "compaction_usage_sink": compaction_usage_sink,
                     },

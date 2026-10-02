@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "candidateDocs": [
+    "新版本/docs/02-prd-v1.md §§17-20,33",
+    "新版本/docs/03-source-change-list.md §42",
+    "OPENFIX.md §§240-302",
+    "HEAD 958efb79c103b05cc9a59405a16bbce2e714d1cd / feature/branding"
+  ],
+  "whyRelevant": "执行起始 Git 状态",
+  "missingAuthority": [
+    "真实供应商模型、代码签名、真实 GitHub Release 和干净 Windows 11 覆盖升级仍需外部条件；Claude Code 通过第三方 API 接入，登录不是 blocker"
+  ]
+}

@@ -29,6 +29,7 @@ from app.api.routers import (
     characters,
     chapter_context,
     chapter_exports,
+    chapter_meta,
     chapters,
     commands,
     consistency,
@@ -41,7 +42,9 @@ from app.api.routers import (
     model_providers,
     models,
     notes,
+    outline_ai,
     outlines,
+    project_profile,
     projects,
     prompt_chains,
     retrieval_index,
@@ -49,6 +52,7 @@ from app.api.routers import (
     skills,
     skill_reference_docs,
     settings,
+    story_setup,
     tasks,
     volumes,
     world_info,
@@ -99,6 +103,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(chapters.router, prefix="/api/v1")
     test_app.include_router(notes.router, prefix="/api/v1")
     test_app.include_router(outlines.router, prefix="/api/v1")
+    test_app.include_router(outline_ai.router, prefix="/api/v1")
     test_app.include_router(commands.router, prefix="/api/v1")
     test_app.include_router(consistency.router, prefix="/api/v1")
     test_app.include_router(characters.router, prefix="/api/v1")
@@ -107,6 +112,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(settings.router, prefix="/api/v1")
     test_app.include_router(import_router.router, prefix="/api/v1")
     test_app.include_router(inline_ai.router, prefix="/api/v1")
+    test_app.include_router(story_setup.router, prefix="/api/v1")
     test_app.include_router(model_providers.router, prefix="/api/v1")
     test_app.include_router(model_provider_catalog.router, prefix="/api/v1")
     test_app.include_router(models.router, prefix="/api/v1")
@@ -121,6 +127,8 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(skill_reference_docs.router, prefix="/api/v1")
     test_app.include_router(chapter_context.router, prefix="/api/v1")
     test_app.include_router(chapter_exports.router, prefix="/api/v1")
+    test_app.include_router(project_profile.router, prefix="/api/v1")
+    test_app.include_router(chapter_meta.router, prefix="/api/v1")
     test_app.include_router(tasks.router, prefix="/api/v1")
     test_app.include_router(agent_runtime.router, prefix="/api/v1/agent")
     test_app.include_router(background.router, prefix="/api/v1")

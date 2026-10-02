@@ -25,6 +25,7 @@ interface OutlineEditorProps {
   };
   levelLabels: Record<OutlineLevel, string>;
   childCount: number;
+  onDirtyChange: (dirty: boolean) => void;
   onSave: (payload: OutlineUpdatePayload) => void;
   onDelete: () => void;
 }
@@ -35,6 +36,7 @@ export function OutlineEditor({
   labels,
   levelLabels,
   childCount,
+  onDirtyChange,
   onSave,
   onDelete,
 }: OutlineEditorProps) {
@@ -52,6 +54,10 @@ export function OutlineEditor({
     () => title !== node.title || content !== node.content || level !== node.level,
     [title, content, level, node],
   );
+
+  useEffect(() => {
+    onDirtyChange(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const handleSave = () => {
     if (!isDirty || isSaving) return;
@@ -77,6 +83,7 @@ export function OutlineEditor({
             </Text>
             <TextField.Root
               value={title}
+              disabled={isSaving}
               placeholder={labels.untitled}
               onChange={(event) => setTitle(event.target.value)}
             />
@@ -90,6 +97,7 @@ export function OutlineEditor({
             </Text>
             <Select.Root
               value={level}
+              disabled={isSaving}
               onValueChange={(value) => setLevel(value as OutlineLevel)}
             >
               <Select.Trigger variant="soft" />
@@ -116,6 +124,7 @@ export function OutlineEditor({
           </Text>
           <TextArea
             value={content}
+            disabled={isSaving}
             rows={12}
             resize="vertical"
             onChange={(event) => setContent(event.target.value)}

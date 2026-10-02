@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "phase5-release-version-guard-20261003",
+  "type": "release-verification",
+  "source": "FastCtx job j-4q6ypv implementation report; j-n8hvfy spec re-review; j-uuw63c code-quality review; coordinator node --check, scoped git diff --check, and pnpm --dir desktop verify:release.",
+  "summary": "Added fail-closed tag/package version validation to the two GitHub Release verifier call sites, with OPENFIX_RELEASE_VERSION sourced at job level from needs.context.outputs.version. GitHub Actions fails when the expected version is blank; local verifier behavior without the variable is unchanged. Independent spec and quality reviews passed. node --check, scoped git diff --check, and local x64 pnpm verify:release passed with ALL CHECKS PASSED. No tests, build, smoke, GitHub Actions, tag, release, signing, or remote update was run. The guard mismatch/missing-input branch and dual-architecture positive path remain unexecuted.",
+  "verifier": "Primary agent; current source diff and verification output checked after independent Claude Code reviews.",
+  "sliceId": "phase5-release-version-guard-20261003",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-03"
+}
