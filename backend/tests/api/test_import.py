@@ -8,6 +8,7 @@ import json
 import zipfile
 
 import pytest
+from docx import Document
 from httpx import AsyncClient
 
 
@@ -365,6 +366,19 @@ def _build_zip(entries: list[tuple[str, bytes]]) -> bytes:
     return buffer.getvalue()
 
 
+def _build_docx(paragraphs: list[tuple[str | None, str]]) -> bytes:
+    """构造合成 DOCX 字节流。paragraphs 为 (样式名或 None, 文本) 列表。"""
+    document = Document()
+    for style, text in paragraphs:
+        paragraph = document.add_paragraph()
+        if style:
+            paragraph.style = document.styles[style]
+        paragraph.add_run(text)
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
 @pytest.mark.asyncio
 async def test_preview_markdown_file(client: AsyncClient) -> None:
     content = "# Markdown 标题\n\n这是 Markdown 正文。"
@@ -513,3 +527,139 @@ async def test_preview_zip_without_text_files_returns_a_readable_error(
 
     assert response.status_code == 400
     assert "TXT" in response.json()["detail"]
+
+
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_DOCX_BODY_SENTINELS = (
+    "开篇哨兵",
+    "卷首哨兵",
+    "正文哨兵",
+    "卷二哨兵",
+    "卷二续哨兵",
+    "卷首序哨兵",
+    "终章哨兵",
+    "末卷哨兵",
+)
+
+
+def _docx_with_body_around_headings() -> bytes:
+    """合成 DOCX：卷前短句、卷首序言、正常章节，以及没有章节标题的中间卷与末尾卷。"""
+    return _build_docx(
+        [
+            (None, "开篇哨兵"),
+            ("Heading 1", "甲卷"),
+            (None, "卷首哨兵"),
+            ("Heading 2", "第一章 开端"),
+            (None, "正文哨兵"),
+            ("Heading 1", "乙卷"),
+            (None, "卷二哨兵"),
+            (None, "卷二续哨兵"),
+            ("Heading 1", "丙卷"),
+            (None, "卷首序哨兵"),
+            ("Heading 2", "第二章 终局"),
+            (None, "终章哨兵"),
+            ("Heading 1", "丁卷"),
+            (None, "末卷哨兵"),
+        ]
+    )
+
+
+async def _confirm_docx(
+    client: AsyncClient, endpoint: str, content: bytes, title: str
+) -> str:
+    """提交 DOCX 导入并返回 project_id；兼容普通与流式确认端点。"""
+    response = await client.post(
+        endpoint,
+        files={"file": ("novel.docx", content, _DOCX_MIME)},
+        data={"title": title},
+    )
+
+    if endpoint.endswith("confirm-stream"):
+        assert response.status_code == 200
+        events = [
+            json.loads(line.removeprefix("data: "))
+            for line in response.text.splitlines()
+            if line.startswith("data: ")
+        ]
+        complete = next(event for event in events if event["type"] == "complete")
+        return complete["project_id"]
+
+    assert response.status_code == 201
+    return response.json()["project_id"]
+
+
+async def _read_stored_chapters(
+    client: AsyncClient, project_id: str
+) -> list[tuple[str, str, str]]:
+    """读取已持久化章节正文：返回 (卷标题, 章节标题, 正文) 有序列表。"""
+    tree_response = await client.get(f"/api/v1/projects/{project_id}/chapters")
+    assert tree_response.status_code == 200
+
+    chapters: list[tuple[str, str, str]] = []
+    for volume in tree_response.json()["volumes"]:
+        for chapter in volume["chapters"]:
+            detail_response = await client.get(f"/api/v1/chapters/{chapter['id']}")
+            assert detail_response.status_code == 200
+            detail = detail_response.json()
+            assert detail["volume_id"] == volume["id"]
+            chapters.append((volume["title"], detail["title"], detail["content"]))
+    return chapters
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "endpoint", ["/api/v1/import/confirm", "/api/v1/import/confirm-stream"]
+)
+async def test_confirm_import_docx_preserves_all_body_text(
+    client: AsyncClient, endpoint: str
+) -> None:
+    """DOCX 卷前、卷首与正文卷段落经预览和确认后仍完整持久化。"""
+    content = _docx_with_body_around_headings()
+
+    preview_response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("novel.docx", content, _DOCX_MIME)},
+    )
+    assert preview_response.status_code == 200
+    preview = preview_response.json()
+    assert [volume["title"] for volume in preview["volumes"]] == [
+        "第一卷",
+        "甲卷",
+        "乙卷",
+        "丙卷",
+        "丁卷",
+    ]
+    assert [
+        chapter["title"]
+        for volume in preview["volumes"]
+        for chapter in volume["chapters"]
+    ] == ["正文", "正文", "第一章 开端", "正文", "正文", "第二章 终局", "正文"]
+    assert preview["chapter_count"] == 7
+
+    project_id = await _confirm_docx(client, endpoint, content, "DOCX 正文保留")
+    stored = await _read_stored_chapters(client, project_id)
+
+    assert [(volume, title) for volume, title, _ in stored] == [
+        ("第一卷", "正文"),
+        ("甲卷", "正文"),
+        ("甲卷", "第一章 开端"),
+        ("乙卷", "正文"),
+        ("丙卷", "正文"),
+        ("丙卷", "第二章 终局"),
+        ("丁卷", "正文"),
+    ]
+    assert [body for _, _, body in stored] == [
+        "开篇哨兵",
+        "卷首哨兵",
+        "正文哨兵",
+        "卷二哨兵\n卷二续哨兵",
+        "卷首序哨兵",
+        "终章哨兵",
+        "末卷哨兵",
+    ]
+
+    joined = "\n".join(body for _, _, body in stored)
+    for sentinel in _DOCX_BODY_SENTINELS:
+        assert joined.count(sentinel) == 1
+    positions = [joined.index(sentinel) for sentinel in _DOCX_BODY_SENTINELS]
+    assert positions == sorted(positions)

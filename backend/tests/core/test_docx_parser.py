@@ -8,6 +8,7 @@ from docx import Document
 
 from app.core.docx_parser import extract_docx_text, parse_docx_content
 from app.core.project_import import parse_project_import
+from app.core.txt_parser import ParseResult
 
 
 def _build_docx(paragraphs: list[tuple[str | None, str]]) -> bytes:
@@ -21,6 +22,11 @@ def _build_docx(paragraphs: list[tuple[str | None, str]]) -> bytes:
     buffer = io.BytesIO()
     document.save(buffer)
     return buffer.getvalue()
+
+
+def _volume_chapter_titles(result: ParseResult) -> list[list[str]]:
+    """按卷分组返回章节标题，便于断言卷归属。"""
+    return [[chapter.title for chapter in volume.chapters] for volume in result.volumes]
 
 
 def test_parse_docx_with_heading_style() -> None:
@@ -120,3 +126,218 @@ def test_parse_project_import_docx_manual_split() -> None:
 
     assert result.chapter_count >= 2
     assert result.detected_encoding == "utf-8"
+
+
+def test_parse_docx_preserves_short_text_before_first_heading() -> None:
+    """首个卷标题之前的普通段落不能因为短而被丢弃或提升为标题。"""
+    content = _build_docx(
+        [
+            (None, "写在最前面的一句话。"),
+            ("Heading 1", "甲卷"),
+            ("Heading 2", "第一章 开端"),
+            (None, "第一章正文。"),
+        ]
+    )
+
+    result = parse_docx_content(content)
+
+    assert [volume.title for volume in result.volumes] == ["第一卷", "甲卷"]
+    assert _volume_chapter_titles(result) == [["正文"], ["第一章 开端"]]
+    assert result.volumes[0].chapters[0].content == "写在最前面的一句话。"
+    assert result.volumes[1].chapters[0].content == "第一章正文。"
+    assert result.chapter_count == 2
+
+
+def test_parse_docx_preserves_leading_text_without_volume_heading() -> None:
+    """没有卷标题时，首个章标题之前的普通段落归入默认卷。"""
+    content = _build_docx(
+        [
+            (None, "开篇短句。"),
+            ("Heading 2", "第一章 起"),
+            (None, "第一章正文。"),
+        ]
+    )
+
+    result = parse_docx_content(content)
+
+    assert [volume.title for volume in result.volumes] == ["第一卷"]
+    assert _volume_chapter_titles(result) == [["正文", "第一章 起"]]
+    assert result.volumes[0].chapters[0].content == "开篇短句。"
+    assert result.volumes[0].chapters[1].content == "第一章正文。"
+
+
+def test_parse_docx_preserves_volume_preface_before_first_chapter() -> None:
+    """卷标题之后、首个章标题之前的正文属于该卷。"""
+    content = _build_docx(
+        [
+            ("Heading 1", "第一卷 风起"),
+            (None, "本卷序言第一段。"),
+            (None, "本卷序言第二段。"),
+            ("Heading 2", "第一章 出山"),
+            (None, "第一章正文。"),
+        ]
+    )
+
+    result = parse_docx_content(content)
+
+    assert [volume.title for volume in result.volumes] == ["第一卷 风起"]
+    assert _volume_chapter_titles(result) == [["正文", "第一章 出山"]]
+    assert result.volumes[0].chapters[0].content == "本卷序言第一段。\n本卷序言第二段。"
+    assert result.volumes[0].chapters[0].word_count > 0
+
+
+def test_parse_docx_preserves_body_only_volumes() -> None:
+    """只有正文、没有章节标题的卷（中间卷与末尾卷）不能整卷丢失。"""
+    content = _build_docx(
+        [
+            ("Heading 1", "第一卷"),
+            ("Heading 2", "第一章"),
+            (None, "第一卷正文。"),
+            ("Heading 1", "第二卷"),
+            (None, "第二卷只有正文第一段。"),
+            (None, "第二卷只有正文第二段。"),
+            ("Heading 1", "第三卷"),
+            ("Heading 2", "第三章"),
+            (None, "第三卷正文。"),
+            ("Heading 1", "第四卷"),
+            (None, "第四卷只有正文第一段。"),
+            (None, "第四卷只有正文第二段。"),
+        ]
+    )
+
+    result = parse_docx_content(content)
+
+    assert [volume.title for volume in result.volumes] == [
+        "第一卷",
+        "第二卷",
+        "第三卷",
+        "第四卷",
+    ]
+    assert _volume_chapter_titles(result) == [["第一章"], ["正文"], ["第三章"], ["正文"]]
+    assert (
+        result.volumes[1].chapters[0].content
+        == "第二卷只有正文第一段。\n第二卷只有正文第二段。"
+    )
+    assert (
+        result.volumes[3].chapters[0].content
+        == "第四卷只有正文第一段。\n第四卷只有正文第二段。"
+    )
+    assert result.volumes[3].chapters[0].word_count > 0
+    assert [
+        (volume.title, chapter.title)
+        for volume in result.volumes
+        for chapter in volume.chapters
+    ] == [
+        ("第一卷", "第一章"),
+        ("第二卷", "正文"),
+        ("第三卷", "第三章"),
+        ("第四卷", "正文"),
+    ]
+    assert result.chapter_count == 4
+
+
+def test_parse_docx_volumes_without_chapter_headings_keep_body() -> None:
+    """整本只有卷标题、没有章标题时，短句与多行正文都不能被丢弃或提升为标题。"""
+    content = _build_docx(
+        [
+            ("Heading 1", "上卷"),
+            (None, "短句甲。"),
+            (None, "上卷第二行。"),
+            (None, "上卷第三行。"),
+            ("Heading 1", "下卷"),
+            (None, "短句乙。"),
+            (None, "下卷第二行。"),
+        ]
+    )
+
+    result = parse_docx_content(content)
+
+    assert [volume.title for volume in result.volumes] == ["上卷", "下卷"]
+    assert _volume_chapter_titles(result) == [["正文"], ["正文"]]
+    contents = [
+        chapter.content for volume in result.volumes for chapter in volume.chapters
+    ]
+    assert contents == [
+        "短句甲。\n上卷第二行。\n上卷第三行。",
+        "短句乙。\n下卷第二行。",
+    ]
+    joined = "\n".join(contents)
+    for sentinel in ("短句甲。", "上卷第二行。", "上卷第三行。", "短句乙。", "下卷第二行。"):
+        assert joined.count(sentinel) == 1
+    assert result.chapter_count == 2
+    assert result.total_word_count == sum(
+        chapter.word_count for volume in result.volumes for chapter in volume.chapters
+    )
+    assert result.total_word_count > 0
+
+
+def test_parse_docx_keeps_body_lines_in_order_exactly_once() -> None:
+    """正文行保持输入顺序，且每行只出现一次。"""
+    content = _build_docx(
+        [
+            (None, "开篇甲"),
+            ("Heading 1", "甲卷"),
+            (None, "卷首乙"),
+            ("Heading 2", "第一章"),
+            (None, "正文丙"),
+            (None, "正文丁"),
+        ]
+    )
+
+    result = parse_docx_content(content)
+
+    contents = [chapter.content for volume in result.volumes for chapter in volume.chapters]
+    assert contents == ["开篇甲", "卷首乙", "正文丙\n正文丁"]
+    joined = "\n".join(contents)
+    for sentinel in ("开篇甲", "卷首乙", "正文丙", "正文丁"):
+        assert joined.count(sentinel) == 1
+    assert result.total_word_count == sum(
+        chapter.word_count for volume in result.volumes for chapter in volume.chapters
+    )
+    assert result.total_word_count > 0
+
+
+def test_parse_docx_blank_paragraphs_create_no_synthetic_chapter() -> None:
+    """空段落不产生合成章节。"""
+    content = _build_docx(
+        [
+            ("Heading 1", "第一卷"),
+            (None, ""),
+            ("Heading 2", "第一章"),
+            (None, ""),
+            (None, "第一章正文。"),
+            (None, ""),
+        ]
+    )
+
+    result = parse_docx_content(content)
+
+    assert _volume_chapter_titles(result) == [["第一章"]]
+    assert result.volumes[0].chapters[0].content == "第一章正文。"
+
+
+def test_parse_docx_empty_chapters_stay_empty() -> None:
+    """连续章标题产生的空章节保持空内容，不额外生成「正文」章节。"""
+    content = _build_docx(
+        [
+            ("Heading 1", "第一卷"),
+            ("Heading 2", "第一章"),
+            ("Heading 2", "第二章"),
+        ]
+    )
+
+    result = parse_docx_content(content)
+
+    assert _volume_chapter_titles(result) == [["第一章", "第二章"]]
+    assert [chapter.content for chapter in result.volumes[0].chapters] == ["", ""]
+
+
+def test_parse_docx_heading_only_document_keeps_text_fallback() -> None:
+    """只有卷标题、没有任何章节内容时仍退回文本规则。"""
+    content = _build_docx([("Heading 1", "只有卷标题")])
+
+    result = parse_docx_content(content)
+
+    assert result.chapter_count == 1
+    assert result.volumes[0].title == "第一卷"
+    assert result.volumes[0].chapters[0].title == "只有卷标题"

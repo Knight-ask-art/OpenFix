@@ -16,6 +16,7 @@ from app.core.txt_parser import (
 )
 
 _DEFAULT_VOLUME_TITLE = "第一卷"
+_BODY_CHAPTER_TITLE = "正文"
 _MAX_TITLE_LENGTH = 50
 
 
@@ -86,11 +87,27 @@ def _parse_with_headings(paragraphs: list[tuple[int | None, str]]) -> ParseResul
 
     def flush_chapter() -> None:
         nonlocal current_chapter, body_buffer
+        content = "\n".join(body_buffer).strip()
+        body_buffer = []
         if current_chapter is not None:
-            content = "\n".join(body_buffer).strip()
             current_chapter.content = content
             current_chapter.word_count = _count_words(content)
-        body_buffer = []
+            return
+        if not content:
+            return
+
+        # 卷标题之后、首个章节标题之前（或全文没有章节标题）的普通段落没有
+        # 归属章节；它们仍属于当前卷，收进通用「正文」章节而不是被丢弃。
+        volume = current_volume
+        if volume is None:
+            volume = ensure_volume(_DEFAULT_VOLUME_TITLE)
+        volume.chapters.append(
+            ParsedChapter(
+                title=_BODY_CHAPTER_TITLE,
+                content=content,
+                word_count=_count_words(content),
+            )
+        )
 
     def ensure_volume(title: str) -> ParsedVolume:
         nonlocal current_volume
