@@ -11,6 +11,7 @@ import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { useProjectSelection } from "@/features/projects/hooks/use-project-selection";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
@@ -20,7 +21,6 @@ import {
   deleteCharacter,
   fetchCharacter,
   fetchCharactersByProject,
-  fetchProjects,
   updateCharacter,
 } from "@/lib/api-client";
 import type { Character, CharacterListItem, CharacterListResponse } from "@/lib/character.types";
@@ -93,42 +93,23 @@ export function CharactersPage() {
   const isCreatingCharacterRef = useRef(false);
   const skipCharacterRestoreProjectIdRef = useRef<string | null>(null);
 
-  const { data: projectsData } = useQuery({
-    queryKey: ["projects", "characters-page"],
-    queryFn: () => fetchProjects({ page: 1, pageSize: 100 }),
-  });
+  const getSelectedProjectId = useCallback(
+    () => useCharactersStore.getState().currentProjectId,
+    [],
+  );
 
-  const projects = useMemo(() => projectsData?.items ?? [], [projectsData?.items]);
-
-  // 深层链接：URL 上的 projectId 变化时（例如从项目概览跳转）切换项目，
-  // 但不覆盖用户之后在页面内手动选择的项目。
+  // 深层链接：URL 上的 projectId 解析成功后切换项目，
+  // 之后不覆盖用户在页面内手动选择的项目。
   const projectIdFromUrl = searchParams.get("projectId");
-  const appliedUrlProjectIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!projectIdFromUrl || projects.length === 0) return;
-    if (appliedUrlProjectIdRef.current === projectIdFromUrl) return;
-    appliedUrlProjectIdRef.current = projectIdFromUrl;
-    if (!projects.some((project) => project.id === projectIdFromUrl)) return;
-    if (projectIdFromUrl === currentProjectId) return;
-    setCurrentProject(projectIdFromUrl);
-  }, [currentProjectId, projectIdFromUrl, projects, setCurrentProject]);
-
-  useEffect(() => {
-    const initProject = async () => {
-      if (currentProjectId || projects.length === 0) return;
-      const cachedProjectId = await getPreference(LAST_PROJECT_KEY);
-      const nextProjectId =
-        (cachedProjectId && projects.some((project) => project.id === cachedProjectId)
-          ? cachedProjectId
-          : null) ??
-        projects[0]?.id ??
-        null;
-      setCurrentProject(nextProjectId);
-    };
-
-    void initProject();
-  }, [currentProjectId, projects, setCurrentProject]);
+  // 项目选择（第一页列表 + URL 深层链接 + 本地缓存回退）统一由共享 hook 负责，
+  // 避免多个初始化 effect 相互覆盖。
+  const { projects, selectProjectManually } = useProjectSelection({
+    preferenceKey: LAST_PROJECT_KEY,
+    urlProjectId: projectIdFromUrl,
+    getCurrentProjectId: getSelectedProjectId,
+    setCurrentProject,
+  });
 
   useEffect(() => {
     if (currentProjectId) void setPreference(LAST_PROJECT_KEY, currentProjectId);
@@ -370,7 +351,7 @@ export function CharactersPage() {
   });
 
   const handleSelectProject = (projectId: string) => {
-    setCurrentProject(projectId || null);
+    selectProjectManually(projectId || null);
   };
 
   const handleSelectCharacter = (characterId: string) => {

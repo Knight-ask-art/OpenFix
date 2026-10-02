@@ -77,11 +77,22 @@ export function ProjectsPage() {
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
-  const { data: editingProfile, isPending: isEditingProfilePending } = useQuery({
+  const {
+    data: editingProfile,
+    isPending: isEditingProfilePending,
+    refetch: refetchEditingProfile,
+  } = useQuery({
     queryKey: ["project-profile", editingProject?.id],
     queryFn: () => fetchProjectProfile(editingProject!.id),
     enabled: Boolean(editingProject?.id),
   });
+
+  // 编辑项目时产品属性读取失败：对话框据此提示并允许重试，
+  // 在成功读取前不提交类型与预计字数，避免用空值覆盖已保存的值。
+  const handleRetryEditingProfile = () => {
+    if (!editingProject) return;
+    void refetchEditingProfile();
+  };
 
   const handleFormDialogOpenChange = (open: boolean) => {
     setFormDialogOpen(open);
@@ -153,10 +164,13 @@ export function ProjectsPage() {
     let isProfileSaved = true;
     if (projectId && (genre !== undefined || targetWordCount !== undefined)) {
       try {
-        await updateProjectProfile(projectId, {
+        const savedProfile = await updateProjectProfile(projectId, {
           genre: genre ?? "",
           targetWordCount: targetWordCount ?? 0,
         });
+        const profileQueryKey = ["project-profile", projectId];
+        await queryClient.cancelQueries({ queryKey: profileQueryKey, exact: true });
+        queryClient.setQueryData(profileQueryKey, savedProfile);
         void queryClient.invalidateQueries({ queryKey: ["project-profile", projectId] });
       } catch {
         isProfileSaved = false;
@@ -414,6 +428,7 @@ export function ProjectsPage() {
         project={editingProject}
         profile={editingProfile ?? null}
         profileLoading={Boolean(editingProject) && isEditingProfilePending}
+        onRetryProfile={editingProject ? handleRetryEditingProfile : undefined}
         loading={createMutation.isPending || updateMutation.isPending}
       />
 

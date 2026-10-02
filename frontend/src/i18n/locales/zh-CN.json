@@ -342,7 +342,9 @@
       "other": "其他"
     },
     "targetWordCountLabel": "预计字数",
-    "targetWordCountPlaceholder": "例如：300000"
+    "targetWordCountPlaceholder": "例如：300000",
+    "profileUnavailable": "未能读取已保存的类型与预计字数。标题和简介仍可正常保存。",
+    "profileRetry": "重新读取"
   },
   "coverCropper": {
     "cropCover": "裁剪封面",

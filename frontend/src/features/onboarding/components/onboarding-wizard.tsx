@@ -1209,7 +1209,8 @@ export function OnboardingWizard() {
       <ProjectFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onSubmit={(data) => void handleCreateSubmit(data)}
+        // 返回 Promise，让对话框等待创建与产品属性保存整笔完成后再解除提交锁。
+        onSubmit={handleCreateSubmit}
         loading={createMutation.isPending}
       />
       <ImportDialog

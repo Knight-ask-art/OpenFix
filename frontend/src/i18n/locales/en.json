@@ -169,6 +169,7 @@
     "deleteConfirmation": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone.",
     "projectUpdated": "Project updated successfully",
     "projectCreated": "Project created successfully",
+    "profileUpdateFailed": "Project saved, but the genre and target word count could not be saved. Please fill them in again in the project settings later.",
     "updateFailed": "Update failed. Please try again.",
     "createFailed": "Creation failed. Please try again.",
     "projectDeleted": "Project deleted",
@@ -341,7 +342,9 @@
       "other": "Other"
     },
     "targetWordCountLabel": "Target word count",
-    "targetWordCountPlaceholder": "e.g. 300000"
+    "targetWordCountPlaceholder": "e.g. 300000",
+    "profileUnavailable": "The saved genre and target word count could not be loaded. Title and description can still be saved.",
+    "profileRetry": "Retry loading"
   },
   "coverCropper": {
     "cropCover": "Crop Cover",
