@@ -12,10 +12,12 @@ import {
   copyTree,
   copyWithRetry,
   CORE_DATA_ENTRIES,
+  createTopLevelEntryMatcher,
   extractTarGz,
   isExcludedRuntimeEntry,
   measureTreeSize,
   type DataPhaseReporter,
+  type TopLevelEntryMatcher,
 } from "./runtime/tar-extract.js";
 
 export interface DataDirInspection {
@@ -26,8 +28,57 @@ export interface DataDirInspection {
 }
 
 export interface BackupDataOptions {
-  /** App-managed directories outside the user's project data, relative to the data root. */
+  /**
+   * App-managed directories outside the user's project data, relative to the data root.
+   *
+   * 名称匹配遵循 {@link createTopLevelEntryMatcher} 的平台策略，与还原保留保持一致。
+   */
   excludedTopLevelEntries?: readonly string[];
+}
+
+export interface RestoreDataOptions {
+  /** Data-root top-level entries to preserve during restore, such as the configured app runtime. */
+  preservedTopLevelEntries?: readonly string[];
+}
+
+export interface DataOperationOptions {
+  backup: BackupDataOptions;
+  restore: RestoreDataOptions;
+}
+
+/** Derive the shared backup/restore policy before stopping the backend or modifying data. */
+export async function getDataOperationOptions(dataDir: string, runtimeDir: string): Promise<DataOperationOptions> {
+  const dataPath = await resolveForCompare(dataDir);
+  const runtimePath = await resolveForCompare(runtimeDir);
+  const runtimeParent = await resolveForCompare(path.dirname(path.resolve(runtimeDir)));
+  const entryName = path.basename(path.resolve(runtimeDir));
+  const runtimeEntryPath = path.join(runtimeParent, entryName);
+
+  if (pathEquals(dataPath, runtimePath)) {
+    throw new Error("运行环境目录不能与数据目录相同，无法安全执行数据操作");
+  }
+  if (pathContains(runtimePath, dataPath)) {
+    throw new Error("数据目录不能位于运行环境目录内部，无法安全执行数据操作");
+  }
+  if (pathEquals(dataPath, runtimeParent)) {
+    // A direct child may link to an external runtime. Preserve the configured entry itself.
+    // A link to another data subtree cannot be protected by preserving this entry alone.
+    if (pathContains(dataPath, runtimePath) && !pathEquals(runtimeEntryPath, runtimePath)) {
+      throw new Error("运行环境目录不能链接到数据目录中的其他条目，无法安全执行数据操作");
+    }
+    return {
+      backup: { excludedTopLevelEntries: [entryName] },
+      restore: { preservedTopLevelEntries: [entryName] },
+    };
+  }
+  if (
+    pathContains(dataPath, runtimePath) ||
+    pathContains(dataPath, runtimeEntryPath) ||
+    pathContains(normalizeForCompare(dataDir), normalizeForCompare(runtimeDir))
+  ) {
+    throw new Error("运行环境目录必须是数据目录的直接子目录，无法安全执行数据操作");
+  }
+  return { backup: {}, restore: {} };
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
@@ -122,7 +173,7 @@ export async function backupDataDir(
       stagingDir,
       onLog,
       onPhase,
-      new Set(options.excludedTopLevelEntries ?? []),
+      createTopLevelEntryMatcher(options.excludedTopLevelEntries ?? []),
     );
     await writeFile(path.join(stagingDir, BACKUP_MANIFEST_NAME), JSON.stringify(await computeBackupManifest(stagingDir), null, 2));
     onPhase?.("pack");
@@ -144,7 +195,7 @@ async function copyDirectoryWithRetry(
   targetDir: string,
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
-  excludedTopLevelEntries: ReadonlySet<string> = new Set(),
+  excludedTopLevelEntries: TopLevelEntryMatcher = createTopLevelEntryMatcher(),
 ): Promise<void> {
   let entries: Dirent[];
   try {
@@ -197,8 +248,11 @@ export async function restoreDataDir(
   targetDir: string,
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
+  options: RestoreDataOptions = {},
 ): Promise<void> {
-  await extractTarGz(sourcePath, targetDir, onLog, onPhase);
+  await extractTarGz(sourcePath, targetDir, onLog, onPhase, true, {
+    preservedTopLevelEntries: options.preservedTopLevelEntries,
+  });
 }
 
 export async function migrateDataDir(
@@ -258,7 +312,7 @@ function pathEquals(left: string, right: string): boolean {
 
 function pathContains(parent: string, child: string): boolean {
   const relative = path.relative(normalizeForCompare(parent), normalizeForCompare(child));
-  return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
+  return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
 
 export async function arePathsEqual(left: string, right: string): Promise<boolean> {

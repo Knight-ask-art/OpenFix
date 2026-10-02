@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { gzipSync } from "node:zlib";
-import { mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -121,6 +121,27 @@ test("uses the system tar when it is available", async () => {
   }
 });
 
+test("rejects preserved entries that are not single top-level names", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "openfic-archive-"));
+  const archivePath = path.join(directory, "python.tar.gz");
+  const outputDir = path.join(directory, "output");
+
+  try {
+    await writeFile(archivePath, createPythonArchive());
+
+    for (const entry of ["..", "../escape", "nested/runtime", "runtime\\nested", ""]) {
+      await assert.rejects(
+        extractTarGz(archivePath, outputDir, undefined, undefined, false, {
+          preservedTopLevelEntries: [entry],
+        }),
+        /无效的保留条目名称/,
+      );
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("does not fall back when the system tar rejects an invalid archive", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "openfic-archive-"));
   const archivePath = path.join(directory, "invalid.tar.gz");
@@ -131,6 +152,42 @@ test("does not fall back when the system tar rejects an invalid archive", async 
 
     await assert.rejects(extractTarGz(archivePath, outputDir, undefined, undefined, false), /tar exited with code/);
   } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("keeps preserved top-level entries and matches their names by platform rule", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "openfic-archive-"));
+  const archivePath = path.join(directory, "backup.tar.gz");
+  const outputDir = path.join(directory, "output");
+  const originalPath = process.env.PATH;
+
+  try {
+    await writeFile(
+      archivePath,
+      createTarGz([
+        { name: "openfic.db", content: "archived-db" },
+        { name: "Runtime/python/python.exe", content: "archived-python" },
+      ]),
+    );
+    process.env.PATH = "";
+    await mkdir(path.join(outputDir, "Runtime", "python"), { recursive: true });
+    await writeFile(path.join(outputDir, "openfic.db"), "live-db", "utf8");
+    await writeFile(path.join(outputDir, "Runtime", "python", "python.exe"), "live-python", "utf8");
+
+    await extractTarGz(archivePath, outputDir, undefined, undefined, false, {
+      preservedTopLevelEntries: ["runtime"],
+    });
+
+    assert.equal(await readFile(path.join(outputDir, "openfic.db"), "utf8"), "archived-db");
+    // Windows 文件系统大小写不敏感，Runtime 视为配置的运行环境目录；其他平台保持大小写敏感。
+    const expectedRuntime = process.platform === "win32" ? "live-python" : "archived-python";
+    assert.equal(
+      await readFile(path.join(outputDir, "Runtime", "python", "python.exe"), "utf8"),
+      expectedRuntime,
+    );
+  } finally {
+    process.env.PATH = originalPath;
     await rm(directory, { recursive: true, force: true });
   }
 });

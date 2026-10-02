@@ -31,6 +31,54 @@ export function isExcludedRuntimeEntry(name: string): boolean {
   return EXCLUDED_RUNTIME_ENTRIES.has(name);
 }
 
+/**
+ * 顶层条目名称匹配器。
+ *
+ * 备份排除与还原保留必须共用同一个匹配器：Windows 文件系统大小写不敏感，
+ * 其他平台保持大小写敏感，否则同一配置路径会在备份与还原两侧得出不同结论，
+ * 导致大小写变体的运行环境目录被当作普通用户数据清理或覆盖。
+ */
+export interface TopLevelEntryMatcher {
+  has(entryName: string): boolean;
+}
+
+function normalizeTopLevelEntryName(name: string): string {
+  return process.platform === "win32" ? name.toLowerCase() : name;
+}
+
+export function createTopLevelEntryMatcher(entryNames: Iterable<string> = []): TopLevelEntryMatcher {
+  const normalizedNames = new Set<string>();
+  for (const entryName of entryNames) normalizedNames.add(normalizeTopLevelEntryName(entryName));
+  return { has: (entryName: string) => normalizedNames.has(normalizeTopLevelEntryName(entryName)) };
+}
+
+export interface ExtractTarGzOptions {
+  /**
+   * 数据根目录下必须在还原过程中保留的顶层条目名称。
+   *
+   * 用于保护配置的运行环境目录：还原时不覆盖、不清理，回滚时也不参与快照与恢复，
+   * 目标校验遍历同样跳过它们。名称匹配遵循 {@link createTopLevelEntryMatcher} 的平台策略。
+   */
+  preservedTopLevelEntries?: readonly string[];
+}
+
+/** 校验保留条目名称；仅接受单个顶层名称，拒绝空值、分隔符与路径穿越。 */
+function resolvePreservedTopLevelEntries(entries: readonly string[] | undefined): TopLevelEntryMatcher {
+  for (const entry of entries ?? []) {
+    if (
+      entry.length === 0 ||
+      entry === "." ||
+      entry === ".." ||
+      entry.includes("/") ||
+      entry.includes("\\") ||
+      path.isAbsolute(entry)
+    ) {
+      throw new Error(`无效的保留条目名称：${entry}`);
+    }
+  }
+  return createTopLevelEntryMatcher(entries ?? []);
+}
+
 function isLockError(error: unknown): boolean {
   const code = (error as NodeJS.ErrnoException).code;
   return code === "EBUSY" || code === "EPERM" || code === "EACCES";
@@ -41,29 +89,38 @@ export type DataPhaseReporter = (phase: DataOperationPhase, progress?: number) =
 const BACKUP_RETRY_ATTEMPTS = 5;
 const BACKUP_RETRY_BASE_DELAY_MS = 250;
 
-async function assertNoSymlink(entryPath: string): Promise<void> {
+async function assertNoSymlink(entryPath: string, skipTopLevelEntries?: TopLevelEntryMatcher): Promise<void> {
   const info = await lstat(entryPath);
   if (info.isSymbolicLink()) {
     throw new Error(`拒绝处理符号链接：${entryPath}`);
   }
   if (info.isDirectory()) {
-    const entries = await readdir(entryPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isSymbolicLink()) {
-        throw new Error(`拒绝处理符号链接：${path.join(entryPath, entry.name)}`);
-      }
-      if (entry.isDirectory()) await assertNoSymlink(path.join(entryPath, entry.name));
+    const entries = await readdir(entryPath);
+    for (const entryName of entries) {
+      if (skipTopLevelEntries?.has(entryName)) continue;
+      await assertNoSymlink(path.join(entryPath, entryName));
     }
   }
 }
 
-export async function assertDirNoSymlink(dir: string): Promise<void> {
+export interface AssertDirNoSymlinkOptions {
+  /**
+   * 校验目标目录时整棵子树跳过的顶层条目。
+   *
+   * 仅用于配置的运行环境目录：还原过程从不读取、复制、清理或跟随它们，
+   * 因此其中的符号链接（便携 Python 的链接或 Windows 目录联接）不应阻止还原。
+   * 目录本身与所有未受保护的子目录仍按原有规则拒绝符号链接。
+   */
+  skipTopLevelEntries?: TopLevelEntryMatcher;
+}
+
+export async function assertDirNoSymlink(dir: string, options: AssertDirNoSymlinkOptions = {}): Promise<void> {
   try {
     await lstat(dir);
   } catch {
     return;
   }
-  await assertNoSymlink(dir);
+  await assertNoSymlink(dir, options.skipTopLevelEntries);
 }
 
 export async function copyWithRetry(sourcePath: string, targetPath: string): Promise<void> {
@@ -233,7 +290,9 @@ export async function extractTarGz(
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
   verifyBackup: boolean = true,
+  options: ExtractTarGzOptions = {},
 ): Promise<void> {
+  const preservedEntries = resolvePreservedTopLevelEntries(options.preservedTopLevelEntries);
   const stagingDir = await mkdtemp(path.join(os.tmpdir(), "openfic-restore-"));
   const rollbackDir = await mkdtemp(path.join(os.tmpdir(), "openfic-rollback-"));
   let rollbackKept = false;
@@ -244,18 +303,18 @@ export async function extractTarGz(
     if (verifyBackup) {
       onPhase?.("verify");
       await verifyBackupManifest(stagingDir);
-      await assertDirNoSymlink(outputDir);
+      await assertDirNoSymlink(outputDir, { skipTopLevelEntries: preservedEntries });
     }
-    await copyTopLevelEntries(outputDir, rollbackDir, "rollback", onLog, onPhase, preserveSymlinks);
+    await copyTopLevelEntries(outputDir, rollbackDir, "rollback", onLog, onPhase, preserveSymlinks, preservedEntries);
     try {
-      await copyTopLevelEntries(stagingDir, outputDir, "copy", onLog, onPhase, preserveSymlinks);
+      await copyTopLevelEntries(stagingDir, outputDir, "copy", onLog, onPhase, preserveSymlinks, preservedEntries);
       if (verifyBackup) await verifyRestoredFiles(stagingDir, outputDir);
       onPhase?.("cleanup");
-      await clearExtraEntries(outputDir, stagingDir, onLog);
+      await clearExtraEntries(outputDir, stagingDir, onLog, preservedEntries);
     } catch (error) {
       try {
-        await clearTopLevelEntries(outputDir, onLog);
-        await copyTopLevelEntries(rollbackDir, outputDir, "copy", onLog, onPhase, preserveSymlinks);
+        await clearTopLevelEntries(outputDir, onLog, preservedEntries);
+        await copyTopLevelEntries(rollbackDir, outputDir, "copy", onLog, onPhase, preserveSymlinks, preservedEntries);
       } catch (rollbackError) {
         rollbackKept = true;
         const detail = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
@@ -289,6 +348,7 @@ async function copyTopLevelEntries(
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
   preserveSymlinks: boolean = false,
+  preservedEntries: TopLevelEntryMatcher = createTopLevelEntryMatcher(),
 ): Promise<void> {
   let entries;
   try {
@@ -301,6 +361,7 @@ async function copyTopLevelEntries(
   const copyable: { name: string; core: boolean }[] = [];
   for (const entry of entries) {
     if (isExcludedRuntimeEntry(entry.name)) continue;
+    if (preservedEntries.has(entry.name)) continue;
     if (entry.name === BACKUP_MANIFEST_NAME) continue;
     const name = entry.name;
     const size = await measureTreeSize(path.join(sourceDir, name));
@@ -334,7 +395,11 @@ async function copyTopLevelEntries(
   report();
 }
 
-async function clearTopLevelEntries(dir: string, onLog?: (message: string) => void): Promise<void> {
+async function clearTopLevelEntries(
+  dir: string,
+  onLog?: (message: string) => void,
+  preservedEntries: TopLevelEntryMatcher = createTopLevelEntryMatcher(),
+): Promise<void> {
   let entries;
   try {
     entries = await readdir(dir, { withFileTypes: true });
@@ -343,6 +408,7 @@ async function clearTopLevelEntries(dir: string, onLog?: (message: string) => vo
   }
   for (const entry of entries) {
     if (isExcludedRuntimeEntry(entry.name)) continue;
+    if (preservedEntries.has(entry.name)) continue;
     await removeEntry(path.join(dir, entry.name), onLog);
   }
 }
@@ -359,10 +425,15 @@ async function removeEntry(fullPath: string, onLog?: (message: string) => void):
   }
 }
 
-async function clearExtraEntries(dir: string, keepDir: string, onLog?: (message: string) => void): Promise<void> {
-  let keep: Set<string>;
+async function clearExtraEntries(
+  dir: string,
+  keepDir: string,
+  onLog?: (message: string) => void,
+  preservedEntries: TopLevelEntryMatcher = createTopLevelEntryMatcher(),
+): Promise<void> {
+  let keep: TopLevelEntryMatcher;
   try {
-    keep = new Set(await readdir(keepDir));
+    keep = createTopLevelEntryMatcher(await readdir(keepDir));
   } catch {
     return;
   }
@@ -374,6 +445,7 @@ async function clearExtraEntries(dir: string, keepDir: string, onLog?: (message:
   }
   for (const entry of entries) {
     if (isExcludedRuntimeEntry(entry.name)) continue;
+    if (preservedEntries.has(entry.name)) continue;
     if (entry.name === BACKUP_MANIFEST_NAME) {
       await removeEntry(path.join(dir, entry.name), onLog);
       continue;
