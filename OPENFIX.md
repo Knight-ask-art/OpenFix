@@ -471,3 +471,14 @@ OpenFix 自有标识首轮设计已落地：以打开的书页和校订符号组
 * 仅停止两个本轮 Vite，端口 19003 最终释放；精确结果目录核实在 workspace 内且无 reparse point后两次清理（各45 bytes），保留日志/审阅材料，继续使用唯一工作树。提交事实由 Git HEAD/message/files/status 读回，本记录不自引用本次提交 SHA。
 * 下一批源码问题已独立核实：DOCX 首卷/首章前普通段落丢失，未过期 TXT 导出被误清、过期 DOCX 漏清。另有 Consistency/AI 选择及条件性手动覆盖升级的源码缺口待分任务验证。完整 V1.0 仍为 **`needs-verification`**，不能据这次提交宣称正式验收完成。
 
+**V1.0 DOCX 正文保留与导出清理修复（2026-10-03；本地提交）**：
+
+* DOCX Heading 解析器现在把卷前、卷首和没有章节标题的卷中正文收进所属卷的「正文」章节，保留短首行、原有段落顺序和字数。回归包含只有卷标题与正文的整篇文档、中间卷和末尾卷；普通与流式导入分别走 preview → confirm → 实际章节正文读取。
+* 既有导出清理器识别 `.part`、`.txt`、`.docx`，保护 active 任务的 part 与匹配格式成品；succeeded 仅保留有效期严格晚于当前时间的匹配成品。过期、非法期限、终态、孤立和错误格式文件按原任务生命周期删除，缺失格式继续按 legacy TXT 处理。failed / timeout / cancelled 注册钩子传递任务格式，DOCX 终态成品立即清理。
+* 初轮静态规格报告漏判了 expiry 边界测试的错误计数；两组共六件文件应删除五件、保留一件。测试已纠正为 `removed == 5` 并逐一断言全部文件状态；fresh SPEC 和 QUALITY 复查均 PASS。Claude 实现与补充任务已完成；独立 Claude QUALITY 调用因第三方余额不足退出，没有审查结论，最终质量复查由独立 Codex 子代理完成。
+* 协调者最终验证 `j-ioqgg0` 退出 0：六文件 scoped Ruff 与 app-wide `ty check app` 通过，DOCX / import / export / background / startup 定向 **143 passed（11.96s）**，完整后端套件 **1942 passed（168.41s）**。六个源码/测试文件验证前后 SHA-256 一致；独立测试目录在精确路径核验后删除，回收 **38,470,715 bytes**。
+* 源码提交已读回：`e753bcd874ebd1eea6c0d4b45d475f8f4b70c3e1`（DOCX 导入，三个文件），`f5fb74f7faadb39e3276a9e3393b72b36909ad8b`（导出清理，三个文件）。采用显式暂存白名单和 cached diff 检查；继续使用唯一工作树。验证记录更新使用同一 `docs/aegis/work/2026-10-02-v1-completion`。
+* 修复维持原 parser / export service / terminal hook 所有者，退役丢弃未归属正文和不可达的成功期限分支；没有新的数据库、依赖或公共接口。新增测试用既有 fixture 与参数矩阵控制规模，三个测试文件为 344 / 666 / 789 行；导出测试接近 800 行软阈值，下一批导出功能扩展前重新评估边界。
+* 当前源代码切片信心 B。真实 worker 超时/取消抢占、Windows 文件占用、并发 rename/cleanup、生产会话重启持久化未由本次内存 SQLite/钩子测试证明；前端与安装包未在本次后端改动后重新运行验收。
+* 后续仓库内工作：PRD §25 和源码清单 §31 要求的 Markdown 导出仍缺失；Consistency / AI 项目选择及迟到结果、条件性同版本 bundled-wheel 覆盖升级仍需另切任务复现。真实供应商用户链路、干净 Windows 11 旧版覆盖升级/数据保留、native ARM64 首启、远端双架构 Actions/Release、签名身份/证书链及最新安装包 runtime 仍待验收。完整 V1.0 保持 **`needs-verification`**。
+

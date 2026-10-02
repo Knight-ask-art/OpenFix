@@ -6,12 +6,12 @@
     "新版本/docs/03-source-change-list.md §42",
     "docs/aegis/plans/2026-10-01-phase5-windows-release-updates.md"
   ],
-  "scopeStatus": "保留既有 scoped source commits；本轮 outline/story-memory selection 与 rejected-candidate catch guard 完成，fresh SPEC/QUALITY和最终frontend static/full desktop build/61 browser通过，获用户明确本地提交授权。完整§42仍needs-verification；后端未变，迁移唯一头1028。",
+  "scopeStatus": "保留既有scoped source commits。本轮DOCX/export既有owner修复完成，fresh SPEC/QUALITY、scoped Ruff/app-wide ty、143 target/1942 full后端回归通过，源码提交e753bcd/f5fb74f已读回。完整§42仍needs-verification；迁移唯一头1028未改，用户明确授权本地提交。",
   "compatStatus": "保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。",
-  "retirementStatus": "四页project selection收敛到现有shared owner；本轮两页raw URL/stored initializer与竞争effects退役。保留local keys/API和人物/世界书preferenceKey语义。global retry/60s cache保留为bounded residual；spec980行以typed mock/两页参数化控制，扩增前另切fixture复用。未清理用户数据或新增smoke/worktree。",
+  "retirementStatus": "DOCX discard-only unowned flush和不可达succeeded TTL分支已退役；terminal hook退役default-TXT-only删除调用。保留正常Heading/TXT fallback/manual split和legacy TXT/24h TTL，未新增数据owner/schema/dependency/API。六源码/测试保持验证hash；export测试789行用现有fixture/参数矩阵控制，Markdown扩展前评估拆分。之前四页共享selection owner及local key语义继续保留。未清理用户数据或新增smoke/worktree。",
   "newRiskSignals": [
     "先前项目表单、人物/世界书、ARM64 mappings、fork wheel和restore runtime缺口已修复，不能继续标记为当前未实现。本轮大纲/故事记忆及失败候选手动覆盖也已修复。",
-    "j-nf69wu独立合成复现DOCX前置正文丢失、未过期TXT误清/过期DOCX漏清，需另切源码修复；Consistency/AI选择和条件性手动覆盖升级尚只有源码证据。",
+    "本轮DOCX/export确认缺陷已修复。PRD25/source-list31 Markdown导出仍缺失；Consistency/AI选择与迟到结果和条件性同版本wheel覆盖升级需独立复现。初轮静态SPEC错误断言计数声明已撤回，fresh两阶段审查和最终运行提供当前证据。",
     "Windows 符号链接用例缺少本机权限，当前 x64 包未覆盖最新源码；外部供应商、升级、远端 release、签名和双架构环境仍待验收。"
   ],
   "decision": "needs-verification"

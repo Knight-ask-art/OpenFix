@@ -26,3 +26,4 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-10-02 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json | 2026-10-02-v1-completion evidence v1-current-source-build-20261002 |
 | 2026-10-03 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json | 2026-10-02-v1-completion evidence phase5-release-version-guard-20261003 |
 | 2026-10-03 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json | 2026-10-02-v1-completion evidence v1-local-commit-20261003 |
+| 2026-10-03 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json | 2026-10-02-v1-completion evidence v1-docx-import-export-cleanup-20261003 |

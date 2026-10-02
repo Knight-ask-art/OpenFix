@@ -1,7 +1,7 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
-  "currentTodo": "Outline/story-memory selection and rejected-candidate race are source-fixed; fresh SPEC/QUALITY and final static/build/61 browser checks pass. Save scoped local commit, then continue §42 DOCX preservation and export TTL repairs.",
+  "currentTodo": "DOCX body retention and export lifecycle cleanup are source-verified and locally committed as e753bcd/f5fb74f. Terminal record is bundled and structurally checked; record commit/clean/one worktree are read back from final Git. Full V1 remains needs-verification.",
   "completedTodos": [
     "先前里程碑 aa590c15039d669780e51d0193538473d9fb92cb 已完成。",
     "359c8114a889a7e700fce48441ff2d4ac6ed0219: configured runtime backup/restore/rollback protection and IPC overlap policy.",
@@ -13,10 +13,16 @@
     "Rejected metadata candidate continuation now respects manual revision/current id. Exact hook seam changes BETA->ALPHA failure to preserved BETA; fresh SPEC recheck passes.",
     "j-7q3b9d exits 0: frontend lint/type 433 files zero warnings/errors, full desktop build, 61 browser passed (25 selection +28 deep-link +8 forms).",
     "Only task Vite j-08fknj and j-q6xzax stopped; 19003 released; exact no-reparse results directory removed twice, 45 bytes each. One existing worktree, no new smoke environment.",
-    "Fresh Claude QUALITY j-klhqxv exits 0 / PASS, explicitly correcting the initial report's missed rejection continuation; static review only, final runtime evidence read separately."
+    "Fresh Claude QUALITY j-klhqxv exits 0 / PASS, explicitly correcting the initial report's missed rejection continuation; static review only, final runtime evidence read separately.",
+    "DOCX unowned body flush preserves current-volume prose; normal/streaming preview-confirm-detail and Heading-only body regressions added. Fresh DOCX SPEC passes.",
+    "TXT/DOCX cleanup honors active/fresh/expired lifecycle and format; registered terminal hooks immediately delete their matching artifacts. Expiry-boundary count corrected to five with all-six-file assertions; fresh export SPEC and independent Codex QUALITY pass.",
+    "j-ioqgg0 exits 0: scoped Ruff/app-wide ty, 143 target and 1942 full backend tests pass, six source hashes unchanged. Exact synthetic validation directory removed (38470715 bytes).",
+    "Local source commits read back: e753bcd874ebd1eea6c0d4b45d475f8f4b70c3e1 import and f5fb74f7faadb39e3276a9e3393b72b36909ad8b export; three allowlisted files each."
   ],
-  "activeSlice": "v1-outline-memory-selection-20261003",
+  "activeSlice": "v1-docx-import-export-cleanup-20261003",
   "evidenceRefs": [
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json",
+    "C:/Users/20969/.fastctx/jobs/j-ioqgg0/output.log",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json",
     "C:/Users/20969/.fastctx/jobs/j-klhqxv/output.log",
     "C:/Users/20969/.fastctx/jobs/j-7q3b9d/output.log",
@@ -29,7 +35,7 @@
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
     "git log/show readback: 359c811, ebae8a3, 49935a4 on feature/branding"
   ],
-  "blockedOn": "Formal V1 remains needs-verification. Confirmed DOCX pre-title text loss and export TTL bugs still need separate source repairs. Real provider, clean Windows 11 upgrade, native ARM64 startup, remote dual-architecture Release and signing are unaccepted.",
-  "nextStep": "Read latest Git HEAD/message/files/status/worktree receipt for this scoped local commit. Prioritize DOCX/export TTL next; separately audit/fix Consistency/AI selection and manual-overwrite upgrade. Formal V1 remains needs-verification; no new worktree or packaged smoke.",
+  "blockedOn": "DOCX/export defects are repaired and source regression passes. Full V1 lacks Markdown export; Consistency/AI selection and conditional same-version wheel upgrade require dedicated reproduction. Real provider, clean Windows 11 upgrade, native ARM64 startup, current package runtime, remote dual-architecture Release and signing remain unaccepted.",
+  "nextStep": "Read back this slice source/record commits, clean status and one worktree. Next repository slice implements PRD25/source-list31 Markdown export, then reproduces Consistency/AI selection and upgrade identity observations.",
   "updatedAt": "2026-10-03"
 }

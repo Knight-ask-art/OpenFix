@@ -2,14 +2,16 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
   "lastCheckpointRef": "docs/aegis/work/2026-10-02-v1-completion/todo-checkpoint-draft.json",
-  "resumeInstruction": "先读 Git HEAD/message/files/status/worktree，确认用户授权的 v1-outline-memory-selection-20261003 本地提交。TaskStartSnapshot eb68af3 / feature/branding / clean / one worktree。全部实现/审计/复审/验证 handles 已终结，fresh SPEC 与 QUALITY j-klhqxv PASS，j-7q3b9d 退出0 / 61 passed；不要重启旧 jobs。然后另切 DOCX 正文保留/导出 TTL 任务。协调者独占 Git/记录/验证；不新增工作树、不运行 packaged smoke。",
+  "resumeInstruction": "v1-docx-import-export-cleanup-20261003 源码已提交 e753bcd / f5fb74f（feature/branding），TaskStartSnapshot 34e9bc413dae27be6cfe894fb576054d4ff69fb5。先读 checkpoint terminal evidence、todo 和当前 Git；fresh SPEC/QUALITY PASS，j-ioqgg0 退出0，143 target /1942 full backend passed，六文件hash未变，隔离目录已删除。记录收尾提交以 Git 实际读回为准。完整V1仍needs-verification；后续另切Markdown导出，再复现Consistency/AI选择和条件性同版本wheel升级。旧缺陷诊断不可unchanged重跑为回归；上一轮61browser不重跑。协调者独占Git/记录/共享验证，不新增worktree/packaged smoke，不读真实数据/密钥。",
   "knownPartialWork": [
     "本轮三个源码主题本地提交为 359c811、ebae8a3、49935a4；最终前端静态/完整 desktop build 和 36 browser passed，desktop target 24 passed / 1 skipped / 1 excluded。",
     "本轮 Vite j-bckuz9 已停止，19003 已释放，精确的临时 browser results 已删除；日志与审阅材料保留。",
     "大纲/故事记忆共享选择修复已完成。初轮 QUALITY 的全分支 guard 声明被 exact hook rejection seam 反例纠正；Claude j-hux6tx 补 owner catch guard，两页新增真实 pending/404/retry 回归。fresh SPEC PASS，j-7q3b9d 最终61 passed。",
     "本轮 Vite j-08fknj/j-q6xzax已停，19003无监听，精确结果目录两次各45bytes均删除；不重跑旧环境。",
     "fresh QUALITY j-klhqxv退出0/PASS；其第二场景声称ALPHA领域请求缺失是报告笔误，测试有意手动经过ALPHA且只禁MISSING，该笔误不能采用。当前source/test最终hash与sidecar绑定，提交SHA以Git读回为准。",
-    "后续确认缺陷：DOCX前置正文丢失、未过期TXT误清和过期DOCX漏清（j-nf69wu）；Consistency/AI选择及条件性手动覆盖升级仅有源码证据。优先另切DOCX/TTL。"
+    "DOCX前置正文和TXT/DOCX清理缺陷已修复并源回归通过，本地提交e753bcd/f5fb74f；143 target/1942 full后端passed。初轮SPEC漏判expiry计数错误，fresh两阶段复查已纠正。",
+    "PRD25/source-list31 Markdown导出尚缺失。Consistency/AI选择与迟到结果、条件性同版本手动覆盖wheel升级仍仅源码观察，必须独立复现后修改。",
+    "Claude独立QUALITY调用因第三方余额不足无结论；不是登录问题。独立Codex QUALITY补审通过，不能给失败Claude调用补写PASS。"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-10-02-v1-completion/10-intent.md",

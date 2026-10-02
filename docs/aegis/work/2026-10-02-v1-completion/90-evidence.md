@@ -348,3 +348,13 @@
 - Verifier: Primary coordinator 独立读回源码、before/after actual-hook seam、最终验证结果和静态审查更正，用户授权显式白名单本地提交。
 - Workspace integrity: 沿用唯一 work record；bundle --root . --work 2026-10-02-v1-completion 和 check --root . 为结构检查，不能授予正式产品验收。proof/pack使用本sidecar。
 - Evidence status: evidence-finalized
+
+## EvidenceBundleDraft: v1-docx-import-export-cleanup-20261003
+
+- Artifact key: v1-docx-import-export-cleanup-20261003
+- Slice ID: v1-docx-import-export-cleanup-20261003
+- Type: local-verification
+- Source: TaskStartSnapshot 34e9bc413dae27be6cfe894fb576054d4ff69fb5, feature/branding. Claude implementation/corrections j-9wab7b, j-kk8ese, j-s26pfx, j-n4thjh; independent fresh DOCX/export SPEC and Codex QUALITY; final coordinator verification j-ioqgg0. Source commits e753bcd874ebd1eea6c0d4b45d475f8f4b70c3e1 and f5fb74f7faadb39e3276a9e3393b72b36909ad8b.
+- Summary: 最终源码切片通过：scoped Ruff、app-wide ty、143定向测试(11.96s)、1942完整后端测试(168.41s)，六个源码/测试SHA256保持不变。DOCX卷前/卷首/无章标题卷正文保留并经普通/流式preview-confirm-detail验收；TXT/DOCX清理保护active与严格未来期限的匹配成品，终态钩子按原payload格式立即删除，legacy TXT兼容。初轮SPEC漏判expiry测试计数，现改为五件删除并逐一断言六件文件；fresh SPEC撤回旧声明，fresh QUALITY PASS。Claude独立QUALITY余额不足无结论，由Codex独立补审，不能算Claude PASS。唯一runner新建目录核验后删除38470715bytes。既有parser/cleaner/hook owner内修复，退役错误分支，未新增公共合同或持久化owner；测试344/666/789行，Markdown扩展前评估export测试边界。信心B；真实worker抢占/Windows文件占用/并发rename-cleanup/生产重启、最新前端和安装包、真实provider和正式发布未由本次证明。Markdown导出缺失，Consistency/AI和同版本wheel升级需独立复现。完整V1仍needs-verification。
+- Verifier: 协调者读回实际六文件最终diff、fresh两阶段审查和j-ioqgg0完整结果；source hashes和exact synthetic cleanup已检查。显式白名单暂存、cached diff检查和本地源码提交SHA/message/files已读回；后续records-only提交以Git事实为准。未新增worktree或packaged smoke。
+- Evidence status: evidence-finalized
