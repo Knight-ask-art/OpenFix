@@ -162,13 +162,10 @@ jobs:
         timeout-minutes: 20
         run: pnpm exec electron tests/main/runtime-smoke.mjs ../backend-dist/openfic-*.whl
       - uses: actions/setup-python@v6
-        if: runner.os == 'Windows'
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v5
-        if: runner.os == 'Windows'
       - name: Build bundled backend wheel
-        if: runner.os == 'Windows'
         working-directory: desktop
         run: node scripts/build-backend-wheel.mjs
       - name: Build desktop package
@@ -224,7 +221,7 @@ jobs:
           $process = $null
 
           try {
-            $installerProcess = Start-Process -FilePath $installer[0].FullName -ArgumentList @('/S', '/currentuser', "/D=$installDirectory") -Wait -PassThru
+            $installerProcess = Start-Process -FilePath $installer[0].FullName -ArgumentList @('/S', '/currentuser', "/D=$installDirectory") -WindowStyle Hidden -Wait -PassThru
             if ($installerProcess.ExitCode -ne 0) { throw "Windows installer exited with code $($installerProcess.ExitCode)" }
             if (-not (Test-Path -LiteralPath $application)) { throw "Installed application was not found: $application" }
 

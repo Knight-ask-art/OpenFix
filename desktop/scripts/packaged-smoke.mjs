@@ -436,8 +436,22 @@ async function main() {
   );
 
   console.log("1/9 静默安装…");
-  const installer = spawn(setupPath, ["/S", `/D=${installDir}`], { stdio: "ignore" });
-  await new Promise((resolve) => installer.on("exit", resolve));
+  // NSIS 要求 /D 位于最后，且包含空格时也不能被自动加引号。
+  const installer = spawn(setupPath, ["/S", `/D=${installDir}`], {
+    stdio: "ignore",
+    windowsHide: true,
+    windowsVerbatimArguments: true,
+  });
+  await new Promise((resolve, reject) => {
+    installer.once("error", reject);
+    installer.once("exit", (code, signal) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`安装程序退出异常：code=${code}, signal=${signal ?? "none"}`));
+      }
+    });
+  });
   const installedExe = path.join(installDir, "OpenFix.exe");
   check("安装后存在 OpenFix.exe", existsSync(installedExe), installedExe);
 

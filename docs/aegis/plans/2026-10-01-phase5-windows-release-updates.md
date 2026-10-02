@@ -54,3 +54,12 @@ Integrate the production Windows GitHub update feed with the release pipeline as
 - If the recorded repository identity conflicts with the current GitHub source, stop and report the mismatch rather than guessing.
 - Do not publish, tag, push, or sign. Missing signing credentials and real-release validation remain explicit follow-up work.
 - Preserve release workflow behavior outside the stated desktop release boundary; do not otherwise rewrite the multi-platform build.
+
+## 2026-10-03 V1 Continuation: Existing Desktop Matrix
+
+The §42 end-to-end acceptance also requires the fork backend to be present in every existing desktop package. The inherited matrix includes Windows/Linux x64 and ARM64 plus macOS x64 and ARM64; do not remove targets to bypass missing runtime support.
+
+- Change Necessity: `code-change`. `resolvePythonAsset` omits Windows/Linux ARM64 even though both native runners are declared. GitHub release `20260623` actually contains the pinned CPython `3.13.14` standard `aarch64-pc-windows-msvc` and `aarch64-unknown-linux-gnu` install-only assets; add those two mappings at the existing resolver owner.
+- The package and package-check desktop jobs currently stage the fork wheel only on Windows. Apply the same Python/uv setup and existing `build-backend-wheel.mjs` staging step to all existing desktop targets before Electron Builder. Keep upstream-only PyPI/Docker publication guards and the internal `openfic` wheel identity.
+- Scope: two workflow files and `desktop/src/main/runtime/python-assets.ts`; no runtime rewrite, new dependency, provider use, target removal, push/tag/release/sign or packaged-smoke execution.
+- Verification: inspect the complete workflow and resolver diff; validate YAML and TypeScript; confirm the exact ARM64 filenames from live release metadata; ensure each package matrix row reaches wheel staging before packaging. These checks do not prove native ARM64 startup, binary dependencies, a signed installer or a remote Actions run.

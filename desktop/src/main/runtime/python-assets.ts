@@ -27,7 +27,9 @@ function buildAsset(target: string): PythonAsset {
 
 export function resolvePythonAsset(platform = process.platform, arch = process.arch): PythonAsset {
   if (platform === "win32" && arch === "x64") return buildAsset("x86_64-pc-windows-msvc");
+  if (platform === "win32" && arch === "arm64") return buildAsset("aarch64-pc-windows-msvc");
   if (platform === "linux" && arch === "x64") return buildAsset("x86_64-unknown-linux-gnu");
+  if (platform === "linux" && arch === "arm64") return buildAsset("aarch64-unknown-linux-gnu");
   if (platform === "darwin" && arch === "arm64") return buildAsset("aarch64-apple-darwin");
   if (platform === "darwin" && arch === "x64") return buildAsset("x86_64-apple-darwin");
   throw new Error(`unsupported platform for portable Python: ${platform}/${arch}`);

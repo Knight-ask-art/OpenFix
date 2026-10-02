@@ -306,13 +306,10 @@ jobs:
         working-directory: desktop
         run: pnpm build
       - uses: actions/setup-python@v6
-        if: runner.os == 'Windows'
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v5
-        if: runner.os == 'Windows'
       - name: 构建内置后端 wheel
-        if: runner.os == 'Windows'
         working-directory: desktop
         run: node scripts/build-backend-wheel.mjs
       - name: 构建 Electron 安装包
