@@ -461,3 +461,13 @@ OpenFix 自有标识首轮设计已落地：以打开的书页和校订符号组
 * 后续仓库工作：大纲与故事记忆页在 URL 变 null 时不重置 applied ref，仍需修复 `A → null → A` 重入；本轮仅只读核实。其列表外项目展示继续核实，不能从本次人物/世界书结果推断所有消费者通过。
 * 正式 V1.0 保持 **`needs-verification`**。真实供应商、干净 Windows 11 旧版覆盖升级/原数据保留、native ARM64 binary dependencies/首启、远端双架构 Actions/Release、签名身份/证书链及最新安装包运行证据仍待验收；这次源码 build 不代表最新安装包已完成运行验证。
 
+**V1.0 大纲/故事记忆项目选择收尾（2026-10-03；用户授权本地提交）**：
+
+* 两页沿用人物/世界书已有的共享项目选择 hook，退役 raw URL/stored-id 初始化和竞争的 URL/recent fallback effects。`A → null → A`、`A → invalid → A` 重新应用 URL；第一页外的 URL、记住项目与最近项目经 API 校验并显示标题，无效候选回退。
+* 页面以稳定 callback 和即时 ref 提供当前项目；迟到读取、metadata、manual ABA 与列表 refetch 不夺取手动选择。大纲只有真实项目变化才清空选中/dirty/expanded；同 id 与 URL 再应用保留草稿/展开。经验证的选择写入原 localStorage key，使 SPA 离页返回可恢复离页项目。
+* 协调者补查出初轮质量报告漏掉的候选失败续跑：remembered 项目校验挂起时手动选择 BETA，reject 后旧 loop 仍能写回 ALPHA。共享 catch 已补 manual/current guard；actual hook seam 从错误的 BETA → ALPHA 变为仅 BETA，两页新增 pending/404/retry 用例分别覆盖 next-listed 和 final-first-page 回退。
+* 最终 `j-7q3b9d` 退出 0：前端 lint/type-check **433 文件零警告/错误**，完整 desktop build 含前端 production/setup/main，**61 browser passed（3.4m）**，即 25 selection、28 原 deep-link、8 forms。既有 large-chunk warning 保留；没有重跑后端或安装包，这些前端源码结果不证明真实 provider/打包运行链路。
+* 独立 fresh SPEC 和 Claude QUALITY `j-klhqxv` 均 PASS；初轮 `j-or8f99` 的全分支 guard 声明被反例纠正，不能以报告 PASS 代替实际源码/执行。现有 retry/60s metadata cache 保留，删除缓存项目与 hung IndexedDB 仍属未复现的有界风险；新 spec 980 行以 typed helper/两页参数化控制，继续扩增前另切 fixture 复用。
+* 仅停止两个本轮 Vite，端口 19003 最终释放；精确结果目录核实在 workspace 内且无 reparse point后两次清理（各45 bytes），保留日志/审阅材料，继续使用唯一工作树。提交事实由 Git HEAD/message/files/status 读回，本记录不自引用本次提交 SHA。
+* 下一批源码问题已独立核实：DOCX 首卷/首章前普通段落丢失，未过期 TXT 导出被误清、过期 DOCX 漏清。另有 Consistency/AI 选择及条件性手动覆盖升级的源码缺口待分任务验证。完整 V1.0 仍为 **`needs-verification`**，不能据这次提交宣称正式验收完成。
+

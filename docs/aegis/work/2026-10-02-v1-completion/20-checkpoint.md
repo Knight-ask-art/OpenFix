@@ -2,21 +2,52 @@
 
 ## Current Checkpoint
 
-- Current todo: 本轮表单/人物与世界书深链、恢复运行时保护和跨平台打包接线已验证并本地提交；正式 V1 仍需继续 §42 剩余实现及验收。
-- Active slice: v1-authoring-and-restore-boundaries-20261003
+- Current todo: 大纲/故事记忆项目选择及 rejected-candidate 竞态修复已完成，SPEC/QUALITY 和最终静态/构建/61 browser 回归通过；保存本地提交并继续 §42 的 DOCX 正文保留和导出 TTL 清理。
+- Active slice: v1-outline-memory-selection-20261003
 - Completed todos:
 - 本地提交 aa590c15039d669780e51d0193538473d9fb92cb 已完成；201 文件，提交后 OpenFix 工作区干净且只有主工作树。
 - 359c8114a889a7e700fce48441ff2d4ac6ed0219：恢复/回滚保护配置运行时，统一平台名称匹配及 IPC 路径策略。
 - ebae8a3c1939c50616996cc5390a48f1f80ddf45：保留六平台矩阵，补 Windows/Linux ARM64 Python 映射和全平台 fork wheel staging，修复安装脚本参数/退出检查。
 - 49935a428a33223f6d95141e1487a311852b9db1：表单失败保护、异步提交/缓存隔离，以及人物/世界书共享深链选择与离页项目 metadata 生命周期。
+- 本轮两页复用唯一项目选择 hook；有效离页 URL/remembered/recent 项目经 API 校验后显示，URL null/invalid 重入、迟到读取/接口和同 id 编辑状态均有回归。
+- 修复候选 metadata reject 后遗漏的 manual/current guard；直接 hook seam 从 BETA → ALPHA 改为仅 BETA，新增两页真实 pending/404/retry 回归通过。
 - Evidence refs:
+- FastCtx j-7q3b9d：433 文件 lint/type-check 零警告/错误、完整 desktop build、25 selection + 28 deep-link + 8 forms = 61 browser passed（3.4m）；源码与用例保持最终 hash。
+- FastCtx j-taxftg / j-3n8bkv：actual hook 的受控 pending/reject Promise seam，前者复现手动选择被覆盖，后者确认修复；不是完整 React/browser 验收。
+- FastCtx j-klhqxv 退出 0：fresh QUALITY PASS，确认之前 rejection guard 声明已由当前 owner 修复；当前 sidecar 为 evidence-bundle-draft-v1-outline-memory-selection-20261003.json。
 - FastCtx j-9g2cte: frontend lint/type-check、完整 desktop build 和 36 个合成浏览器用例全部通过。
 - FastCtx j-mnfh77: desktop lint/type-check/build:main、24 passed / 1 POSIX-only skipped / 1 privileged symlink excluded，YAML/六映射/安装脚本静态检查通过。
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
-- Blocked on: 正式 V1 仍需真实 provider、干净 Windows 11 升级、native ARM64 依赖/首启、远端双架构发布和签名验收；大纲与故事记忆的同类 URL 重入属于下一轮仓库修复。
-- Next step: 从最新 Git log/status 接续本地里程碑和最终记录；下一轮修复大纲/故事记忆 A → null → A 重入，核实列表外项目展示，再逐项执行外部验收。
+- Blocked on: 正式 V1 保持 needs-verification；DOCX 导入前置正文丢失、导出未过期 TXT 误删/过期 DOCX 漏清已独立复现待修复。真实 provider、干净 Windows 11 升级、native ARM64 首启、远端双架构发布和签名仍待验收。
+- Next step: 以最新 Git HEAD/message/files/status/worktree 读回本轮本地提交回执；然后优先修 DOCX/导出 TTL，另切 Consistency/AI 项目选择与手动覆盖升级。日志/sidecar 是分范围证据，不证明正式 V1；不新增 worktree 或 packaged smoke。
 
 ## Recent Checkpoint History
+
+## 2026-10-03 Outline / Story Memory Final Verification
+
+- Scope / baseline: 继续 §42 的维护大纲与故事记忆上下文稳定要求，修复原两页 competing initialization 的 Implementation Drift；保留现有 API、Radix、localStorage keys 和人物/世界书的第一页 preferenceKey 语义。已退役两页 raw URL/stored-id initializer 与 URL/recent fallback effects，沿用共享 hook。
+- Rejection correction: 初轮 Claude QUALITY j-or8f99 给 PASS，并声称全部候选续跑均检查手动/current；该声明遗漏 catch 分支，不能采用。协调者 j-taxftg 执行 actual hook（transpiled TypeScript + controlled React/query seams），证明候选失败后从 BETA 写回 ALPHA。Claude j-hux6tx 仅补 owner guard 和同 spec；j-3n8bkv 只出现 BETA，浏览器新用例覆盖 next-listed 与 final-first-page 两种失败续跑、真实 pending/404/retry 和最终项目/local key/domain anchors。
+- SPEC / QUALITY: 初轮 j-nuq4re PASS 后的 F1/F2/F3 证据缺口已补真实 IndexedDB read gate、领域请求正向锚点和大纲展开状态。独立 outline_memory_spec_recheck 对补充及 rejection 修复分别 fresh SPEC PASS。fresh Claude QUALITY j-klhqxv 退出 0 / PASS，确认失败续跑 guard 已修复；两阶段审阅均为静态建议，实际最终验证另由协调者读回。
+- Verification: j-7q3b9d 退出 0；frontend lint/type-check 433 文件零警告/错误；完整 desktop build 含前端 production、setup renderer、main TypeScript；61 browser passed（25 selection、28 原 deep-link、8 forms）。保留既有 large-chunk warning。初轮 59 passed 仅对应 rejection 修复前源码，不替代本次最终结果。
+- Final blob ids: hook 44e3bf7523c76a1b2c67994940f27a184ed86c30；outline b8eb130bb7f24f524bb81cafcf6ccaf6178a7eab；story-memory 26b0ea7f2e5954103ea2e64c8a35184b7b126401；spec 8855a9c3e590ddf54ec75a03424970b832a96248。
+- Complexity closure: production owner 294 行，两个页面为 wiring-only；新增 spec 25 cases / 980 physical lines，超过约 800 行软压力，按 exceeded-and-governed 处理。用既有 typed mock 与两页参数化循环覆盖真实异步 seam，没有新增 helper 系统、依赖、durable owner 或 schema。继续扩增该类套件前另切共享 synthetic fixtures 复用；不能以 tests-only 忽略维护成本。
+- Retained boundaries: 现有 global retry/60s metadata cache 保留，静态 review 的重复无效校验成本与 hung IndexedDB readiness 为 bounded residual；没有独立缓存删除事故复现。same-value Radix 点击可能不触发 setter，URL A → null → A 的再应用另有可见 draft/expanded 断言。冷缓存/挂起 remount 仍未单独 fixture 验收。
+- Cleanup: 仅停止本轮 Vite j-08fknj 和补修 runner j-q6xzax；19003 最终无监听。精确 tmp/openfix-outline-memory-results-20261003 核实在 OpenFix 内、无 reparse point，两次结果各 45 bytes 均已删除；证据日志/packets 留存。没有新增 worktree 或 smoke 环境。
+- Completion boundary: confidence B for local source slice；正式 V1 保持 needs-verification。合成 API/Socket.IO、hook seam、静态/构建均不证明真实 provider、当前安装包、干净旧版升级、native ARM64、远端 Release 或签名。
+
+## 2026-10-03 Outline / Story Memory Selection Slice Card
+
+- Previous goal turn: progress。三个源码主题与一个证据提交已完成，最后 HEAD eb68af33b0faf78b9769c4d7e47cfa2f809a3770；最终浏览器 36 passed、桌面目标 24 passed / 1 skipped / 1 excluded。当前完整 §42 尚未验收。
+- TaskStartSnapshot: OpenFix feature/branding，HEAD eb68af33b0faf78b9769c4d7e47cfa2f809a3770；开始时工作区干净，仅主工作树。Claude CLI 2.1.287 可发现；协调者独占 Git/共享记录，禁止新增工作树。
+- Authority: 新版本/docs/03-source-change-list.md §42 的维护大纲、一致性/故事记忆上下文和原数据稳定要求；继续遵守新版本/AGENTS.md 的复用、最小变更、本地优先和数据保护边界。
+- Evidence / owner: outline-page:73-85 与 story-memory-page:122-131 在参数变 null 时保留已消费 id，A → null → A 不会重新应用；两页列表只含前 100 项却直接以 URL/cached id 初始化并发领域请求，列表外选择缺少显示对象。已验证的 use-project-selection 是人物/世界书初始化 owner，应扩展并复用，退役两个新消费者的竞争初始化，不在页面追加新的 URL 特判。
+- Decision: code-change。保留 Radix chooser、现有 API/业务写入以及 localStorage 和 recent-projects 的偏好语义；仅有效项目可初始化。实际项目变化才清空大纲选中/dirty/expanded 状态，同 id 保留。无效 URL 应回退有效本地偏好/最近/第一页；有效列表外 URL 和 remembered selection 经 API 验证并显示；迟到 URL/偏好/metadata 不得夺取手动选择。不能另造 durable project owner 或移植其他页面的 store。
+- Allowed implementation: frontend/src/features/projects/hooks/use-project-selection.ts、frontend/src/features/outline/pages/outline-page.tsx、frontend/src/features/story-memory/pages/story-memory-page.tsx、frontend/e2e/outline-memory-project-selection.spec.ts。协调者负责过程记录和临时 runner。共享 hook 变更必须复跑人物/世界书与表单原回归。
+- TDD mode off / skipped。比例验证为实际 browser 合成 API/Socket.IO 用例、frontend lint/type/build 与独立 spec 后 quality 审查。用例覆盖 A → null → A、A → invalid → A、列表外有效/无效 URL、偏好/接口门闩、manual ABA/refetch、同 id 保留编辑选择和 remount metadata。实现者不执行共享 build/test；协调者统一运行。
+- Parallel read-only audits: 一项逐条核对 §42 创作链路的 source/test seam；一项核对 Phase 5 installer/runtime/release/signing 边界。报告是证据建议，不是通过声明；具体缺陷由协调者核实后另切任务。
+- Live handles: Claude implement j-75nvdj，authoring audit j-csn1uv，release audit j-s1jqbv；继续原 handle，观察超时不能当退出/失败。四页面/表单 runner 为 tmp/openfix-outline-memory.playwright.config.mjs，临时结果在独立的 workspace 目录，traces/screenshots/video 均关闭。
+- Patch-Shape / pre-edit owner fit: proximate causes are stale consumed URL id and raw project/list initialization at the two page owners; shared use-project-selection is the existing transition/metadata owner. Decision wiring-only in pages plus bounded preference-source extension in the owner; retire the duplicate page initialization effects. First-page pagination is a valid API contract, not a backend defect. Counterfactual scope covers null/invalid re-entry and off-page cached/URL choices; actual runtime closure remains unproven until the new cases and prior consumers pass. This is not a full-root or formal acceptance claim.
+- Safety / stop: 不读用户正文/数据库/.env/密钥，不调用真实供应商、不运行安装器/packaged smoke、不 push/tag/Release/sign。保留已有源码提交和证据。正式 V1 保持 needs-verification，仓库内缺口仍继续修复。
 
 ## 2026-10-03 Authoring And Restore Terminal Evidence
 
@@ -123,10 +154,10 @@
 
 ## DriftCheckDraft
 
-- Scope status: 本轮 authoring/restore/distribution 源码门禁和针对性回归通过，已按用户授权分主题本地提交；仍继续完整 §42 目标。当前后端未改变，迁移唯一头保持 1028。
+- Scope status: 既有 authoring/restore/distribution 源码提交保留；本轮 outline/story-memory 最终 61 browser、静态/build 和 fresh SPEC/QUALITY 通过，用户明确授权同主题本地提交。仍继续完整 §42；当前后端未改变，迁移唯一头保持 1028。
 - Compatibility status: 保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。
-- Retirement status: 人物/世界书竞争初始化 effect 已退役；保留既有 API/store 合同和内部 openfic wheel。配置 runtime 仅在 backup/restore 顶层策略显式保护，普通子树仍检查 symlink；migration/portable 默认行为保留。未清理用户数据，继续遵守不重跑 packaged smoke 的指令。
+- Retirement status: 人物/世界书及本轮大纲/故事记忆的 competing initializers 已收敛到共享 selection owner；保留既有 API/store 合同和内部 openfic wheel。配置 runtime 的已有顶层保护、普通子树 symlink 检查和 migration/portable 行为保留；没有清理用户数据。
 - New risk signals:
-- 上轮确认的表单、人物/世界书、asset mapping、fork wheel 和 restore runtime 缺口在本轮修复/验证；大纲与故事记忆的 URL 重入另列下一轮，不扩大此次提交范围。
+- 上轮表单、人物/世界书、asset mapping、fork wheel、restore runtime 以及本轮大纲/故事记忆 URL/候选竞态已修复；新审计确认 DOCX 前置正文丢失和导出 TTL 两个缺陷，另切后端任务。Consistency/AI 选择与条件性手动覆盖升级仅有源码证据。
 - Windows 符号链接用例仍缺少本机权限；冷缓存 remount 没有专门 fixture，当前安装包不覆盖最新源码，Windows ARM64 binary dependencies/首启与真实供应商、升级、远端 release、签名仍待验收。
 - Advisory decision: needs-verification

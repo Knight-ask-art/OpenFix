@@ -1,24 +1,35 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
-  "currentTodo": "本轮表单/人物与世界书深链、恢复运行时保护和跨平台打包接线已验证并本地提交；正式 V1 仍需继续 §42 剩余实现及验收。",
+  "currentTodo": "Outline/story-memory selection and rejected-candidate race are source-fixed; fresh SPEC/QUALITY and final static/build/61 browser checks pass. Save scoped local commit, then continue §42 DOCX preservation and export TTL repairs.",
   "completedTodos": [
     "先前里程碑 aa590c15039d669780e51d0193538473d9fb92cb 已完成。",
     "359c8114a889a7e700fce48441ff2d4ac6ed0219: configured runtime backup/restore/rollback protection and IPC overlap policy.",
     "ebae8a3c1939c50616996cc5390a48f1f80ddf45: six desktop targets, two ARM64 Python mappings, unconditional fork wheel staging and installer argument/exit guards.",
     "49935a428a33223f6d95141e1487a311852b9db1: project form transactions/profile cache and character/world-info deep links with retained metadata.",
     "Final frontend static/full desktop build and synthetic browser regression pass: 36 passed. Desktop target: 24 passed, 1 POSIX-only skipped, 1 privileged symlink excluded. Distribution static checks passed.",
-    "Stopped only task Vite job j-bckuz9; port 19003 released and exact task results directory removed (45 bytes)."
+    "Stopped only task Vite job j-bckuz9; port 19003 released and exact task results directory removed (45 bytes).",
+    "Canonical hook now initializes outline/story-memory with validated URL/remembered/recent candidates and same-id draft/expanded protection; duplicate page initialization retired.",
+    "Rejected metadata candidate continuation now respects manual revision/current id. Exact hook seam changes BETA->ALPHA failure to preserved BETA; fresh SPEC recheck passes.",
+    "j-7q3b9d exits 0: frontend lint/type 433 files zero warnings/errors, full desktop build, 61 browser passed (25 selection +28 deep-link +8 forms).",
+    "Only task Vite j-08fknj and j-q6xzax stopped; 19003 released; exact no-reparse results directory removed twice, 45 bytes each. One existing worktree, no new smoke environment.",
+    "Fresh Claude QUALITY j-klhqxv exits 0 / PASS, explicitly correcting the initial report's missed rejection continuation; static review only, final runtime evidence read separately."
   ],
-  "activeSlice": "v1-authoring-and-restore-boundaries-20261003",
+  "activeSlice": "v1-outline-memory-selection-20261003",
   "evidenceRefs": [
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json",
+    "C:/Users/20969/.fastctx/jobs/j-klhqxv/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-7q3b9d/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-taxftg/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-3n8bkv/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-hux6tx/output.log",
     "C:/Users/20969/.fastctx/jobs/j-9g2cte/output.log",
     "C:/Users/20969/.fastctx/jobs/j-mnfh77/output.log",
     "C:/Users/20969/.fastctx/jobs/j-2cj918/output.log",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
     "git log/show readback: 359c811, ebae8a3, 49935a4 on feature/branding"
   ],
-  "blockedOn": "Formal V1 needs real provider, clean Windows 11 upgrade, native ARM64 binary dependencies/startup, remote dual-architecture Release and signing acceptance. Outline/story-memory URL re-entry remains the next repository repair.",
-  "nextStep": "Read latest Git log/status for the local milestone and final-record receipt. Next repair outline/story-memory A -> null -> A re-entry and verify off-page chooser metadata; then exercise external gates when their environments are available.",
+  "blockedOn": "Formal V1 remains needs-verification. Confirmed DOCX pre-title text loss and export TTL bugs still need separate source repairs. Real provider, clean Windows 11 upgrade, native ARM64 startup, remote dual-architecture Release and signing are unaccepted.",
+  "nextStep": "Read latest Git HEAD/message/files/status/worktree receipt for this scoped local commit. Prioritize DOCX/export TTL next; separately audit/fix Consistency/AI selection and manual-overwrite upgrade. Formal V1 remains needs-verification; no new worktree or packaged smoke.",
   "updatedAt": "2026-10-03"
 }

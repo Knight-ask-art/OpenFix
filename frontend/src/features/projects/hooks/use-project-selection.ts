@@ -1,8 +1,13 @@
 /**
  * Project Selection Hook
  *
- * characters / world-info 页面「当前项目」初始化的唯一所有者：
- * 负责项目第一页列表加载、URL 深层链接解析，以及本地缓存/默认回退。
+ * outline / story-memory / characters / world-info 页面「当前项目」初始化的唯一所有者：
+ * 负责项目第一页列表加载、URL 深层链接解析，以及本地偏好/最近项目/默认回退。
+ *
+ * 两种偏好来源：
+ * - preferenceKey：沿用页面既有的 IndexedDB 偏好，且偏好只接受第一页内项目（人物 / 世界书）。
+ * - getPreferenceCandidates：由页面提供候选 id（大纲 / 故事记忆的 localStorage key 与最近项目）；
+ *   列表外候选必须经 fetchProject 校验后才会被选中。
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,20 +23,41 @@ const PROJECT_PAGE_SIZE = 100;
 const projectMetadataQueryKey = (projectId: string | null) =>
   ["projects", "selection-metadata", projectId] as const;
 
-export interface UseProjectSelectionOptions {
-  /** 记录用户最后选择项目的本地偏好 key（各页面保持独立） */
-  preferenceKey: string;
+/** 偏好来源：要么是 IndexedDB 偏好 key，要么是页面提供的候选来源，避免静默丢失回退。 */
+type ProjectPreferenceSource =
+  | {
+      /** 记录用户最后选择项目的本地偏好 key（各页面保持独立） */
+      preferenceKey: string;
+      getPreferenceCandidates?: undefined;
+    }
+  | {
+      /**
+       * 页面提供的候选来源：按优先级返回候选项目 id（例如本地记住的项目与最近项目）。
+       * 返回 null/空串的候选会被忽略；列表外候选经 fetchProject 校验后才会被选中。
+       */
+      getPreferenceCandidates: () => Promise<Array<string | null>>;
+      preferenceKey?: undefined;
+    };
+
+export type UseProjectSelectionOptions = ProjectPreferenceSource & {
   /** URL 查询参数中的 projectId，未指定时为 null */
   urlProjectId: string | null;
   /** 实时读取页面 store 中的当前 projectId（不能使用渲染期快照） */
   getCurrentProjectId: () => string | null;
   /** 设置页面 store 中的当前项目 */
   setCurrentProject: (projectId: string | null) => void;
-}
+  /**
+   * 候选来源是否已就绪（例如最近项目查询已完成）。未就绪时暂缓偏好回退，
+   * 避免抢先落到第一页项目而丢掉真实偏好。默认视为已就绪。
+   */
+  isPreferenceReady?: boolean;
+};
 
 export interface UseProjectSelectionResult {
   /** 项目选择器可用列表：第一页项目 + 已验证的当前选择/URL 项目 */
   projects: Project[];
+  /** 第一页项目列表是否仍在加载（各页面用于显示加载态） */
+  isLoadingProjects: boolean;
   /**
    * 页面选择器中的手动选择。会推进手动选择版本号，
    * 使所有仍在等待中的 URL 解析与缓存回退结果失效。
@@ -39,12 +65,17 @@ export interface UseProjectSelectionResult {
   selectProjectManually: (projectId: string | null) => void;
 }
 
-export function useProjectSelection({
-  preferenceKey,
-  urlProjectId,
-  getCurrentProjectId,
-  setCurrentProject,
-}: UseProjectSelectionOptions): UseProjectSelectionResult {
+export function useProjectSelection(
+  options: UseProjectSelectionOptions,
+): UseProjectSelectionResult {
+  const {
+    getPreferenceCandidates,
+    isPreferenceReady = true,
+    preferenceKey,
+    urlProjectId,
+    getCurrentProjectId,
+    setCurrentProject,
+  } = options;
   const queryClient = useQueryClient();
   const projectsQuery = useQuery({
     queryKey: PROJECTS_QUERY_KEY,
@@ -54,6 +85,13 @@ export function useProjectSelection({
   const listProjects = useMemo(() => projectsQuery.data?.items ?? [], [projectsQuery.data?.items]);
   // 只有列表得出结果（成功或失败）后，才能判定 URL 项目确实不在第一页。
   const isProjectsSettled = !projectsQuery.isPending;
+
+  // 候选来源可能是每帧重建的闭包（例如依赖最近项目查询结果）：始终读取最新引用，
+  // 既不进入 effect 依赖，也避免异步续跑使用过期的渲染快照。
+  const preferenceCandidatesRef = useRef(getPreferenceCandidates);
+  useEffect(() => {
+    preferenceCandidatesRef.current = getPreferenceCandidates;
+  });
 
   // 仅保留经接口校验的当前选择和 URL 项目；导航状态重置不应丢失当前选择的元数据。
   const [resolvedProjects, setResolvedProjects] = useState<Project[]>([]);
@@ -120,6 +158,29 @@ export function useProjectSelection({
       setCurrentProject(projectId);
     };
 
+    // 列表外项目必须经同一 metadata query key 校验，成功结果同时供选择器展示。
+    const fetchProjectMetadata = (projectId: string) =>
+      queryClient.fetchQuery({
+        queryKey: projectMetadataQueryKey(projectId),
+        queryFn: () => fetchProject(projectId),
+      });
+
+    // 选择器元数据只保留当前选择与刚校验出的项目，避免无界累积离页项目。
+    const rememberResolvedProject = (project: Project) => {
+      setResolvedProjects((projects) => [
+        ...projects.filter(
+          (resolved) => resolved.id === getCurrentProjectId() && resolved.id !== project.id,
+        ),
+        project,
+      ]);
+    };
+
+    const forgetUnselectedProjects = () => {
+      setResolvedProjects((projects) =>
+        projects.filter((project) => project.id === getCurrentProjectId()),
+      );
+    };
+
     const resolveSelection = async () => {
       // 1. URL 显式指定的项目优先，且每个导航周期内只应用一次。
       if (urlProjectId && appliedUrlProjectIdRef.current !== urlProjectId) {
@@ -136,50 +197,65 @@ export function useProjectSelection({
         // 不在第一页：必须通过现有接口校验，不能凭空信任 URL 上的 id。
         const selectionBeforeResolve = getCurrentProjectId();
         try {
-          const project = await queryClient.fetchQuery({
-            queryKey: projectMetadataQueryKey(urlProjectId),
-            queryFn: () => fetchProject(urlProjectId),
-          });
+          const project = await fetchProjectMetadata(urlProjectId);
           if (isRunStale()) return;
           // 无论下面是否真正改选，都在本导航周期内消费该 URL：
           // 否则后续无害重渲染会再次解析并覆盖用户的手动选择。
           appliedUrlProjectIdRef.current = urlProjectId;
-          setResolvedProjects((projects) => [
-            ...projects.filter(
-              (resolved) => resolved.id === getCurrentProjectId() && resolved.id !== project.id,
-            ),
-            project,
-          ]);
+          rememberResolvedProject(project);
           // 等待期间用户手动改选（含 A -> B -> A）：尊重新选择，不再覆盖。
           if (isManualChoiceStale() || getCurrentProjectId() !== selectionBeforeResolve) return;
           selectIfChanged(project.id);
           return;
         } catch {
-          // 项目不存在或已删除：保持未消费状态，继续走缓存/默认回退。
+          // 项目不存在或已删除：保持未消费状态，继续走偏好/默认回退。
           if (isRunStale()) return;
-          setResolvedProjects((projects) =>
-            projects.filter((project) => project.id === getCurrentProjectId()),
-          );
+          forgetUnselectedProjects();
         }
       }
 
-      // 2. 没有可用的 URL 项目：保留已有选择，否则恢复缓存或默认第一项。
+      // 2. 没有可用的 URL 项目：保留已有选择，否则恢复偏好或默认第一页项目。
       if (getCurrentProjectId()) return;
       if (!isProjectsSettled || listProjects.length === 0) return;
+      if (!isPreferenceReady) return;
 
-      const cachedProjectId = await getPreference(preferenceKey);
+      const candidateSource = preferenceCandidatesRef.current;
+      let candidateIds: Array<string | null> = [];
+      if (candidateSource) {
+        candidateIds = await candidateSource();
+      } else if (preferenceKey) {
+        candidateIds = [await getPreference(preferenceKey)];
+      }
       if (isRunStale()) return;
-      // 读取偏好期间 URL 变化或用户手动改选：不得覆盖。
+      // 读取候选期间 URL 变化或用户手动改选：不得覆盖。
       if (isManualChoiceStale() || getCurrentProjectId()) return;
 
-      const fallbackProjectId =
-        (cachedProjectId && listProjects.some((project) => project.id === cachedProjectId)
-          ? cachedProjectId
-          : null) ??
-        listProjects[0]?.id ??
-        null;
+      for (const candidateId of candidateIds) {
+        if (!candidateId) continue;
+        const listedProject = listProjects.find((project) => project.id === candidateId);
+        if (listedProject) {
+          selectIfChanged(listedProject.id);
+          return;
+        }
+        // 没有候选来源时保持原有行为：偏好只接受第一页内的项目。
+        if (!candidateSource) continue;
+        try {
+          const project = await fetchProjectMetadata(candidateId);
+          if (isRunStale()) return;
+          if (isManualChoiceStale() || getCurrentProjectId()) return;
+          rememberResolvedProject(project);
+          selectIfChanged(project.id);
+          return;
+        } catch {
+          // 已删除或无效的候选不得阻塞后续候选，也不能永久污染当前选择。
+          if (isRunStale()) return;
+          // 但校验等待期间用户已手动改选：后续候选与第一页回退都不得再覆盖这次选择。
+          if (isManualChoiceStale() || getCurrentProjectId()) return;
+        }
+      }
 
-      if (fallbackProjectId) setCurrentProject(fallbackProjectId);
+      const firstProject = listProjects[0];
+      if (firstProject) selectIfChanged(firstProject.id);
     };
 
     void resolveSelection();
@@ -189,6 +265,7 @@ export function useProjectSelection({
     };
   }, [
     getCurrentProjectId,
+    isPreferenceReady,
     isProjectsSettled,
     listProjects,
     preferenceKey,
@@ -212,5 +289,5 @@ export function useProjectSelection({
     return extraProjects.length > 0 ? [...listProjects, ...extraProjects] : listProjects;
   }, [currentProjectId, currentProjectQuery.data, listProjects, resolvedProjects, urlProjectId]);
 
-  return { projects, selectProjectManually };
+  return { projects, isLoadingProjects: projectsQuery.isPending, selectProjectManually };
 }

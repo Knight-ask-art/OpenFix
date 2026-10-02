@@ -1,17 +1,16 @@
 import { Box, Button, Flex, Select, Text } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
 
 import { ConfirmDialog, Spinner } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
-import { useProjects } from "@/features/projects";
+import { useProjectSelection } from "@/features/projects/hooks/use-project-selection";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { fetchChapters } from "@/lib/api-client";
 import { getRecentProjects } from "@/lib/local-db";
-import type { RecentProject } from "@/lib/recent-projects";
 
 import { OutlineAiActions } from "../components/outline-ai-actions";
 import { OutlineEditor } from "../components/outline-editor";
@@ -39,6 +38,14 @@ function readStoredOutlineProject(): string | null {
   }
 }
 
+function storeOutlineProject(projectId: string): void {
+  try {
+    localStorage.setItem(OUTLINE_PROJECT_STORAGE_KEY, projectId);
+  } catch {
+    // Storage failures only lose the convenience of remembering the project.
+  }
+}
+
 export function OutlinePage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -51,48 +58,52 @@ export function OutlinePage() {
     onClose: closeSidebar,
   });
 
-  const { data: projectsData, isLoading: isLoadingProjects } = useProjects({
-    page: 1,
-    pageSize: 100,
-  });
-  const projects = useMemo(() => projectsData?.items ?? [], [projectsData]);
-  const { data: recentProjects = [] } = useQuery({
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isEditorDirty, setIsEditorDirty] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<OutlineNode | null>(null);
+  // 立即读取的当前项目：URL 校验与偏好回退的异步续跑必须与它比较，不能依赖渲染快照。
+  const projectIdRef = useRef<string | null>(null);
+
+  // 只有真正切换项目才清空节点选中/脏标记/展开状态；重复设置同一项目保留编辑器内容。
+  // 选中的项目写入既有本地偏好 key，使列表外项目在页面重挂载后仍能经接口恢复。
+  const setCurrentProject = useCallback((nextProjectId: string | null) => {
+    if (projectIdRef.current === nextProjectId) return;
+    projectIdRef.current = nextProjectId;
+    setProjectId(nextProjectId);
+    setSelectedId(null);
+    setIsEditorDirty(false);
+    setExpandedIds(new Set());
+    if (nextProjectId) storeOutlineProject(nextProjectId);
+  }, []);
+
+  const getCurrentProjectId = useCallback(() => projectIdRef.current, []);
+
+  const { data: recentProjects = [], isPending: isRecentProjectsPending } = useQuery({
     queryKey: ["recent-projects"],
     queryFn: getRecentProjects,
     staleTime: Infinity,
   });
 
-  const projectIdFromUrl = searchParams.get("projectId");
-  const [projectId, setProjectId] = useState<string | null>(
-    () => projectIdFromUrl ?? readStoredOutlineProject(),
+  const readProjectCandidates = useCallback(
+    () =>
+      Promise.resolve([
+        readStoredOutlineProject(),
+        ...recentProjects.map((recentProject) => recentProject.projectId),
+      ]),
+    [recentProjects],
   );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isEditorDirty, setIsEditorDirty] = useState(false);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [deleteTarget, setDeleteTarget] = useState<OutlineNode | null>(null);
-  const appliedUrlProjectIdRef = useRef<string | null>(projectIdFromUrl);
 
-  // 深层链接：URL 上的 projectId 变化时（例如从助手建议跳转）切换到该项目的
-  // 大纲。用 ref 记录已应用的参数，避免覆盖用户在下拉框里的手动选择。
-  useEffect(() => {
-    if (!projectIdFromUrl) return;
-    if (appliedUrlProjectIdRef.current === projectIdFromUrl) return;
-    appliedUrlProjectIdRef.current = projectIdFromUrl;
-    setProjectId(projectIdFromUrl);
-    setSelectedId(null);
-    setIsEditorDirty(false);
-    setExpandedIds(new Set());
-  }, [projectIdFromUrl]);
-
-  useEffect(() => {
-    if (projectId) return;
-    if (projects.length === 0) return;
-    const preferred =
-      (recentProjects as RecentProject[]).find((item) =>
-        projects.some((project) => project.id === item.projectId),
-      )?.projectId ?? projects[0].id;
-    setProjectId(preferred);
-  }, [projectId, projects, recentProjects]);
+  // 当前项目初始化（第一页列表 + URL 深层链接 + 本地偏好/最近项目回退）统一由共享 hook 负责，
+  // 页面不再自行解析 URL 或从原始参数初始化，避免未校验 id 直接驱动大纲请求。
+  const { projects, isLoadingProjects, selectProjectManually } = useProjectSelection({
+    urlProjectId: searchParams.get("projectId"),
+    getCurrentProjectId,
+    setCurrentProject,
+    isPreferenceReady: !isRecentProjectsPending,
+    getPreferenceCandidates: readProjectCandidates,
+  });
 
   const {
     data: nodes = [],
@@ -200,16 +211,10 @@ export function OutlinePage() {
     chapter: t("outline.levels.chapter"),
   };
 
+  // 下拉框手动选择交给共享 hook：推进手动选择版本号，
+  // 同时由 setCurrentProject 负责状态重置与本地偏好写入。
   const handleProjectChange = (value: string) => {
-    setProjectId(value);
-    setSelectedId(null);
-    setIsEditorDirty(false);
-    setExpandedIds(new Set());
-    try {
-      localStorage.setItem(OUTLINE_PROJECT_STORAGE_KEY, value);
-    } catch {
-      // Storage failures only lose the convenience of remembering the project.
-    }
+    selectProjectManually(value);
   };
 
   const handleAddRoot = () => {

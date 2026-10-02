@@ -319,3 +319,32 @@
 - Verifier: Primary coordinator read actual complete result boundaries and scoped git receipts, with independent source reviews.
 - Workspace integrity: aegis-workspace.py bundle --root . --work 2026-10-02-v1-completion and check --root . passed; generated proof/pack references this sidecar. Structural validation does not grant formal V1 acceptance.
 - Evidence status: evidence-finalized
+
+## 2026-10-03 创作与发布只读审计：后续修复证据
+
+- 两份 Claude Code 只读报告已终结：创作链路 `j-csn1uv`、Phase 5 发布链路 `j-s1jqbv`；报告没有修改文件或执行安装器。其结论只作为待核对的证据建议。
+- 协调者合成诊断 `j-nf69wu` 退出 0：直接调用当前 `parse_docx_content`，卷标题前和首章标题前的两个合成段落均未保留，正常章正文保留。当前 `docx_parser.py:87-108` 在尚无章节时清空 body buffer；该问题尚未修复，不可用于真实手稿的完整导入验收。
+- 同一诊断从当前 `chapter_export/service.py` AST 提取原始 `_job_id_from_export_path` / `cleanup_chapter_export_files`，仅注入合成 job 服务和新建临时目录：未过期 TXT 被删除，过期 DOCX 未删除。前者来自 output suffix 命中前面的活动任务分支，使 succeeded 的 TTL 分支不可达；后者来自 job-id 解析不接受 `.docx`。这是精确函数逻辑复现，未启动生产后端、数据库、watchdog 或供应商，不能替代 API/真实调度验收。新建诊断目录已核实位于本任务 tmp 内且退出时已删除。
+- 覆盖升级的条件性源码缺口：当前 `installer.nsh:45-63` 仅在安装器收到 `--updated` 时替换旧卸载器。协调者核对已安装 app-builder-lib 26.15.6 模板和 electron-updater 6.8.9：customInit 在 initMultiUser 后执行；旧版卸载器始终收到 `--updated`；手动双击新安装器不会自动收到这个参数。若旧卸载器没有 runtime 保护宏，且 runtime 位于安装目录，手动覆盖升级仍可能删除 runtime。该调用链仅做静态核对，未运行安装器；不能断言所有旧包均受影响。
+- 协调者另已读回两页选择逻辑：Consistency `consistency-page.tsx:48-81` 直接以 URL/localStorage 原始 id 初始化且只查前 100 项；AI `ai-tasks-page.tsx:141-185` 仅接受第一页 URL 项目、消费后移除参数，偏好也只保留第一页。两者仍有独立源码修复范围，尚未进行浏览器复现。默认 chat model 与 light_model 的产品配置引导仍需核实；resolver 明确要求 light_model，不能据此擅自新增默认 chat fallback。全书检查规模/超时风险继续按既有计划延期。
+- 当前远端只读现场 `j-17taca` 退出 0：`Knight-ask-art/OpenFix` 可见 Actions `total_count=0` / `runs=[]`，Release 列表为 `[]`；未触发任务或发布。
+- 当前旧构建只读复算：EXE 158042781 bytes、SHA256 `01294e379ea45c995575e83d9e87d4d89632e2784d83ad2a6994bad1dc3925df`、Authenticode `NotSigned`；ZIP 188478015 bytes、SHA256 `ff9a8570fdfb2369943ccdebebda9010cdb4aa257f7944b62ba29e6bce036b08`。这些产物没有包含本轮新源码，不证明本轮安装包运行正常。
+- 后续优先级：先关闭 DOCX 正文保留和导出 TTL 清理，再处理项目选择其他消费者及手动覆盖升级；继续要求真实 provider、干净 Windows 11 升级、native ARM64、远端双架构发布及签名证据。完整 V1 保持 `needs-verification`。
+
+## EvidenceBundleDraft: v1-outline-memory-selection-20261003
+
+- Artifact key: v1-outline-memory-selection-20261003
+- Slice ID: v1-outline-memory-selection-20261003
+- Type: local-verification
+- Source: TaskStartSnapshot eb68af33b0faf78b9769c4d7e47cfa2f809a3770 / feature/branding / clean / one worktree；Claude j-75nvdj、j-ch61or、j-hux6tx；SPEC j-nuq4re 与独立 outline_memory_spec_recheck；QUALITY j-or8f99、最终 j-klhqxv；hook seam j-taxftg/j-3n8bkv；最终验证 j-7q3b9d。
+- Result: j-7q3b9d 退出 0，frontend lint/type-check 各433文件零警告/错误，完整 desktop build（frontend production/setup/main）通过；61 browser passed（3.4m）：25 selection + 28 原 deep-link + 8 forms。保留既有 large-chunk warning。
+- Covered scope: 两页统一共享 selection owner；null/invalid URL 重入、校验列表外 URL/remembered/recent 候选、invalid fallback、真实 IndexedDB 读取挂起、manual ABA/列表 refetch、列表外 chooser/remount 连续性和同 id draft/expanded 保留。candidate rejection 期间手动改选后，next-listed 与 final-first-page 两种旧续跑均不得写回，新增 pending/404/retry 用例各页均通过，invalid domain assertions 有正向 anchor。
+- Review correction: 初轮 QUALITY PASS 的“所有候选续跑均有 manual/current guard”声明不准确，catch 原来只检查 run。协调者 actual hook 的 pending/reject Promise seam 复现 BETA → ALPHA；owner guard 后 j-3n8bkv 只有 BETA；fresh SPEC 与最终 QUALITY PASS。最终 QUALITY 报告称第二场景没有 ALPHA domain 请求是笔误：该场景有意手动 BETA → ALPHA → BETA，只禁止 MISSING，并断言最终 BETA/local key；不采用该报告笔误。静态报告没有替代最终执行结果。
+- Owner / compatibility / retirement: 复用已有 hook、metadata query、API/Radix 和原 localStorage keys。退役两页 raw-id initializer 与竞争 URL/recent effects；选择有效项目时写入原 key 是明确的偏好恢复扩展。人物/世界书 preferenceKey 仍只接受第一页；没有新 durable owner、依赖、schema 或 ADR 语义变更。
+- Complexity: source owner294行；spec25cases/980physical lines 超过约800行软压力，以 typed mock/两页循环治理，classified exceeded-and-governed。扩增前另切 synthetic fixtures 复用；现有 global retry/60s cache 保留，重复无效校验/挂起IDB和cold held-remount仍为 bounded evidence limits，没有独立删除缓存事故复现。新增用例暂绑定 retry1/默认delay，策略变化时须同步握手，不能照搬“两个waiter都预先注册”而让它们消费同一个响应。
+- Final source binding: hook44e3bf7523c76a1b2c67994940f27a184ed86c30；outline b8eb130bb7f24f524bb81cafcf6ccaf6178a7eab；memory26b0ea7f2e5954103ea2e64c8a35184b7b126401；spec8855a9c3e590ddf54ec75a03424970b832a96248。协调者提交前再读回，不将 Git blob 当正式 release snapshot。
+- Cleanup: 仅停本轮 Vite j-08fknj/j-q6xzax，19003无监听；精确 workspace results目录无reparse point后两次各45bytes清理。logs/packets保留，没有新增worktree/smoke环境。当前 Git SHA/message/files/status/worktree 回执由提交后读回给出。
+- Uncovered scope / residual: confidence B for this source slice。DOCX前置正文/导出TTL仍待独立修复；真实provider、当前package runtime、干净Windows11旧版升级、nativeARM64首启、远端双架构Release和signing未验收。Formal V1 needs-verification。
+- Verifier: Primary coordinator 独立读回源码、before/after actual-hook seam、最终验证结果和静态审查更正，用户授权显式白名单本地提交。
+- Workspace integrity: 沿用唯一 work record；bundle --root . --work 2026-10-02-v1-completion 和 check --root . 为结构检查，不能授予正式产品验收。proof/pack使用本sidecar。
+- Evidence status: evidence-finalized

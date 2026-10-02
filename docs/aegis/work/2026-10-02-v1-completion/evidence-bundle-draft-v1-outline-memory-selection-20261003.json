@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "v1-outline-memory-selection-20261003",
+  "type": "local-verification",
+  "source": "TaskStartSnapshot eb68af33b0faf78b9769c4d7e47cfa2f809a3770, feature/branding, one clean starting worktree. Claude implementation j-75nvdj, test supplement j-ch61or, correction j-hux6tx; initial SPEC j-nuq4re and independent fresh outline_memory_spec_recheck; initial QUALITY j-or8f99 and corrected fresh QUALITY j-klhqxv; actual hook seam j-taxftg/j-3n8bkv; final validation j-7q3b9d.",
+  "summary": "Final local source slice passes: frontend lint/type-check 433 files zero warnings/errors, full desktop build (frontend production/setup/main), 61 browser passed in 3.4m (25 selection+28 original deep-link+8 forms). Two pages retire raw URL/stored-id initialization and competing effects in favor of the existing shared hook; off-page URL/remembered/recent candidates are validated and displayed; null/invalid URL re-entry, delayed reads/responses, manual ABA/refetch and same-id draft/expanded retention covered. Initial QUALITY missed candidate rejection fallthrough; exact actual-hook seam proved BETA->ALPHA overwrite. Owner catch guard and two-page pending/404/retry regressions close next-listed and final-first-page continuation; corrected hook seam preserves BETA and fresh SPEC/QUALITY pass. Test length 980 is soft pressure governed with typed shared helpers/two-page loop; extract synthetic fixtures before further growth. Global retry/60s cache and hung-IDB/cold held-remount evidence limits remain bounded, not independently reproduced incidents. Only task Vite j-08fknj/j-q6xzax and the exact no-reparse results directory were cleaned, 45 bytes each run; port19003 free. No new worktree or smoke environment. Formal V1 needs separate DOCX/export TTL repairs plus real provider, clean upgrade, native ARM64 startup, current package runtime, remote dual-architecture Release and signing acceptance; confidence B for this source slice.",
+  "verifier": "Coordinator independently read actual source, failure/repair seam results, complete final validation boundary and static-review corrections. Initial agent PASS is not authoritative acceptance. Final Git SHA/message/files/status/worktree is read after the user-authorized scoped local commit; this sidecar is not self-referential.",
+  "sliceId": "v1-outline-memory-selection-20261003",
+  "sourceBlobIds": {
+    "frontend/src/features/projects/hooks/use-project-selection.ts": "44e3bf7523c76a1b2c67994940f27a184ed86c30",
+    "frontend/src/features/outline/pages/outline-page.tsx": "b8eb130bb7f24f524bb81cafcf6ccaf6178a7eab",
+    "frontend/src/features/story-memory/pages/story-memory-page.tsx": "26b0ea7f2e5954103ea2e64c8a35184b7b126401",
+    "frontend/e2e/outline-memory-project-selection.spec.ts": "8855a9c3e590ddf54ec75a03424970b832a96248"
+  },
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-03"
+}
