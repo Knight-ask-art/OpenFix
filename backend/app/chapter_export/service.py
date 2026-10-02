@@ -464,19 +464,31 @@ async def cleanup_chapter_export_files(session: AsyncSession) -> int:
         job = await background_service.get_job(session, job_id)
         should_keep = False
         if job is not None and job.type == EXPORT_JOB_TYPE:
-            export_format = background_service.parse_json_object(job.payload_json).get("format", "txt")
-            output_suffix = DOCX_SUFFIX if export_format == "docx" else ".txt"
-            if path.suffix in {".part", ".txt", DOCX_SUFFIX}:
-                should_keep = job.status in {
-                    JOB_STATUS_PENDING,
-                    JOB_STATUS_RUNNING,
-                    JOB_STATUS_CANCEL_REQUESTED,
-                } and (path.suffix == ".part" or path.suffix == output_suffix)
-            elif path.suffix == output_suffix and job.status == JOB_STATUS_SUCCEEDED:
-                expires_at = _parse_datetime(
-                    background_service.parse_json_object(job.result_json).get("expires_at")
-                )
-                should_keep = expires_at is not None and expires_at > now
+            payload = background_service.parse_json_object(job.payload_json)
+            raw_format = payload.get("format", "txt")
+            # 未知格式没有可保留的成品；只有 txt/docx 任务存在匹配后缀。
+            if raw_format == "docx":
+                output_suffix: str | None = DOCX_SUFFIX
+            elif raw_format == "txt":
+                output_suffix = ".txt"
+            else:
+                output_suffix = None
+            is_active = job.status in {
+                JOB_STATUS_PENDING,
+                JOB_STATUS_RUNNING,
+                JOB_STATUS_CANCEL_REQUESTED,
+            }
+            if path.suffix == ".part":
+                # 写入或原子改名期间，任务自己的 part 文件都不能被清除。
+                should_keep = is_active
+            elif output_suffix is not None and path.suffix == output_suffix:
+                if is_active:
+                    should_keep = True
+                elif job.status == JOB_STATUS_SUCCEEDED:
+                    expires_at = _parse_datetime(
+                        background_service.parse_json_object(job.result_json).get("expires_at")
+                    )
+                    should_keep = expires_at is not None and expires_at > now
         if should_keep:
             continue
         await asyncio.to_thread(path.unlink, missing_ok=True)
@@ -513,7 +525,7 @@ def _parse_datetime(value: object) -> datetime | None:
 
 
 def _job_id_from_export_path(path: Path) -> str | None:
-    if path.suffix not in {".part", ".txt"} or not path.name.startswith(EXPORT_FILE_PREFIX):
+    if path.suffix not in {".part", ".txt", DOCX_SUFFIX} or not path.name.startswith(EXPORT_FILE_PREFIX):
         return None
     job_id = path.name[len(EXPORT_FILE_PREFIX) : -len(path.suffix)]
     return job_id or None
