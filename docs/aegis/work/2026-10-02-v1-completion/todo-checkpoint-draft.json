@@ -1,20 +1,24 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
-  "currentTodo": "按用户最新授权保存 OpenFix 当前 V1.0 开发里程碑；源码门禁通过，正式 V1.0 仍有仓库缺口及外部验收门槛。",
+  "currentTodo": "本轮表单/人物与世界书深链、恢复运行时保护和跨平台打包接线已验证并本地提交；正式 V1 仍需继续 §42 剩余实现及验收。",
   "completedTodos": [
-    "修复迁移链测试的陈旧 1027 断言并明确校验 1028 的父迁移；目标 3 passed，Ruff 与 ty 通过，后端完整套件 1889 passed。",
-    "前端 lint/type-check 通过；桌面 lint/type-check/build 通过，包含前端 production build。Windows 自带 tar 下 archive/data-manager 12 passed；符号链接用例因本机权限不足未覆盖。",
-    "核对提交候选路径、凭据模式、CRLF-aware whitespace 与已有 x64 release 资产静态门禁；授权范围为 OpenFix 的当前 V1 开发进度。"
+    "先前里程碑 aa590c15039d669780e51d0193538473d9fb92cb 已完成。",
+    "359c8114a889a7e700fce48441ff2d4ac6ed0219: configured runtime backup/restore/rollback protection and IPC overlap policy.",
+    "ebae8a3c1939c50616996cc5390a48f1f80ddf45: six desktop targets, two ARM64 Python mappings, unconditional fork wheel staging and installer argument/exit guards.",
+    "49935a428a33223f6d95141e1487a311852b9db1: project form transactions/profile cache and character/world-info deep links with retained metadata.",
+    "Final frontend static/full desktop build and synthetic browser regression pass: 36 passed. Desktop target: 24 passed, 1 POSIX-only skipped, 1 privileged symlink excluded. Distribution static checks passed.",
+    "Stopped only task Vite job j-bckuz9; port 19003 released and exact task results directory removed (45 bytes)."
   ],
-  "activeSlice": "v1-local-commit-20261003",
+  "activeSlice": "v1-authoring-and-restore-boundaries-20261003",
   "evidenceRefs": [
-    "C:/Users/20969/.fastctx/jobs/j-taig3r/output.log",
-    "C:/Users/20969/.fastctx/jobs/j-v44ehv/output.log",
-    "C:/Users/20969/.fastctx/jobs/j-9za1x2/output.log",
-    "Windows native tar: node --test excluding the privileged symbolic-link case => 12 passed; pnpm verify:release => ALL CHECKS PASSED"
+    "C:/Users/20969/.fastctx/jobs/j-9g2cte/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-mnfh77/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-2cj918/output.log",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
+    "git log/show readback: 359c811, ebae8a3, 49935a4 on feature/branding"
   ],
-  "blockedOn": "正式验收仍需真实 provider、干净 Windows 11 旧版升级、远端双架构 Actions/Release、签名身份和当前包运行证据；仓库内项目属性失败保护、项目页及 onboarding 的 profile PUT 在途重复创建保护、人物 / 世界书深链选择、ARM64 runtime、各平台 fork wheel 和恢复运行时保留仍待处理，当前可以继续推进。",
-  "nextStep": "先通过最新 git log/status 核对本地里程碑提交；继续修复仓库内剩余项并对照 §42 验收，保留不重跑 packaged smoke 的用户限制。",
+  "blockedOn": "Formal V1 needs real provider, clean Windows 11 upgrade, native ARM64 binary dependencies/startup, remote dual-architecture Release and signing acceptance. Outline/story-memory URL re-entry remains the next repository repair.",
+  "nextStep": "Read latest Git log/status for the local milestone and final-record receipt. Next repair outline/story-memory A -> null -> A re-entry and verify off-page chooser metadata; then exercise external gates when their environments are available.",
   "updatedAt": "2026-10-03"
 }

@@ -19,6 +19,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json
 
@@ -26,6 +27,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json
 

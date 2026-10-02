@@ -2,11 +2,11 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
   "lastCheckpointRef": "docs/aegis/work/2026-10-02-v1-completion/todo-checkpoint-draft.json",
-  "resumeInstruction": "在 OpenFix 唯一主工作树 feature/branding 中继续。用户 2026-10-03 明确授权本地提交；用实时 git log/status 确认提交结果，提交前父 HEAD 为 958efb79c103b05cc9a59405a16bbce2e714d1cd。保留外层仓库、OpenFic 与所有既有工作；协调者独占暂存/提交，不推送、tag、发布或签名，不重跑 packaged smoke。Claude Code 第三方 API 接入可用，登录不是 blocker。读取当前 checkpoint、OPENFIX.md、§42 与 Phase 5 计划后继续全部剩余需求。",
+  "resumeInstruction": "在 OpenFix 唯一主工作树 feature/branding 上继续；读取最新 HEAD/status，源码提交已推进到 49935a4，随后是验收记录提交。协调者独占 Git 生命周期；不新增工作树、不推送/tag/发布/签名、不运行 packaged smoke。先核对活跃 FastCtx job，再继续，不能凭超时重启 Claude。",
   "knownPartialWork": [
-    "修复迁移链测试的陈旧 1027 断言并明确校验 1028 的父迁移；目标 3 passed，Ruff 与 ty 通过，后端完整套件 1889 passed。",
-    "前端 lint/type-check 通过；桌面 lint/type-check/build 通过，包含前端 production build。Windows 自带 tar 下 archive/data-manager 12 passed；符号链接用例因本机权限不足未覆盖。",
-    "核对提交候选路径、凭据模式、CRLF-aware whitespace 与已有 x64 release 资产静态门禁；授权范围为 OpenFix 的当前 V1 开发进度。"
+    "本轮三个源码主题本地提交为 359c811、ebae8a3、49935a4；最终前端静态/完整 desktop build 和 36 browser passed，desktop target 24 passed / 1 skipped / 1 excluded。",
+    "本轮 Vite j-bckuz9 已停止，19003 已释放，精确的临时 browser results 已删除；日志与审阅材料保留。",
+    "大纲和故事记忆 A -> null -> A applied-ref 重入缺口已只读核实，下一轮修复；列表外项目展示继续核实。"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-10-02-v1-completion/10-intent.md",
@@ -14,8 +14,8 @@
     "docs/aegis/work/2026-10-02-v1-completion/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "当前本地里程碑提交不表示正式 V1.0 完成；通过静态门禁不能关闭当前已确认的仓库边界缺口。",
-    "既有安装包及历史 smoke 不验证本次最新源码。",
-    "符号链接单测、ARM64 runtime 和双架构真实发布未经本机运行验收。"
+    "本地提交/合成浏览器回归不证明完整 V1.0；旧安装包不验证最新源码。",
+    "人物/世界书深链通过不证明所有页面；大纲/故事记忆仍有独立待处理项。",
+    "ARM64 asset mapping/CI staging 不证明 native binary dependencies 或首启；symlink privileged case 和冷缓存 remount 仍未单独运行验收。"
   ]
 }

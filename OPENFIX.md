@@ -448,3 +448,16 @@ OpenFix 自有标识首轮设计已落地：以打开的书页和校订符号组
 * 前端只读复核已由协调者核对相关源码，确认上述属性失败保护、重复创建窗口及深链选择问题；当前未从源码证实角色资料串写或建议页必然卡死，未执行对应运行时验收。
 * 正式 V1.0 仍为 `needs-verification`：真实供应商用户链路、干净 Windows 11 旧版覆盖升级与原数据保留、真实双架构 GitHub Actions / Release、Windows 签名身份与证书链，以及当前安装包运行证据仍待完成。后续继续按 §42 与 Phase 5 计划推进，本次提交保存当前开发进度。
 
+**V1.0 表单、人物/世界书深链、备份恢复与打包接线（2026-10-03；本地提交）**：
+
+* 已关闭上一节列出的本轮源码缺口：项目属性读取失败时禁止空值属性写入；项目页/onboarding 共用完整 async submit 保护；表单会话互相隔离，成功 PUT 的权威 profile 先更新缓存，避免立即重开覆盖新属性。
+* 人物/世界书统一用共享项目选择 hook，列表外 URL 经既有 API 校验；导航、迟到偏好/接口、manual ABA、后台刷新与同 id 选择均有保护。已验证的离页项目 metadata 在 URL 参数消失/无效时继续提供名称；页面卸载返回后按当前 id 的 query 恢复名称，不重新设置项目或清空角色/条目。
+* 桌面 backup/restore/cleanup/rollback 共用显式配置 runtime 的顶层平台匹配策略，普通用户数据仍递归检查 symlink；真实 IPC 策略拒绝 runtime 指向数据根内其他子树和不支持的重叠。Windows 大小写变体的 runtime 与用户目录均有回归，迁移/portable extraction 默认行为保留。
+* 保留两个打包 workflow 的六个 native target，增加 pinned CPython 3.13.14 / 20260623 的 Windows/Linux ARM64 映射，并在所有 target 的 Electron Builder 前 staging fork wheel。安装脚本修复 NSIS 最后 /D、verbatim/hidden 参数以及启动/非零退出检查；本轮只做静态检查。
+* 本地源码提交：`359c811`（restore runtime）、`ebae8a3`（distribution/installer）、`49935a4`（forms/deep links）。协调者逐组核实 root、branch、显式暂存文件清单和 CRLF-aware cached diff；提交只属于 `新版本/OpenFix`。
+* 最终验证 job `j-9g2cte` 退出 0：前端 432 文件 lint/type-check 零警告/错误，完整 desktop build 成功（含前端 production、setup renderer、main）；**36 个合成浏览器回归 passed**（28 深链、8 表单）。保留既有大 chunk warning。job `j-mnfh77` 的 desktop lint/type-check/build:main、目标测试 **24 passed / 1 POSIX-only skipped**、YAML/六平台矩阵/顺序/guard、六个 resolver 映射与 unsupported target、harness syntax 均通过；另一个需 Windows symlink 权限的用例被显式排除。
+* 表单与深链独立质量复核通过；restore Claude 最终复核 `j-2cj918` PASS，distribution Claude 质量审查 `j-c8kd1y` PASS。深链质量审查发现的导航/重挂载 metadata 问题已修复并回归。重挂载用例直接覆盖暖缓存返回，冷缓存/挂起响应隔离仅有当前 query key/id guard 的源码支持。
+* 仅停止本轮 Vite `j-bckuz9` 并删除已核实无 reparse point 的 `tmp/openfix-ui-boundaries-results`（45 bytes）；19003 无监听，证据日志/审阅材料保留。本轮没有新建工作树或 smoke 环境。
+* 后续仓库工作：大纲与故事记忆页在 URL 变 null 时不重置 applied ref，仍需修复 `A → null → A` 重入；本轮仅只读核实。其列表外项目展示继续核实，不能从本次人物/世界书结果推断所有消费者通过。
+* 正式 V1.0 保持 **`needs-verification`**。真实供应商、干净 Windows 11 旧版覆盖升级/原数据保留、native ARM64 binary dependencies/首启、远端双架构 Actions/Release、签名身份/证书链及最新安装包运行证据仍待验收；这次源码 build 不代表最新安装包已完成运行验证。
+

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "v1-authoring-and-restore-boundaries-20261003",
+  "type": "local-verification",
+  "source": "FastCtx j-9g2cte final frontend static/full desktop build/36 browser regressions; j-mnfh77 desktop static/main build/target tests/distribution checks; restore final review j-2cj918; distribution quality review j-c8kd1y; independent form/deep-link reviews; scoped Git receipts 359c811, ebae8a3, 49935a4.",
+  "summary": "Current source slice verified and locally committed. Frontend lint/type-check has zero warnings/errors on 432 files; full desktop build includes frontend production/setup/main. Browser 28 deep-link plus 8 form tests pass 36. Desktop target passes 24, skips one POSIX-only case and explicitly excludes one Windows symlink-privilege case. YAML parsing/six targets/staging order/guards, six compiled Python asset mappings/unsupported target and harness syntax pass. Repairs cover profile identity/error protection, awaited single-submit/session/cache boundaries, character/world-info URL/manual/cache selection and metadata continuity through URL changes and warm-cache remount, configured runtime backup/restore/rollback and IPC overlap policy, Windows case-variant retention, two pinned ARM64 mappings and fork-wheel staging on all six existing targets. Source reviews pass; restore re-review withdrew an earlier incorrect nested-skip observation. Cold-cache/held remount recovery is source-supported, not a separately executed fixture. Native ARM64 binary dependencies/startup, privileged symlink, POSIX execution, current package/installer runtime, real provider, clean Windows 11 upgrade, remote dual-architecture Release and verified signing remain unaccepted. Outline/story-memory A -> null -> A re-entry is the next separately recorded source repair. Only task Vite j-bckuz9 and its exact 45-byte results directory were cleaned; no new worktree or smoke workspace. Formal V1 remains needs-verification; confidence B for this local source slice.",
+  "verifier": "Primary coordinator read current source and actual verification result boundaries and Git receipts; independent source reviews do not replace runtime or formal acceptance.",
+  "sliceId": "v1-authoring-and-restore-boundaries-20261003",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-03"
+}
