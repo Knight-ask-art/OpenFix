@@ -368,3 +368,25 @@
 - Summary: Markdown导出贯通既有plan/job/text loop、canonical suffix/cleanup、schema/MIME和actual frontend mapper/dialog；标题字面转义与正文保留，UTF-8无BOM，TXT/DOCX/default/batch20/atomic/24h TTL兼容。后端terminal exit0：八文件scoped Ruff、app-wide ty、216 target(14.83s)/2015 full(255.61s) passed；前端terminal exit0：434文件lint/type零警告错误、完整desktop build、6 browser(22.1s) passed，保留既有large-chunk warning。最终14文件hash相符；只停止owned Vite，19003释放，精确无链接验证目录删除38474137/166bytes。原POST额外字段投影缺口与fixture三个真实GET遗漏已修复；fresh SPEC/QUALITY静态PASS，unknown/socket/两次下载断言保留。新formatter15行，既有service536/API test804仅扩矩阵，新API360/writer24/browser370，继续扩原API test前切分。无新数据owner、endpoint、依赖、迁移、worktree或packaged smoke；信心B。生产session取消/worker并发/Windows锁与cleanup/重启、Electron打包、真实provider/旧版升级/ARM64/远端双架构Release/签名仍未由本次证明，Consistency/AI与wheel身份先独立复现；完整V1仍needs-verification。
 - Verifier: 协调者读取最终diff、独立两阶段审查及完整终态结果；receipt verifier确认14当前hash和两份log相符，exact cleanup与port读回。唯一work record，以显式白名单和cached diff保存用户授权本地提交；Git事实由终态读回。
 - Evidence status: evidence-finalized
+
+## EvidenceBundleDraft: v1-consistency-ai-context-20261003
+
+- Artifact key: v1-consistency-ai-context-20261003
+- Slice ID: v1-consistency-ai-context-20261003
+- Type: local-verification
+- Source: feature/branding / one registered worktree. Final coordinated runner j-wseclf: C:/Users/20969/.fastctx/jobs/j-wseclf/output.log; tmp/context-identity-source-manifest-20261003.json and tmp/context-identity-terminal-receipt-20261003.json. Fresh independent SPEC then QUALITY static PASS; coordinator reads actual terminal result.
+- Source commit: 1e80000766558571f220a5f9366bd13594c03d48
+- Summary: 原Consistency/AI页复用canonical use-project-selection，退役raw URL/stored initializer、第一页URL admission和competing fallback；保持原localStorage key/布局/API/IssueCard/AssistantHost。Consistency有效target同步revision失效，success/error/finally与mounted绑定，防项目/范围/章/卷ABA及旧树默认值写回，book/chapter忽略隐藏无关选择。初轮GET负向证据补native XHR sequence/loadend、实际controls与volume-check payload；四处unbound-method改为descriptor unknown+function验证；Radix加载名称重复导致的真实定位失败用header内两个精确名称和count==1修正，未削弱busy/payload/unknown断言。fresh SPEC/QUALITY均PASS；j-wseclf terminal0：frontend436文件lint/type零警告错误、desktop lint/type/full build，118 browser passed(4.3m)=新24+27及原25+28+8+6，2 workers/retries0，所有七输入hash不变。仅清任务资源，最终51537bytes删除/19003释放，前次中止目录298218bytes已删；一棵worktree，无新smoke。生产446/299、new specs562/583、shared hook293 physical lines且未改算法；无新owner/依赖/endpoint/迁移。confidence B；合成API/socket/XHR不证明真实provider、Electron包、未覆盖IssueCard分析移除后的独立异步生命周期或完整V1。真实旧版升级/native ARM64/最新安装包/远端Release/签名仍needs-verification。
+- Verifier: 协调者源差异与完整终态检查；receipt verifier核对七个当前源码hash、实际编译后模块hash、八个命令exit0、118个完成用例、两轮同一10-case runtime suite及精确目录/端口清理。bundle/check仅证明记录结构，Git事实由白名单提交与终态读回。
+- Evidence status: evidence-finalized
+
+## EvidenceBundleDraft: v1-bundled-backend-identity-20261003
+
+- Artifact key: v1-bundled-backend-identity-20261003
+- Slice ID: v1-bundled-backend-identity-20261003
+- Type: local-verification
+- Source: feature/branding / one registered worktree. Final coordinated runner j-wseclf: C:/Users/20969/.fastctx/jobs/j-wseclf/output.log; tmp/context-identity-source-manifest-20261003.json and tmp/context-identity-terminal-receipt-20261003.json. Fresh independent SPEC then QUALITY static PASS; coordinator reads actual terminal result.
+- Source commit: c9d589fd6995abc3364e7514c75911bb50773c66
+- Summary: 在原openfic marker owner绑定expectedVersion+selected wheel实际字节SHA256，legacy纯版本marker一次重装；同名同版本内容变化强制重装，同字节移动路径不重装。读取失败不得ready、pip失败不写新身份、marker写失败传播；在线fallback及Python/CLI/venv/data layout保留。actual compiled exported inspect/ensure与actual commands模块经VM/严格fake subprocess/net测试，合成bytes不可安装。初轮fixture安装index fallback吞assert缺口以完整fakeSpawn checked记录修正；干净布局缺tmp以root核验后非递归mkdir/EEXIST+unlinked验证修正，不删除共享tmp。fresh SPEC/QUALITY PASS；j-wseclf terminal0，desktop lint/type/full build、10 cases passed(622.6769ms)，同一10 cases在初始无tmp隔离布局复跑passed(619.6525ms)，父目录创建且scratch全部删除。实际compiled inputs与复制/current hash相符；整体118 browser与七source hashes不变。精确任务目录51537bytes已删、19003释放，一棵worktree。runtime763(+16)/test473 physical lines，无新增installer/owner/依赖/公共schema或数据迁移；字节不同的等价rebuild也会重装是明确成本。confidence B；真实Python/pip/wheel安装、安装期间文件变化、marker写入中断、Windows覆盖升级、native ARM64和Release/signing未由此证明，完整V1仍needs-verification。
+- Verifier: 协调者源差异与完整终态检查；receipt verifier核对七个当前源码hash、实际编译后模块hash、八个命令exit0、118个完成用例、两轮同一10-case runtime suite及精确目录/端口清理。bundle/check仅证明记录结构，Git事实由白名单提交与终态读回。
+- Evidence status: evidence-finalized

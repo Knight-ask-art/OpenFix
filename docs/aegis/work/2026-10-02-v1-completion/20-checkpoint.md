@@ -2,9 +2,12 @@
 
 ## Current Checkpoint
 
-- Current todo: Markdown 导出实现、fresh SPEC → QUALITY 和本机验证已完成；按用户授权保存本地提交，Git 事实以终态 HEAD/message/files/status 回执为准。完整 V1 仍为 needs-verification。
-- Active slice: v1-markdown-export-20261003
+- Current todo: Consistency/AI 上下文与内置 wheel 内容身份均已修复、独立两阶段审查及本机验证通过；源码本地提交 1e80000 / c9d589f 已读回。保存同一工作记录的终态证据，继续对照 §42；完整 V1 仍为 needs-verification。
+- Active slice: v1-context-identity-closeout-20261003
 - Completed todos:
+- j-wseclf terminal exit0：frontend436文件lint/type零警告/错误、desktop lint/type/完整build；118 browser passed(4.3m)，新51与原67全部通过，七个源码输入hash不变。
+- Runtime actual compiled inspect/ensure/commands 的10用例通过；同一套件在初始无tmp隔离布局再次10通过，scratch清理和父目录创建已执行证明。
+- 源码白名单提交：1e80000766558571f220a5f9366bd13594c03d48（四个UI/测试文件）；c9d589fd6995abc3364e7514c75911bb50773c66（两个runtime/测试文件）。
 - Markdown/.md/MIME、固定 metadata 计划、标题字面转义、正文保留、批次/生命周期与前端实际 mapper/selector 已贯通；14 个最终源码/测试 hash 与两份验证日志一致。
 - j-p837lv 退出 0：八文件 scoped Ruff、app-wide ty、216 定向及 2015 完整后端测试通过；j-m70e49 退出 0：434 文件 lint/type-check 零警告/错误、完整 desktop build、6 个合成浏览器用例通过。
 - 最终 fixture 仅补三个真实页面 GET 的精确合成响应，unknown API/socket 与原始五字段 POST 断言保留；fresh 有界 SPEC/QUALITY 均 PASS。
@@ -16,6 +19,7 @@
 - 本轮两页复用唯一项目选择 hook；有效离页 URL/remembered/recent 项目经 API 校验后显示，URL null/invalid 重入、迟到读取/接口和同 id 编辑状态均有回归。
 - 修复候选 metadata reject 后遗漏的 manual/current guard；直接 hook seam 从 BETA → ALPHA 改为仅 BETA，新增两页真实 pending/404/retry 回归通过。
 - Evidence refs:
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json；evidence-bundle-draft-v1-bundled-backend-identity-20261003.json；C:/Users/20969/.fastctx/jobs/j-wseclf/output.log；tmp/context-identity-terminal-receipt-20261003.json。
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json；FastCtx j-p837lv / j-m70e49 完整日志，tmp/markdown-export-source-manifest-20261003.json 与完整冻结 diff。
 - FastCtx j-ioqgg0，docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json；final runner 退出 0，精确隔离目录已删除。
 - FastCtx j-7q3b9d：433 文件 lint/type-check 零警告/错误、完整 desktop build、25 selection + 28 deep-link + 8 forms = 61 browser passed（3.4m）；源码与用例保持最终 hash。
@@ -24,10 +28,44 @@
 - FastCtx j-9g2cte: frontend lint/type-check、完整 desktop build 和 36 个合成浏览器用例全部通过。
 - FastCtx j-mnfh77: desktop lint/type-check/build:main、24 passed / 1 POSIX-only skipped / 1 privileged symlink excluded，YAML/六映射/安装脚本静态检查通过。
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
-- Blocked on: Markdown 本地源码切片已验证。Consistency/AI 项目选择与迟到结果、条件性同版本覆盖升级待独立复现；真实 provider、干净 Windows 11 升级、native ARM64 首启、最新安装包 runtime、远端双架构发布和签名仍待验收。
-- Next step: 用显式白名单和 cached diff 保存已授权的本地提交并读回；后续继续复现 Consistency/AI 选择与升级身份问题。源码切片通过不关闭完整 V1 验收。
+- Blocked on: 本轮两个源码主题无最终验证失败；真实 provider、干净 Windows 11 旧版升级及原数据、native ARM64 首启、最新安装包运行、远端双架构发布和签名仍待验收。独立 IssueCard 分析异步移除生命周期未由本切片证明。
+- Next step: 读回记录提交、最终status/worktree；继续逐项对照§42。有新仓库内缺陷先复现并独立定界；外部验收以真实provider、干净Windows升级与native ARM64环境为准，保持一棵工作树和现有不重跑packaged smoke限制。
 
 ## Recent Checkpoint History
+
+## 2026-10-03 Consistency / Runtime Terminal Evidence
+
+- TaskStartSnapshot仍为27b5ac6a8b22225a32d3fe4a0b6a7a84f137dbe2，feature/branding，一棵工作树。两原实现者分别冻结；fresh独立SPEC再QUALITY均PASS，协调者独占实际验证、Git与记录。
+- UI采用canonical选择hook，原两页raw initializer/竞争fallback已退役；有效target在原check owner同步revision失效，late success/error/finally、ABA及旧项目树默认值均有实际合成浏览器回归。同目标保留，book忽略隐藏章/卷，chapter忽略containing volume。
+- Runtime在原marker owner绑定版本+selected wheel实际字节SHA256；legacy标记一次重装，同版本换内容重装、同字节移动路径保持。wheel读失败、pip失败和marker写失败不宣告完成；在线fallback和用户数据布局保留。
+- Review corrections: metadata/tree负向用例补native GET loadend与真实controls/check payload；安装fallback吞assert以checked记录纠正；tmp缺失以安全mkdir纠正。j-8frgum仅lint通过、四处unbound-method使type-check失败，未执行后续build/test；descriptor unknown+function验证后fresh复核通过。
+- Browser correction: j-bfycis的24 selection通过，result-context在startCheck定位失败；实际snapshot按钮为Run check Run check且disabled。原生产Radix loading行为保留，测试限定header内两个精确名称且count==1，未削弱busy/pending/raw/unknown断言。此runner由协调者核验19724属于Python51612后停止测试树，终态exit1，没有完整118-case报告；已清Vite12212、19003及精确目录298218bytes。诊断保存在tmp/consistency-runcheck-locator-diagnosis-20261003.txt。
+- Final measured: j-wseclf退出0，八个命令均exit0；frontend436文件lint/type零警告/错误，desktop lint/type/full build含frontend/setup/main。118 browser passed(4.3m)=新24+27、旧25 selection+28 deep-link+8 form+6 Markdown；2 workers/retries0/fail-fast1。Actual runtime10 passed(622.6769ms)，相同10-case suite在无tmp父目录隔离布局复跑passed(619.6525ms)。这不是20种独立runtime场景或真实pip安装。
+- Hash/cleanup: receipt verifier退出0，七个当前source hash和actual compiled/copied输入hash与完整日志一致；日志SHA256 8f54da6b00357f1b209f645c6751ed3d2407ddc0d1029ef2e569a79ac6d08ac0。最终只停owned Vite21284，19003释放，精确目录51537bytes删除；未新增worktree或smoke。
+- Complexity: production446/299，shared hook293且算法未改；new UI specs562/583，runtime763(+16)/test473 physical lines，均在800软压力内。原marker和选择owner复用，无新持久化owner、installer、依赖、endpoint或迁移；字节不同的等价wheel rebuild也重装是已知成本。
+- Git receipts: 用户明确授权本地提交；四路径1e80000766558571f220a5f9366bd13594c03d48，二路径c9d589fd6995abc3364e7514c75911bb50773c66，逐次检查root/branch/HEAD/index/白名单与CRLF-aware cached diff并读回。后续记录提交为process-only，不自引用其SHA。
+- Workspace integrity: aegis-workspace.py bundle --root . --work 2026-10-02-v1-completion及check --root .均退出0，新proof/pack包含两个终态sidecar；这是记录结构检查，不证明正式V1验收。记录修改不改变冻结的业务源码证据。
+- Confidence B / uncovered: 合成API/socket/XHR、VM与fake subprocess/net不证明真实provider、完整IssueCard分析移除异步行为、真实Python/pip/wheel、安装期间文件变化、marker写入中断、旧版升级、native ARM64、当前包运行、远端Release或签名。完整V1保持needs-verification；本地源码切片通过不能关闭§42。
+
+## 2026-10-03 Consistency / AI Context Slice Card
+
+- Previous goal turn: progress。Markdown 实现和本机验收已本地提交为 27b5ac6a8b22225a32d3fe4a0b6a7a84f137dbe2；本轮提交请求读回确认已有成果已提交、无暂存/工作区改动。一棵注册工作树，feature/branding；此 HEAD 是新 TaskStartSnapshot。外层 ai-novel 和 OpenFic 上游不在范围内。
+- Parent authority: 新版本/docs/03-source-change-list.md §42，PRD §§20-21,33；一致性范围和 AI 预设任务必须使用当前合法项目。复用已验证的 use-project-selection，不新增持久化项目 owner 或第二套 URL/preference resolver。
+- Fresh diagnosis: node tmp/diagnose-consistency-ai-selection-20261003.cjs 退出 0。实际两页和 consistency API 经 TypeScript 编译/受控 React-Query-HTTP 接缝执行，七个当前缺陷复现：A→B、scope→book、换章、A→B→A、迟到 error、AI 离页 URL、ALPHA→null→ALPHA。旧 A 结果实际传给 IssueCard 的 projectId 为 B；共享 hook 仅纳入 hash，未在诊断中运行。合成 catalog 不证明真实 metadata lookup；此脚本不是修复或浏览器验收。
+- Decision / owner: code-change，原两页 wiring-only 到 canonical hook；retire raw URL/stored initializer、第一页 URL admission 和 competing fallback effects。Consistency 在原请求 lifecycle owner 绑定有效 project/scope/chapter/volume 与 revision；目标改变立即失效旧 result/error/finally，包括 ABA；同 id/同有效目标保留结果，book 忽略章/卷、chapter 忽略无关 volume。现有 localStorage keys、API、布局、IssueCard/AssistantHost 保留。
+- Allowed source/test paths: frontend/src/features/consistency/pages/consistency-page.tsx；frontend/src/features/ai/pages/ai-tasks-page.tsx；frontend/e2e/consistency-ai-project-selection.spec.ts；frontend/e2e/consistency-result-context.spec.ts。不修改 canonical hook 算法，确有接口缺口须先报告；不用已 980 行旧 spec 容纳新测试。页面 389/332 行，新增独立测试各低于 800 行软压力。
+- Verification: TDD off/skipped；唯一实现者只写允许源码/合成回归，不执行 shell/test/build/Git。freeze 后独立 SPEC 再 QUALITY，协调者执行 frontend lint/type、完整 desktop build、新 spec、原 selection/deep-link/forms 61 cases 与 Markdown 6 cases。不得把旧后端 2015 passed 当新 UI 证据；未变后端无需无理由重跑。结果和源码 hash 绑定，实际 unknown API/socket 不放宽。
+- Safety / stop: 不读取真实正文/DB/.env/密钥、不调用真实 provider、不跑 installer/packaged smoke、不新建 worktree、不 push/tag/Release/sign。协调者独占 Git、共享验证和记录；只清理新建且路径/无链接核验过的测试目录和自建 Vite 进程。独立 wheel 审计仅为静态证据，需先执行复现后另切任务。源码切片闭环不关闭完整 V1。
+
+## 2026-10-03 Bundled Backend Identity Slice Card
+
+- TaskStartSnapshot: 同轮 27b5ac6a8b22225a32d3fe4a0b6a7a84f137dbe2 / feature/branding / one worktree。与 frontend 实现四路径互不交叉；共享 build 必须待两个 writer 冻结。独立主题各自 local commit，协调者独占 Git/验证/记录。
+- Parent / necessity: §42 的安装/升级及原数据稳定，Phase 5 自有 fork wheel 分发。新版本/AGENTS.md §§5,33 要求专门 runtime task；本卡即 bounded runtime identity task。既有版本/来源 marker 接口不能识别同版本自研 wheel 内容变化，改原 marker owner，保持 Python/CLI/venv/data layout 与在线安装路径。
+- Fresh diagnosis: node --experimental-vm-modules tmp/diagnose-bundled-wheel-identity-20261003.mjs exit0，实际 compiled inspect/ensure 与实际 commands 模块。旧 marker 0.11.1，Python/CLI/metadata 正常；同名同版本 wheel A→B 不同 SHA256 后 inspect.complete=true，pip 调用0；metadata 0.11.0 正向对照 incomplete 并抵达 fake pip一次。完整实际输入 source hash 00e9870be25c95314b34da086809168c66de555418b75deabb2aa2a6fa215742；dist hash670c9055595bfa1033800ccc8a6475671bd6ab74a118888f89d2124be3a46e78。源/产物 hash标识输入，不单独证明编译等价；两者 marker 机制已源读回。
+- Decision / shape: code-change；在原 openfic.ts 选中 wheel 后读取字节 SHA256，把版本+内容身份贯通 inspect/ensure/marker。旧纯版本 marker 一次失效，经现有 --force-reinstall 切换；路径不是身份，同字节移动位置不重装。安装失败不得记录新身份，wheel 读取失败不得声称ready；不改变包名、版本、CLI、producer/installer或用户数据。
+- Allowed: desktop/src/main/runtime/openfic.ts；new desktop/tests/main/bundled-backend-identity.test.mjs。marker helper复用原 owner，必要最小内部 helper；不新建 installer/持久化owner/依赖，不改其他模块。原 runtime748行，新增后优先保持800软压力内；独立test文件控制规模。Byte-different rebuild会触发重装是明确成本。
+- Verification: TDD off/skipped；实现者不执行命令、test/build/Git。新 Node test 调用actual编译后 exported inspect/ensure，strict fake subprocess/net与合成临时文件；覆盖 legacy迁移、同版本内容变化force、同内容重复/移动路径、version/CLI对照、读失败、pip失败不写marker。协调者待冻结后 desktop lint/type/full build、目标Node测试与相关desktop命令回归；SPEC→QUALITY顺序独立审查。不是真实wheel/Python/provider/NSIS/Windows升级验收。
+- Cleanup / stop: 诊断只建tmp/bundled-wheel-identity-IKVH3b，精确父目录、identity及全树无链接核验后finally删除；实际进程/网络调用0。不创建worktree、不读取真实数据/密钥、不跑packaged smoke/installer、不push/tag/Release/sign。仍保留完整V1的外部验收边界。
 
 ## 2026-10-03 Markdown Export Terminal Evidence
 
@@ -214,10 +252,10 @@
 
 ## DriftCheckDraft
 
-- Scope status: 既有 source commits 保留；本轮 Markdown fresh 两阶段审查、216 定向/2015 完整后端、434 文件前端静态/完整 desktop build/6 browser 通过，14 个最终 hash 相符。保存用户授权的同主题本地提交；完整 §42 仍 needs-verification，迁移唯一头保持 1028。
+- Scope status: 两个原owner修复与fresh两阶段审查完成；j-wseclf八个命令exit0、436文件前端静态、desktop静态/完整build、118 browser和10-case runtime两种布局均通过，七source/compiled hash相符。源码已按白名单提交1e80000/c9d589f，记录沿用唯一work record；完整§42仍needs-verification，迁移唯一头1028未改。
 - Compatibility status: 保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。
-- Retirement status: Markdown 复用既有 plan/job/text loop；硬编码 suffix 分支统一到 canonical map，实际 mapper 的非 DOCX 一律 TXT 假设已退役。default TXT/DOCX、batch/atomic/TTL 保留；既有 selection/restore owner 和内部 openfic wheel 兼容性保留，未清理用户数据。
+- Retirement status: 原两页raw URL/stored initializer与competing fallback退役到唯一selection hook；原纯版本marker退役为版本+wheel字节身份，legacy一次迁移重装，原online fallback/Python/CLI/venv/data layout保留。六业务文件内修复，无新owner/依赖/endpoint/迁移；446/299/562/583/763/473 physical lines有界，shared hook未改。
 - New risk signals:
-- 表单/选择/restore/distribution、DOCX 前置正文与导出 TTL 已修复，Markdown 缺失能力本轮已实现并验证。Consistency/AI 选择与条件性手动覆盖升级仍仅有源码观察；跨生产 session 取消、真实 worker/Windows 文件占用并发仍未由合成测试证明。
+- 表单/选择/restore/distribution、DOCX与Markdown已有成果保留；Consistency/AI与wheel身份已执行复现、修复和本机回归。跨生产session取消、真实worker/Windows文件占用并发、IssueCard分析移除生命周期及真实wheel安装仍未由合成测试证明。
 - Windows 符号链接用例仍缺少本机权限；冷缓存 remount 没有专门 fixture，当前安装包不覆盖最新源码，Windows ARM64 binary dependencies/首启与真实供应商、升级、远端 release、签名仍待验收。
 - Advisory decision: needs-verification

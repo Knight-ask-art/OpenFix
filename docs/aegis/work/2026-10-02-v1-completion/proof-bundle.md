@@ -20,6 +20,8 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json
@@ -31,6 +33,8 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json
@@ -51,7 +55,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 
 ## Drift Check
 
-- Scope status: 保留既有scoped source commits。本轮Markdown导出14文件实现、fresh SPEC/QUALITY、216 target/2015 full后端、434文件前端lint/type、完整desktop build与6 browser均通过，source hash一致。保存用户授权本地提交，Git事实读回；完整§42仍needs-verification，迁移唯一头1028未改。
+- Scope status: 两原owner修复完成，fresh独立SPEC/QUALITY通过；j-wseclf八命令exit0，436文件前端静态、desktop静态/full build、118 browser与10-case runtime两种布局均通过，七source/compiled hash相符。白名单源码提交1e80000/c9d589f已读回，记录沿用唯一work record；完整§42仍needs-verification，迁移唯一头1028未改。
 - Compatibility status: 保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。
-- Retirement status: 原硬编码export suffix分支收敛到canonical map，actual mapper非DOCX一律TXT假设退役；Markdown复用plan/job/text loop及原有cleanup，default TXT/DOCX/batch20/atomic/24h TTL兼容。新增15行标题formatter，service536行；原API test804行仅扩矩阵，新API360/writer24/browser370行分担范围，下次扩原API test前切分。14最终hash已验证，没有新数据owner/endpoint/dependency/migration或用户数据清理，唯一worktree且无新smoke。
+- Retirement status: 两页raw URL/stored initializer和竞争fallback退役到canonical选择hook，原算法未改；纯版本marker改为版本+wheel字节身份，legacy一次重装，online fallback/Python/CLI/venv/data layout保留。六业务文件内原owner修复，无新installer/持久化owner/依赖/endpoint/迁移；446/299/562/583/763/473 physical lines有界。字节不同的等价rebuild也重装为明确成本。最终hash一致；精确51537bytes目录已清，唯一worktree且无新smoke。
 - Advisory decision: needs-verification

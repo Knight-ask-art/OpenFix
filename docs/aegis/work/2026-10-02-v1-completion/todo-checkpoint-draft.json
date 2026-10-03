@@ -1,8 +1,12 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
-  "currentTodo": "Markdown export implementation, fresh SPEC then QUALITY and coordinator validation completed; preserve the authorized local commit and read back actual Git receipt. Full V1 remains needs-verification.",
+  "currentTodo": "Consistency/AI与内置wheel身份已修复、fresh两阶段审查和本机验证通过；源码本地提交1e80000/c9d589f已读回，整理唯一work record的终态证据。完整V1仍needs-verification，继续逐项对照§42。",
   "completedTodos": [
+    "Consistency/AI两页复用canonical选择hook；有效target同步revision防late result/error/finally与ABA，原树effect拒绝跨项目默认值写回。",
+    "原marker以版本+selected wheel字节SHA256识别内置后端，legacy/同版本变内容重装、同字节路径变化保持，读取/安装/写marker失败不宣告完成。",
+    "j-wseclf terminal0：frontend436文件lint/type零警告错误、desktop lint/type/full build、118 browser passed(4.3m)，actual runtime10及同10-case suite无tmp布局复跑通过。七source/compiled hash与完整log一致。",
+    "白名单源码提交1e80000766558571f220a5f9366bd13594c03d48（4 paths）和c9d589fd6995abc3364e7514c75911bb50773c66（2 paths）已读回；最终owned Vite21284停止/19003释放，精确目录51537bytes删除。",
     "先前里程碑 aa590c15039d669780e51d0193538473d9fb92cb 已完成。",
     "359c8114a889a7e700fce48441ff2d4ac6ed0219: configured runtime backup/restore/rollback protection and IPC overlap policy.",
     "ebae8a3c1939c50616996cc5390a48f1f80ddf45: six desktop targets, two ARM64 Python mappings, unconditional fork wheel staging and installer argument/exit guards.",
@@ -22,8 +26,12 @@
     "j-p837lv exits 0: scoped Ruff, app-wide ty, 216 target and 2015 full backend passed. j-m70e49 exits 0: frontend lint/type 434 files zero warnings/errors, full desktop build and six synthetic browser cases passed.",
     "All 14 frozen source hashes match the terminal logs and current files; exact backend/frontend validation directories removed (38474137/166 bytes), owned Vite stopped and port 19003 released. One worktree, no packaged smoke."
   ],
-  "activeSlice": "v1-markdown-export-20261003",
+  "activeSlice": "v1-context-identity-closeout-20261003",
   "evidenceRefs": [
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json",
+    "C:/Users/20969/.fastctx/jobs/j-wseclf/output.log",
+    "tmp/context-identity-terminal-receipt-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json",
     "C:/Users/20969/.fastctx/jobs/j-p837lv/output.log",
     "C:/Users/20969/.fastctx/jobs/j-m70e49/output.log",
@@ -41,7 +49,7 @@
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
     "git log/show readback: 359c811, ebae8a3, 49935a4 on feature/branding"
   ],
-  "blockedOn": "Markdown local source slice verified. Consistency/AI selection and conditional same-version wheel upgrade require dedicated reproduction. Real provider, clean Windows 11 upgrade, native ARM64 startup, current package runtime, remote dual-architecture Release and signing remain unaccepted.",
-  "nextStep": "Save the authorized local commit with explicit allowlist and cached diff check; read back HEAD/message/files/status and one worktree. Later independently reproduce Consistency/AI selection and upgrade identity observations; local Markdown completion does not close full V1 acceptance.",
+  "blockedOn": "本轮两个源码主题无最终验证失败。真实provider、干净Windows11旧版升级及原数据、native ARM64首启、最新安装包运行、远端双架构Release与签名未验收；IssueCard分析移除后的独立异步生命周期和真实pip/wheel仍未证明。",
+  "nextStep": "读回记录提交与最终status/worktree；按§42继续核对，有新仓库内缺陷先复现再定界，外部验收需真实provider/干净升级/native ARM64环境。维持一棵工作树及既有不重跑packaged smoke限制。",
   "updatedAt": "2026-10-03"
 }

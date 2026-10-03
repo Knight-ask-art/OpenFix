@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "type": "local-verification",
+  "taskStartSnapshot": "27b5ac6a8b22225a32d3fe4a0b6a7a84f137dbe2",
+  "source": "feature/branding / one registered worktree. Final coordinated runner j-wseclf: C:/Users/20969/.fastctx/jobs/j-wseclf/output.log; tmp/context-identity-source-manifest-20261003.json and tmp/context-identity-terminal-receipt-20261003.json. Fresh independent SPEC then QUALITY static PASS; coordinator reads actual terminal result.",
+  "verifier": "协调者源差异与完整终态检查；receipt verifier核对七个当前源码hash、实际编译后模块hash、八个命令exit0、118个完成用例、两轮同一10-case runtime suite及精确目录/端口清理。bundle/check仅证明记录结构，Git事实由白名单提交与终态读回。",
+  "logSha256": "8f54da6b00357f1b209f645c6751ed3d2407ddc0d1029ef2e569a79ac6d08ac0",
+  "runnerSha256": "63a539dfc94d30f707e37d9bda120e123ac64631e5e482ac10332c1b2cab2b9d",
+  "browserConfigSha256": "65dd38e84ed6b555fb8e554f0f7253291ed5d4b81ad82ec9f78058d9bb0351d6",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-03",
+  "artifactKey": "v1-bundled-backend-identity-20261003",
+  "sliceId": "v1-bundled-backend-identity-20261003",
+  "sourceCommit": "c9d589fd6995abc3364e7514c75911bb50773c66",
+  "summary": "在原openfic marker owner绑定expectedVersion+selected wheel实际字节SHA256，legacy纯版本marker一次重装；同名同版本内容变化强制重装，同字节移动路径不重装。读取失败不得ready、pip失败不写新身份、marker写失败传播；在线fallback及Python/CLI/venv/data layout保留。actual compiled exported inspect/ensure与actual commands模块经VM/严格fake subprocess/net测试，合成bytes不可安装。初轮fixture安装index fallback吞assert缺口以完整fakeSpawn checked记录修正；干净布局缺tmp以root核验后非递归mkdir/EEXIST+unlinked验证修正，不删除共享tmp。fresh SPEC/QUALITY PASS；j-wseclf terminal0，desktop lint/type/full build、10 cases passed(622.6769ms)，同一10 cases在初始无tmp隔离布局复跑passed(619.6525ms)，父目录创建且scratch全部删除。实际compiled inputs与复制/current hash相符；整体118 browser与七source hashes不变。精确任务目录51537bytes已删、19003释放，一棵worktree。runtime763(+16)/test473 physical lines，无新增installer/owner/依赖/公共schema或数据迁移；字节不同的等价rebuild也会重装是明确成本。confidence B；真实Python/pip/wheel安装、安装期间文件变化、marker写入中断、Windows覆盖升级、native ARM64和Release/signing未由此证明，完整V1仍needs-verification。",
+  "sourceSha256": {
+    "desktop/src/main/runtime/openfic.ts": "c7b3498271d04bb6bc8273b292ab2fea23e3a4e587d1314e0cf7adcfe635a446",
+    "desktop/tests/main/bundled-backend-identity.test.mjs": "94a3afdfc6c698f352c743f94c4b7955fdeb9c5f47b51d9afc4e57f7b36454fe"
+  },
+  "compiledInputSha256": {
+    "desktop/dist/main/runtime/openfic.js": "a68941a0959da322101321c2d45a1639f12c5ff4741d104b87fdb80bdc76ab28",
+    "desktop/dist/main/runtime/openfic-commands.js": "df234a41d235a611f72e7d89230ef6f7af4bceeab57ed605623bccdceea4685b"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "type": "local-verification",
+  "taskStartSnapshot": "27b5ac6a8b22225a32d3fe4a0b6a7a84f137dbe2",
+  "source": "feature/branding / one registered worktree. Final coordinated runner j-wseclf: C:/Users/20969/.fastctx/jobs/j-wseclf/output.log; tmp/context-identity-source-manifest-20261003.json and tmp/context-identity-terminal-receipt-20261003.json. Fresh independent SPEC then QUALITY static PASS; coordinator reads actual terminal result.",
+  "verifier": "协调者源差异与完整终态检查；receipt verifier核对七个当前源码hash、实际编译后模块hash、八个命令exit0、118个完成用例、两轮同一10-case runtime suite及精确目录/端口清理。bundle/check仅证明记录结构，Git事实由白名单提交与终态读回。",
+  "logSha256": "8f54da6b00357f1b209f645c6751ed3d2407ddc0d1029ef2e569a79ac6d08ac0",
+  "runnerSha256": "63a539dfc94d30f707e37d9bda120e123ac64631e5e482ac10332c1b2cab2b9d",
+  "browserConfigSha256": "65dd38e84ed6b555fb8e554f0f7253291ed5d4b81ad82ec9f78058d9bb0351d6",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-03",
+  "artifactKey": "v1-consistency-ai-context-20261003",
+  "sliceId": "v1-consistency-ai-context-20261003",
+  "sourceCommit": "1e80000766558571f220a5f9366bd13594c03d48",
+  "summary": "原Consistency/AI页复用canonical use-project-selection，退役raw URL/stored initializer、第一页URL admission和competing fallback；保持原localStorage key/布局/API/IssueCard/AssistantHost。Consistency有效target同步revision失效，success/error/finally与mounted绑定，防项目/范围/章/卷ABA及旧树默认值写回，book/chapter忽略隐藏无关选择。初轮GET负向证据补native XHR sequence/loadend、实际controls与volume-check payload；四处unbound-method改为descriptor unknown+function验证；Radix加载名称重复导致的真实定位失败用header内两个精确名称和count==1修正，未削弱busy/payload/unknown断言。fresh SPEC/QUALITY均PASS；j-wseclf terminal0：frontend436文件lint/type零警告错误、desktop lint/type/full build，118 browser passed(4.3m)=新24+27及原25+28+8+6，2 workers/retries0，所有七输入hash不变。仅清任务资源，最终51537bytes删除/19003释放，前次中止目录298218bytes已删；一棵worktree，无新smoke。生产446/299、new specs562/583、shared hook293 physical lines且未改算法；无新owner/依赖/endpoint/迁移。confidence B；合成API/socket/XHR不证明真实provider、Electron包、未覆盖IssueCard分析移除后的独立异步生命周期或完整V1。真实旧版升级/native ARM64/最新安装包/远端Release/签名仍needs-verification。",
+  "sourceSha256": {
+    "frontend/src/features/consistency/pages/consistency-page.tsx": "0f2b16e8507496c602fcaaec06132ff45c3da6556d22ea266235358f87d1cd83",
+    "frontend/src/features/ai/pages/ai-tasks-page.tsx": "e57fce2f91ca4a6d7ee7fe4ffbae5f93f780733d1ae405e8bb8ffd1f13af62f9",
+    "frontend/e2e/consistency-ai-project-selection.spec.ts": "49741cd6fa01ad1aed9522e9ebcce8755e9be5daad4964bb31e620de291dab86",
+    "frontend/e2e/consistency-result-context.spec.ts": "5d1e15d7bfe72df3f5b534bd9a6a689ebe051fd5a263c56c664ba1951cc35faa",
+    "frontend/src/features/projects/hooks/use-project-selection.ts": "21d7734adb9708204f28e9ea219424868e10a8b7944ad806aa416006feb4bed1"
+  }
+}

@@ -2,7 +2,7 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
   "lastCheckpointRef": "docs/aegis/work/2026-10-02-v1-completion/todo-checkpoint-draft.json",
-  "resumeInstruction": "v1-markdown-export-20261003实现与本机验证已终态：fresh SPEC→QUALITY PASS，j-p837lv exit0(216 target/2015 full/Ruff/ty)，j-m70e49 exit0(434 files lint/type/full desktop build/6 browser)，14 hash一致、临时目录删除、19003释放。TaskStartSnapshot 396a48ff1b2d241f5358b05823904621be385b63 / feature/branding / one worktree；先核对实际Git提交回执，不重复实现或重跑已绑定hash的验证。Markdown已贯通既有owners。完整V1仍needs-verification；后续Consistency/AI和wheel身份观察先独立复现。协调者独占Git/共享验证，不新建worktree/packaged smoke，不读真实数据/密钥。",
+  "resumeInstruction": "原TaskStartSnapshot27b5ac6/feature/branding/one worktree。Consistency/AI与wheel身份已独立复现、原owner修复、fresh SPEC→QUALITY和协调者j-wseclf终态0验证：436文件前端静态、desktop静态/full build、118 browser、新runtime10及同套件无tmp布局再次10通过，七source/compiled hash一致。源码白名单提交1e80000766558571f220a5f9366bd13594c03d48与c9d589fd6995abc3364e7514c75911bb50773c66已读回；终态目录51537bytes/Vite21284/19003已清。先核对最终记录提交Git回执，再继续§42，不重复修复已闭环主题。完整V1仍needs-verification；协调者独占Git/验证，维持一棵worktree，不跑packaged smoke/installer或真实provider，不读真实数据/密钥。",
   "knownPartialWork": [
     "本轮三个源码主题本地提交为 359c811、ebae8a3、49935a4；最终前端静态/完整 desktop build 和 36 browser passed，desktop target 24 passed / 1 skipped / 1 excluded。",
     "本轮 Vite j-bckuz9 已停止，19003 已释放，精确的临时 browser results 已删除；日志与审阅材料保留。",
@@ -12,7 +12,8 @@
     "DOCX前置正文和TXT/DOCX清理缺陷已修复并源回归通过，本地提交e753bcd/f5fb74f；143 target/1942 full后端passed。初轮SPEC漏判expiry计数错误，fresh两阶段复查已纠正。",
     "PRD25/source-list31 Markdown导出已实现并通过216 target/2015 full/6 browser和静态/build；最终fixture只补精确三个真实GET，raw五字段及unknown/socket断言保留。最终browser SHA256 62d26ea807ae0a977f49182f381f6cd5b6a49c2870b15202542c56acb764346f。",
     "Markdown Claude j-cq86fv因第三方余额不足退出1，无实现或审查结论；不是登录问题。唯一Codex实现者及独立SPEC/QUALITY完成，协调者验证另有终态日志。",
-    "Consistency/AI选择与迟到结果、条件性同版本手动覆盖wheel身份仍仅源码观察，必须独立复现后修改。"
+    "Consistency/AI与wheel身份的最终两阶段静态审查及j-wseclf实际验证均通过；本轮两源码主题已提交，完整V1与外部验收仍未完成。",
+    "前次j-8frgum在测试method capture type-check失败；j-bfycis因loading按钮名称重复定位失败而中止，无完整118报告。descriptor验证与header内精确名称/唯一数量纠正后，最终118全部通过；GET/XHR完成屏障、raw payload及unknown断言均保留。前次精确298218bytes目录也已删除。"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-10-02-v1-completion/10-intent.md",
@@ -21,7 +22,7 @@
   ],
   "unsafeToAssume": [
     "本地提交/合成浏览器回归不证明完整 V1.0；旧安装包不验证最新源码。",
-    "四页选择回归通过不证明Consistency/AI等所有消费者，当前新spec25cases/980行有共享fixture复用的后续维护压力。",
+    "六页合成选择/上下文回归不证明真实provider或所有异步消费者。IssueCard分析移除生命周期未单独验收；既有outline-memory spec25cases/980行后续扩展前仍有fixture复用压力。",
     "ARM64 asset mapping/CI staging 不证明 native binary dependencies 或首启；symlink privileged case 和冷缓存 remount 仍未单独运行验收。"
   ]
 }

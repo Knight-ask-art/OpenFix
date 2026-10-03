@@ -494,3 +494,15 @@ OpenFix 自有标识首轮设计已落地：以打开的书页和校订符号组
 * 标题 formatter 为 15 行；既有 service/API test 仅扩现有 owner/矩阵，新 API/writer/browser 套件分别为 360/24/370 physical lines。原 API test 达 804 行，后续新增范围前切分；本次不进行无关重构。验证记录沿用唯一 `docs/aegis/work/2026-10-02-v1-completion`，本地提交事实由 Git 回执读回。
 * 本地源码切片信心 B，**完整 V1.0 仍为 `needs-verification`**。合成 API/socket 与内存 SQLite 不证明生产 session 取消可见性、真实 worker 并发、Windows 文件锁或 Electron 打包运行。Consistency/AI 选择与迟到结果、条件性同版本 wheel 身份需独立复现；真实 provider、干净旧版升级与原数据、native ARM64、最新安装包 runtime、远端双架构 Release 和签名仍待验收。
 
+**V1.0 Consistency / AI 上下文与内置后端内容身份（2026-10-03；本地提交）**：
+
+* Consistency 和 AI 任务页现在复用既有项目选择 hook，验证第一页外的 URL、记住项目与最近项目；保留原存储键和页面布局。URL 重入、迟到偏好/metadata、手动 ABA 与冷文档重挂载有实际回归，两个页面的竞争初始化已退役。
+* Consistency 检查绑定不可变有效目标和单调 revision。项目、范围、章节或卷切换立即清理旧结果并允许新检查；旧成功、错误与 finally 不影响当前检查。全书忽略隐藏章/卷默认值，章节忽略所属卷 metadata 更新；旧项目树 effect 不能填回新项目。
+* 原内置后端标记扩展为版本加所选 wheel 实际字节 SHA-256。纯版本旧标记一次重装；同版本内容变化强制重装，同字节移动资源路径保持。读取、安装或标记写入失败不能宣告完成；沿用原在线回退与数据布局。字节不同的等价重建也会重装。
+* 独立 fresh SPEC → QUALITY 均 PASS。测试 GET 负向证据补原生 XHR 完成及真实控件/请求锚点；四处类型检查错误改用 descriptor 验证。实际浏览器发现 Radix loading 按钮名称重复，测试限定 header 内两个精确名称并断言唯一数量；busy、pending、raw payload 和 unknown API/socket 断言保留。
+* 最终 `j-wseclf` 退出 0：前端 **436 文件 lint/type-check 零警告/错误**，桌面 lint/type-check 和完整 build（frontend production/setup/main）通过；**118 browser passed（4.3m）**，含新24+27及原25+28+8+6。2 workers、retries0、失败立即停；保留既有 large-chunk warning。
+* 实际编译后 inspect/ensure 和 commands 模块的 **10 runtime cases passed**；相同套件在没有预建 `tmp` 的隔离布局再次 **10 passed**，验证父目录创建和 scratch 清理。这是同十场景的两种布局，不是真实 Python/pip/wheel 安装验收。
+* 七个源码输入、编译/复制产物 hash 与完整终态日志一致。最终精确验证目录 **51,537 bytes** 已删除，owned Vite21284停止、19003释放；此前中止目录298,218bytes也已清理。没有新增工作树，OpenFix仍只有一棵。
+* 源码提交：`1e80000766558571f220a5f9366bd13594c03d48`（四个UI/测试文件）与 `c9d589fd6995abc3364e7514c75911bb50773c66`（两个runtime/测试文件）。逐次白名单暂存、cached diff和Git读回；终态记录沿用同一工作目录。
+* 原有owner内修复，无新持久化owner、installer、依赖、公共端点或迁移。生产446/299、两新spec562/583、runtime763与test473 physical lines；canonical hook293行且算法未改，维持有界复杂度。
+* 本地源码切片信心 B，**完整 V1.0 仍为 `needs-verification`**。合成 API/socket/XHR 与 VM/fake subprocess 不证明真实 provider、IssueCard 分析移除的独立异步生命周期、安装期间文件变化、marker 写入中断、干净旧版升级及原数据、native ARM64、最新安装包运行、远端双架构 Release 或签名。后端应用源码本轮未变，旧后端测试不能冒充本次新 UI/runtime 验收。
