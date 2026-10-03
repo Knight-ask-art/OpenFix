@@ -42,25 +42,106 @@
 !macroend
 !endif
 
-!macro customInit
-  ${if} ${isUpdated}
-    ${if} $installMode == "all"
-      ${IfNot} ${UAC_IsAdmin}
-        ShowWindow $HWNDPARENT ${SW_HIDE}
-        !insertmacro UAC_RunElevated
-        Quit
-      ${EndIf}
-    ${endif}
-    InitPluginsDir
-    File /oname=$PLUGINSDIR\openfic-update-uninstaller.exe "${UNINSTALLER_OUT_FILE}"
-    ClearErrors
-    CopyFiles /SILENT "$PLUGINSDIR\openfic-update-uninstaller.exe" "$INSTDIR\${UNINSTALL_FILENAME}"
-    ${if} ${Errors}
-      MessageBox MB_ICONSTOP "OpenFix cannot prepare the updater to protect the runtime directory."
-      Abort
-    ${endif}
+; Pinned-template compatibility: this hook targets app-builder-lib 26.15.6 (electron-builder 26.15.6
+; is pinned in desktop/package.json). installer.nsi inserts customHeader before Function .onInit and
+; before Section "install", so the hidden preflight section below is compiled before installSection.nsh
+; calls uninstallOldVersion. Retention trigger: remove this seam if upstream app-builder-lib exposes a
+; before-uninstall extension point that can prepare the previously registered uninstaller directly.
+!ifndef BUILD_UNINSTALLER
+!macro customHeader
+; Replace the uninstaller registered for one hive so the framework can still run it after the install
+; tree is replaced. An absent registration is a fresh-install no-op; a registered but unusable entry
+; is fail-closed. GetInQuotes is declared later in installUtil.nsh but forwards fine at compile time.
+Function openficPreparePriorUninstaller
+  Exch $R0
+  Push $R1
+
+  StrCmp $R0 "SHELL_CONTEXT" 0 openfic_prepare_hkcu
+    ReadRegStr $R1 SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" UninstallString
+    StrCmp $R1 "" 0 openfic_prepare_read
+    !ifdef UNINSTALL_REGISTRY_KEY_2
+      ReadRegStr $R1 SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY_2}" UninstallString
+    !endif
+    Goto openfic_prepare_read
+  openfic_prepare_hkcu:
+    ReadRegStr $R1 HKEY_CURRENT_USER "${UNINSTALL_REGISTRY_KEY}" UninstallString
+    StrCmp $R1 "" 0 openfic_prepare_read
+    !ifdef UNINSTALL_REGISTRY_KEY_2
+      ReadRegStr $R1 HKEY_CURRENT_USER "${UNINSTALL_REGISTRY_KEY_2}" UninstallString
+    !endif
+  openfic_prepare_read:
+
+  StrCmp $R1 "" openfic_prepare_return
+  Push $R1
+  Call GetInQuotes
+  Pop $R1
+  StrCmp $R1 "" 0 openfic_prepare_copy
+    SetErrorLevel 2
+    MessageBox MB_ICONSTOP|MB_TOPMOST "OpenFix cannot prepare the previous uninstaller to protect the runtime directory." /SD IDOK
+    Abort
+  openfic_prepare_copy:
+
+  ; CopyFiles creates a missing destination, so the registered old executable must be proven to be
+  ; an existing file first: replacing nothing would silently defeat the runtime-preserving upgrade.
+  IfFileExists "$R1" 0 openfic_prepare_unusable
+  IfFileExists "$R1\*.*" openfic_prepare_unusable
+
+  ClearErrors
+  CopyFiles /SILENT "$PLUGINSDIR\openfic-prior-uninstaller.exe" "$R1"
+  IfErrors 0 openfic_prepare_return
+
+  openfic_prepare_unusable:
+  SetErrorLevel 2
+  MessageBox MB_ICONSTOP|MB_TOPMOST "OpenFix cannot prepare the previous uninstaller to protect the runtime directory." /SD IDOK
+  Abort
+
+  openfic_prepare_return:
+  Pop $R1
+  Pop $R0
+FunctionEnd
+
+; Hidden preflight section (empty name): it runs before Section "install". It first mirrors the
+; framework's guarded silent per-machine elevation, then prepares the same hives as installSection.nsh
+; (SHELL_CONTEXT, and HKEY_CURRENT_USER only when the final mode is all-users), so both preparations
+; finish before either framework uninstallOldVersion call.
+Section ""
+  !ifndef INSTALL_MODE_PER_ALL_USERS
+    !ifndef ONE_CLICK
+      ${if} $hasPerMachineInstallation == "1"
+      ${andIf} ${Silent}
+        ${ifNot} ${UAC_IsAdmin}
+          ShowWindow $HWNDPARENT ${SW_HIDE}
+          !insertmacro UAC_RunElevated
+          ${Switch} $0
+            ${Case} 0
+              ${Break}
+            ${Case} 1223
+              ${Break}
+            ${Default}
+              MessageBox mb_IconStop|mb_TopMost|mb_SetForeground "Unable to elevate, error $0"
+              ${Break}
+          ${EndSwitch}
+          Quit
+        ${else}
+          !insertmacro setInstallModePerAllUsers
+        ${endIf}
+      ${endIf}
+    !endif
+  !endif
+
+  InitPluginsDir
+  File /oname=$PLUGINSDIR\openfic-prior-uninstaller.exe "${UNINSTALLER_OUT_FILE}"
+
+  Push "SHELL_CONTEXT"
+  Call openficPreparePriorUninstaller
+
+  ${if} $installMode == "all"
+    Push "HKEY_CURRENT_USER"
+    Call openficPreparePriorUninstaller
   ${endif}
+SectionEnd
 !macroend
+!endif
 
 !ifdef BUILD_UNINSTALLER
 Var openficPreserveRuntime
