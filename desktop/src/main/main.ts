@@ -4,7 +4,7 @@ import { registerAppScheme, handleAppProtocol, setRuntimeConfig } from "./protoc
 import { getDevDataDir, isDevMode, DEV_INSTANCE_ID, startDevBackend } from "./runtime/dev-backend.js";
 import { createMainWindow } from "./windows.js";
 import { readDesktopConfig, writeDesktopConfig } from "./config.js";
-import { registerIpc } from "./ipc.js";
+import { registerIpc, type BackendResume } from "./ipc.js";
 import { throwIfAborted, waitForBackend } from "./health.js";
 import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
@@ -61,10 +61,22 @@ function isBackendRunning(): boolean {
   return backendHandle !== null;
 }
 
-async function stopActiveBackend(): Promise<void> {
+async function stopActiveBackend(): Promise<BackendResume | null> {
   const handle = backendHandle;
   backendHandle = null;
-  if (handle) await stopBackendProcess(handle);
+  if (!handle) return null;
+  // 端口用启动时的规范 baseUrl 快照；停止成功后只把这个端口交回给闭包，
+  // 让无用户返回路径的调用方（自动备份）在同一端口上恢复服务。
+  const port = Number(new URL(handle.baseUrl).port);
+  try {
+    await stopBackendProcess(handle);
+  } catch (error) {
+    // 停止失败说明进程仍在运行：恢复这个规范句柄，避免下一次定时备份把仍在写数据库的
+    // 进程当成已停止而继续归档。期间若已有新句柄接管，则不覆盖新句柄。
+    if (!backendHandle) backendHandle = handle;
+    throw error;
+  }
+  return () => initializeApp(port);
 }
 
 function setBackendBaseUrl(url: string): void {
@@ -119,6 +131,7 @@ async function startLocalBackend(
   dataDir: string,
   startupProgress: StartupProgressTracker,
   signal: AbortSignal,
+  requestedPort?: number,
 ): Promise<string | null> {
   throwIfAborted(signal);
   const runtimeDir = resolveRuntimeDir(installDir);
@@ -186,6 +199,7 @@ async function startLocalBackend(
     startupProgress,
     signal,
     dataDir,
+    requestedPort,
   );
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
@@ -201,6 +215,7 @@ async function activateInstance(
   instance: DesktopInstance,
   startupProgress: StartupProgressTracker,
   signal: AbortSignal,
+  requestedPort?: number,
 ): Promise<{ compatibilityWarning: string | null; maintenanceWarning: string | null }> {
   throwIfAborted(signal);
   activeInstanceId = instance.id;
@@ -238,7 +253,7 @@ async function activateInstance(
   }
 
   try {
-    const maintenanceWarning = await startLocalBackend(instance.installDir, resolveDataDir(instance), startupProgress, signal);
+    const maintenanceWarning = await startLocalBackend(instance.installDir, resolveDataDir(instance), startupProgress, signal, requestedPort);
     return { compatibilityWarning: null, maintenanceWarning };
   } catch (error) {
     appendLog("runtime", `本地运行环境更新或启动失败：${error instanceof Error ? error.message : String(error)}`);
@@ -349,7 +364,7 @@ function installMenu(): void {
   Menu.setApplicationMenu(null);
 }
 
-async function initializeDevApp(): Promise<InitializeAppResult> {
+async function initializeDevApp(requestedPort?: number): Promise<InitializeAppResult> {
   const controller = beginStartupOperation();
   const startupProgress = createStartupProgress();
   startupProgress.begin({
@@ -363,7 +378,7 @@ async function initializeDevApp(): Promise<InitializeAppResult> {
     await mkdir(devDataDir, { recursive: true });
     setLogsDir(devDataDir);
     activeInstanceId = DEV_INSTANCE_ID;
-    const { handle, baseUrl, maintenanceError } = await startDevBackend(startupProgress, controller.signal);
+    const { handle, baseUrl, maintenanceError } = await startDevBackend(startupProgress, controller.signal, requestedPort);
     throwIfAborted(controller.signal);
     setBackendBaseUrl(baseUrl);
     if (handle) setBackend(handle);
@@ -396,8 +411,8 @@ async function initializeDevApp(): Promise<InitializeAppResult> {
   }
 }
 
-async function initializeApp(): Promise<InitializeAppResult> {
-  if (isDevMode()) return initializeDevApp();
+async function initializeApp(requestedPort?: number): Promise<InitializeAppResult> {
+  if (isDevMode()) return initializeDevApp(requestedPort);
   const controller = beginStartupOperation();
   const startupProgress = createStartupProgress();
   startupProgress.begin({
@@ -418,7 +433,7 @@ async function initializeApp(): Promise<InitializeAppResult> {
       startupProgress.complete("尚未找到活动实例");
       return { status: "needs-setup" };
     }
-    const { compatibilityWarning, maintenanceWarning } = await activateInstance(config, instance, startupProgress, controller.signal);
+    const { compatibilityWarning, maintenanceWarning } = await activateInstance(config, instance, startupProgress, controller.signal, requestedPort);
     throwIfAborted(controller.signal);
     if (config.activeInstanceId !== instance.id) {
       await writeDesktopConfig({ ...config, activeInstanceId: instance.id });

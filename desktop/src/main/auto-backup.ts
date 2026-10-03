@@ -5,7 +5,7 @@
  * 调度器在 registerIpc 内启动，与手动备份/恢复共用配置变更队列互斥。
  */
 
-import { readdir, stat, unlink } from "node:fs/promises";
+import { lstat, readdir, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import { appendLog } from "./logging.js";
@@ -63,7 +63,9 @@ export async function getLatestAutoBackupTime(backupDir: string): Promise<Date |
   for (const name of names) {
     if (!name.startsWith(AUTO_BACKUP_PREFIX) || !name.endsWith(AUTO_BACKUP_SUFFIX)) continue;
     try {
-      const info = await stat(path.join(backupDir, name));
+      // 只承认普通文件；目录、符号链接或联接不跟随，也不参与时间比较。
+      const info = await lstat(path.join(backupDir, name));
+      if (!info.isFile()) continue;
       if (latest === null || info.mtime > latest) latest = info.mtime;
     } catch {
       // 文件可能在扫描期间被删除，忽略。
@@ -98,7 +100,9 @@ export async function rotateAutoBackups(
     names.map(async (name) => {
       const fullPath = path.join(backupDir, name);
       try {
-        const info = await stat(fullPath);
+        // 只轮换普通文件；目录、符号链接或联接保留，且不触碰其目标。
+        const info = await lstat(fullPath);
+        if (!info.isFile()) return null;
         return { fullPath, mtime: info.mtime };
       } catch {
         return null;

@@ -691,6 +691,7 @@ export async function startLocalOpenFicBackend(
   startupProgress?: StartupProgressTracker,
   signal?: AbortSignal,
   dataDir?: string,
+  requestedPort?: number,
 ): Promise<{ handle: BackendProcessHandle; maintenanceError: string | null }> {
   throwIfAborted(signal);
   startupProgress?.begin({
@@ -699,7 +700,7 @@ export async function startLocalOpenFicBackend(
     message: "正在分配本地服务端口",
     progress: 0.6,
   });
-  const port = await findFreePort();
+  const port = await findFreePort(requestedPort);
   throwIfAborted(signal);
   const command = createOpenFicServeCommand(venvPythonPath, port);
   const proxyEnvironment = await getSystemProxyEnvironment("https://pypi.org/");

@@ -137,6 +137,7 @@ async function fetchBackendMaintenanceError(baseUrl: string): Promise<string | n
 export async function startDevBackend(
   startupProgress: StartupProgressTracker,
   signal: AbortSignal,
+  requestedPort?: number,
 ): Promise<DevBackendResult> {
   throwIfAborted(signal);
   const externalUrl = getDevBackendUrl();
@@ -163,7 +164,7 @@ export async function startDevBackend(
     message: "正在从 backend 源码启动本地服务",
     progress: 0.3,
   });
-  const port = await findFreePort();
+  const port = await findFreePort(requestedPort);
   throwIfAborted(signal);
   const backendDir = path.join(app.getAppPath(), "..", "backend");
   const args = [

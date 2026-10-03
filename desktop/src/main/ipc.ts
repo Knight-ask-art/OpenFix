@@ -191,6 +191,12 @@ function getNextActiveInstanceId(config: DesktopConfig, remainingInstances: Desk
   return remainingInstances.find((instance) => instance.favorite)?.id ?? remainingInstances[0]?.id ?? null;
 }
 
+/**
+ * 停止后端成功后由主进程返回的私有恢复闭包：在同一个端口上重新初始化服务。
+ * 只交给没有用户返回路径的调用方（自动备份）；手动数据操作忽略它。
+ */
+export type BackendResume = () => Promise<InitializeAppResult>;
+
 export interface IpcContext {
   shellWindow: () => BrowserWindow | null;
   setBackend: (handle: BackendProcessHandle) => void;
@@ -204,7 +210,7 @@ export interface IpcContext {
   pingInstance: (instance: DesktopInstance) => Promise<number>;
   onConfigSaved: (config: DesktopConfig) => void;
   isBackendRunning: () => boolean;
-  stopActiveBackend: () => Promise<void>;
+  stopActiveBackend: () => Promise<BackendResume | null>;
 }
 
 function createInstanceId(): string {
@@ -252,39 +258,88 @@ export function registerIpc(context: IpcContext): void {
     return next;
   }
 
-  async function withBackendRestart<T>(instanceId: string, operation: () => Promise<T>): Promise<T> {
+  /**
+   * 停止正在运行的后端再执行操作。手动数据操作依赖用户从数据管理页返回时重启，
+   * 因此默认不重启；只有自动备份这类无用户返回路径的调用方传入 onSuspended，
+   * 在停止成功后拿到私有恢复闭包自行恢复。停止失败时不发布闭包，也不执行操作。
+   */
+  async function withBackendRestart<T>(
+    instanceId: string,
+    operation: () => Promise<T>,
+    onSuspended?: (resume: BackendResume | null) => void,
+  ): Promise<T> {
     await waitForInstanceWebViews(instanceId);
-    const wasRunning = context.isBackendRunning();
-    if (wasRunning) await context.stopActiveBackend();
+    if (context.isBackendRunning()) {
+      const resume = await context.stopActiveBackend();
+      onSuspended?.(resume);
+    }
     return operation();
   }
 
   let autoBackupTimer: NodeJS.Timeout | null = null;
   let isAutoBackupRunning = false;
 
-  const executeAutoBackup = async (target: ReturnType<typeof getAutoBackupTarget>): Promise<void> => {
-    if (!target) return;
+  const executeAutoBackup = async (): Promise<void> => {
+    if (isAutoBackupRunning) return;
     isAutoBackupRunning = true;
     try {
-      const dataOptions = await getDataOperationOptions(target.dataDir, target.runtimeDir);
-      await enqueueConfigMutation(async () => {
-        await withBackendRestart(target.instanceId, async () => {
-          const emitProgress = (event: DataProgressEvent) =>
-            context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
-          const fileName = buildAutoBackupFileName(new Date());
-          const targetPath = path.join(target.settings.dir ?? "", fileName);
-          appendLog("data", `auto backup: ${target.dataDir} -> ${targetPath}`);
-          await backupDataDir(
-            target.dataDir,
-            targetPath,
-            (message) => appendLog("data", message),
-            (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
-            dataOptions.backup,
+      const outcome = await enqueueConfigMutation(async () => {
+        // 排队后重新读取已提交配置，按当前 enabled/dir/keep/instance/data/runtime 准入，
+        // 而不是排队前捕获的目标；这样完成的禁用、改目录/实例或刚完成的手动备份都能生效。
+        const config = await readDesktopConfig();
+        const target = getAutoBackupTarget(config);
+        const backupDir = target?.settings.dir ?? null;
+        if (!target || !backupDir || !(await shouldRunAutoBackup(backupDir))) return null;
+
+        const dataOptions = await getDataOperationOptions(target.dataDir, target.runtimeDir);
+        const suspended: { resume: BackendResume | null } = { resume: null };
+        let operationError: string | null = null;
+        let resumeError: string | null = null;
+        try {
+          await withBackendRestart(
+            target.instanceId,
+            async () => {
+              const emitProgress = (event: DataProgressEvent) =>
+                context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
+              const fileName = buildAutoBackupFileName(new Date());
+              const targetPath = path.join(backupDir, fileName);
+              appendLog("data", `auto backup: ${target.dataDir} -> ${targetPath}`);
+              await backupDataDir(
+                target.dataDir,
+                targetPath,
+                (message) => appendLog("data", message),
+                (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
+                dataOptions.backup,
+              );
+              await rotateAutoBackups(backupDir, target.settings.keep);
+              appendLog("data", `auto backup done: ${fileName}`);
+            },
+            (resume) => {
+              suspended.resume = resume;
+            },
           );
-          await rotateAutoBackups(target.settings.dir ?? "", target.settings.keep);
-          appendLog("data", `auto backup done: ${fileName}`);
-        });
+        } catch (error) {
+          operationError = error instanceof Error ? error.message : String(error);
+        }
+        const resume = suspended.resume;
+        if (resume) {
+          // 定时备份没有用户返回数据管理页的重启路径，成功或失败都必须恢复原来的服务。
+          try {
+            const result = await resume();
+            if (result.status !== "ready") throw new Error(`服务未就绪（${result.status}）`);
+          } catch (error) {
+            resumeError = error instanceof Error ? error.message : String(error);
+          }
+        }
+        return { operationError, resumeError };
       });
+      if (outcome === null) return;
+      if (outcome.operationError !== null || outcome.resumeError !== null) {
+        const failures: string[] = [];
+        if (outcome.operationError !== null) failures.push(`备份失败：${outcome.operationError}`);
+        if (outcome.resumeError !== null) failures.push(`恢复服务失败：${outcome.resumeError}`);
+        throw new Error(failures.join("；"));
+      }
       context.shellWindow()?.webContents.send(
         IpcChannels.dataProgress,
         { operation: "backup", phase: "done", progress: 1 },
@@ -302,21 +357,8 @@ export function registerIpc(context: IpcContext): void {
 
   function startAutoBackupScheduler(): void {
     if (autoBackupTimer) return;
-    const tick = async () => {
-      if (isAutoBackupRunning) return;
-      try {
-        const config = await readDesktopConfig();
-        const target = getAutoBackupTarget(config);
-        if (!target) return;
-        if (isAutoBackupRunning) return;
-        if (!(await shouldRunAutoBackup(target.settings.dir ?? ""))) return;
-        await executeAutoBackup(target);
-      } catch (error) {
-        appendLog("data", `auto backup check failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    };
-    autoBackupTimer = setInterval(() => void tick(), AUTO_BACKUP_CHECK_INTERVAL_MS);
-    setTimeout(() => void tick(), AUTO_BACKUP_STARTUP_DELAY_MS);
+    autoBackupTimer = setInterval(executeAutoBackup, AUTO_BACKUP_CHECK_INTERVAL_MS);
+    setTimeout(executeAutoBackup, AUTO_BACKUP_STARTUP_DELAY_MS);
   }
 
   const saveZoomFactor = async (zoomFactor: number): Promise<number> => {
@@ -757,6 +799,7 @@ export function registerIpc(context: IpcContext): void {
         };
         const normalizedInstallDir = normalizeInstallDir(request.installDir);
         const nextConfig: DesktopConfig = {
+          ...(previousConfig ?? {}),
           activeInstanceId: instance.id,
           instances: [
             ...(previousConfig?.instances ?? []).filter(
@@ -767,7 +810,6 @@ export function registerIpc(context: IpcContext): void {
             ),
             instance,
           ],
-          zoomFactor: previousConfig?.zoomFactor,
         };
         await writeDesktopConfig(nextConfig);
         context.onConfigSaved(nextConfig);
