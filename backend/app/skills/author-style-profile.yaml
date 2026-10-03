@@ -144,6 +144,15 @@ content: |
   - 可选写作约束：
   - 是否已按约束修改正文：未修改（默认）
 
+  ## 项目采用与后续写作
+  用户希望保存并采用档案时，使用“项目文风档案”Skill 的 v1 协议，
+  把有证据的稳定特征与明确条件提取为短指标，保存到现有根笔记。
+  完整分析、证据位置与置信度可保留在同一笔记的 evidence /
+  confidence / conditional_traits 字段，但不进入 Runtime Style Card。
+  先提交 draft；用户已授权采用或确认采用后用 confirmed，
+  沿用 Notes 写入审批，不自动覆盖正文。后续 Agent 读取短卡，
+  不重复读取所有原始样本。样本少于 3 章/份时明确局限。
+
 references:
   - name: 文风观察维度与记录方法
     content: |

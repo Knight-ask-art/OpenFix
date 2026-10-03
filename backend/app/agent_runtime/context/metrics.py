@@ -19,6 +19,7 @@ from app.agent_runtime.tools.schema import (
 _CATEGORIES = (
     "system",
     "rules",
+    "style_profile",
     "skills",
     "history",
     "current_chapter",
@@ -28,7 +29,7 @@ _CATEGORIES = (
     "runtime",
     "other",
 )
-_STABLE_PARTS = frozenset({"system_prompt", "rules", "skills"})
+_STABLE_PARTS = frozenset({"system_prompt", "rules", "style_profile", "skills"})
 _TOOL_CATEGORIES = {
     "search_chapters": "retrieval",
     "search_story_memory": "retrieval",
@@ -45,6 +46,7 @@ _TOOL_CATEGORIES = {
 _PRIORITY = {
     "system": 100,
     "rules": 95,
+    "style_profile": 90,
     "skills": 60,
     "history": 70,
     "current_chapter": 95,
@@ -87,6 +89,7 @@ def _part_metrics(
     reasons = {
         "system": "agent core prompt",
         "rules": "project and global writing constraints",
+        "style_profile": "confirmed short project style card",
         "skills": "skill manifest or explicitly activated skill",
         "history": "conversation and tool continuity",
         "current_chapter": "chapter content read by the agent",

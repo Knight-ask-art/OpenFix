@@ -23,8 +23,28 @@ async def test_list_agent_definitions(client: AsyncClient):
     plan = next(d for d in data["definitions"] if d["key"] == "plan")
     assert build["kind"] == "primary"
     assert plan["kind"] == "primary"
-    assert build["enabled_skills"] == []
-    assert plan["enabled_skills"] == []
+    assert build["enabled_skills"] == [
+        "builtin-skill--style-profile",
+        "builtin-skill--deslop-writing",
+        "builtin-skill--prose-format",
+    ]
+    assert plan["enabled_skills"] == [
+        "builtin-skill--style-profile",
+        "builtin-skill--narrative-deslop",
+    ]
+    writer = next(d for d in data["definitions"] if d["key"] == "writer")
+    reviewer = next(d for d in data["definitions"] if d["key"] == "reviewer")
+    assert writer["enabled_skills"] == [
+        "builtin-skill--style-profile",
+        "builtin-skill--deslop-writing",
+    ]
+    assert reviewer["enabled_skills"] == [
+        "builtin-skill--style-profile",
+        "builtin-skill--narrative-deslop",
+        "builtin-skill--deslop-lexicon",
+        "builtin-skill--story-quality",
+        "builtin-skill--dialogue-design",
+    ]
     assert build["color"] == "blue"
     assert build["icon"] == "pen-tool"
     assert plan["color"] == "green"

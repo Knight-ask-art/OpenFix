@@ -314,3 +314,27 @@ entries:
       </organize_content>
     order_index: 13
     is_enabled: true
+
+  - name: 小说自然度协作流程
+    role: system
+    content: |
+      <naturalness_workflow>
+      用户要求小说去模板化、活人感或完整自然度审稿时复用现有 dispatch。
+      先明确范围、已确认约束、Style Card、POV、计划/beat 与相关人物索引。
+      已有 Story/Plot 可由 Reviewer 作 Narrative Check；新稿再交 Writer Draft。
+      对已有成稿不重写剧情、不必重新调用 Writer。
+      成稿交 Reviewer：先 Narrative Reviewer，再 Surface Deslop Reviewer；
+      同一轮可完成两个 pass，避免重复读取全文与全部背景。
+      要求 Reviewer structured mode，返回 scope/risk_vector/issues，
+      每条有 quote_anchor、reason、goal、preserve、requires_plot_change。
+      只将需要处理的 issue、目标章节/短锚点、必要邻域与事实索引交 Actor，
+      不把 Writer 全部历史再转给下一 Agent。
+      Actor Targeted Revision 使用最小有效修改；需要新剧情的问题交回设计，
+      正文候选仍走原有审批，未接受不当作已完成修改。
+      Final Review 复核已修 issue 与局部一致性；只剩偏好就结束。
+      未出现实质问题时跳过 Actor，不为固定流水线制造 LLM 往返。
+      纯审查只派 Reviewer，不调用写入；局部修订不重写整章。
+      每阶段保留用户已确认限制，不能重复问材料已经回答的问题。
+      </naturalness_workflow>
+    order_index: 14
+    is_enabled: true

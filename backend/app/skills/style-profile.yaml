@@ -1,0 +1,81 @@
+id: builtin-skill--style-profile
+name: 项目文风档案
+summary: 复用文风样本分析，将确认的稳定特征保存到现有项目笔记；Writer、Reviewer、Actor 读取短 Runtime Style Card，无需重读完整样本。
+is_enabled: true
+content: |
+  # 项目 Style Profile 与 Runtime Style Card
+  本 Skill 负责档案保存与使用，样本分析复用 author-style-profile，
+  不建立另一套作者分析或身份识别系统。
+
+  ## 分析
+  用户提供或授权 3～10 章/样本时，使用“文风样本分析”Skill。
+  若当前 Agent 没有该 Skill，可交 Composer，或读取本 Skill 的分析路由参考。
+  样本更少时可给临时观察，注明范围和不确定，不假装稳定文风。
+  提取人称、psychic distance、评论密度、句法、段落、对白、
+  情绪、微动作与比喻来源；只选跨样本成立且有证据的特征。
+  情境依赖特征写适用条件，低置信度不加入运行约束。
+
+  ## 持久化
+  复用现有 Notes 与 write_note / edit_note，以及 Diff / Revision 审批。
+  在项目根目录保存标题恰为“项目文风档案”的笔记。
+  笔记正文是纯 JSON 对象，不带 Markdown 代码围栏。
+  首次先列出已有笔记；已有同名根笔记则 edit_note，不建重复档案。
+  不动正文、大纲、人物事实或世界设定。
+  草稿 status=draft，只作建议；用户同意项目采用后 status=confirmed。
+  若用户已经要求生成并采用文风档案，该请求就是采用授权，
+  写入仍遵守工具审批，不额外重复索要许可。
+  隐藏笔记、未确认、损坏、重复同名根笔记不自动应用。
+  撤销可改为 draft、隐藏或删除；修改下一次请求立即生效。
+
+  ## 档案协议 v1
+  schema_version: 1
+  status: draft / confirmed
+  narration: person、distance、commentary
+  syntax: short_sentence、long_sentence、fragment
+  paragraph: rhythm、dialogue_breaks
+  dialogue: explicit_attribution、subtext、incomplete_sentences
+  emotion: direct_labeling、behavioral_expression、microaction_density
+  imagery: metaphor_density、metaphor_style
+  anti_patterns: 已确认的项目表达风险（最多 6 项）
+  各值是短描述（最多 64 字符）；不知道的维度省略，不能凭题材猜。
+  samples / evidence / confidence / conditional_traits 可保存在同一档案，
+  但不进入 Runtime Style Card。样本原文无需保存或重复加载。
+  不写专名、桥段、标志性句子；文风特征不是事实状态。
+  运行卡按固定字段顺序编译，最多 800 个估算 token。
+  超限档案不自动截断；应缩短指标，完整分析仍可在笔记保存。
+
+  ## 使用
+  已确认短卡会自动进入默认 Writer、Reviewer、Actor、Composer 的上下文，
+  但不包含完整 Skill 或样本。仅有可用 manifest 不代表已加载正文。
+  如果已有卡，不重复激活分析、不重新读取原始样本。
+  Writer 依卡写 prose；Reviewer 依卡审而非通用“高质量网文风”。
+  Actor 保留卡的节奏与声线，只改明确问题范围。
+  事实与人物、POV/声线/scene 功能高于 Style Profile；
+  Style 高于通用自然度、格式偏好与表层词表。
+  用户有当前明确要求时尊重要求，差异不自动写回全局文风。
+references:
+  - name: 项目文风档案JSON模板
+    content: |
+      {
+        "schema_version": 1,
+        "status": "draft",
+        "narration": {"person": "third_limited", "distance": "close", "commentary": "low"},
+        "syntax": {"short_sentence": "medium", "long_sentence": "medium-low", "fragment": "occasional"},
+        "paragraph": {"rhythm": "asymmetric", "dialogue_breaks": "frequent"},
+        "dialogue": {"explicit_attribution": "low", "subtext": "high", "incomplete_sentences": "allowed"},
+        "emotion": {"direct_labeling": "low", "behavioral_expression": "high", "microaction_density": "low"},
+        "imagery": {"metaphor_density": "low", "metaphor_style": "concrete_character_based"},
+        "anti_patterns": ["重复解释情绪", "连续精致微动作", "段尾重复总结", "三联排比"],
+        "evidence": [],
+        "conditional_traits": []
+      }
+      这是字段示意，不是所有项目的默认风格。
+      删除无证据指标，附样本位置与置信度；用户确认后再保存 confirmed。
+  - name: 文风分析路由与短卡边界
+    content: |
+      文风样本分析是唯一的分析方法来源：观察维度→证据与反例→
+      稳定/情境依赖/不确定分层→置信度→可选约束。
+      完整方法由 author-style-profile 的 references 提供。
+      样本缺少战斗或对话时不推断对应声线；题材惯例单独标注。
+      Runtime Card 只管叙述与表达，不管人物知道什么、世界事实与伏笔。
+      有条件的描述须包含条件，未知省略；不能把一次故意反常当坏文风。

@@ -39,6 +39,9 @@ def _compress_setting_disabled() -> None:
     with patch(
         "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
         new=AsyncMock(return_value=None),
+    ), patch(
+        "app.agent_runtime.context.build_context.build_style_profile",
+        new=AsyncMock(return_value=None),
     ):
         yield
 

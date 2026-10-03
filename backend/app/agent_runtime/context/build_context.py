@@ -6,6 +6,7 @@ from app.agent_runtime.context.errors import ContextBuildError
 from app.agent_runtime.context.parts.history import build_history
 from app.agent_runtime.context.parts.rules import build_rules
 from app.agent_runtime.context.parts.skills import build_skills
+from app.agent_runtime.context.parts.style_profile import build_style_profile
 from app.agent_runtime.context.parts.system_prompt import build_system_prompt
 from app.agent_runtime.context.processors.compress import (
     compress_system_prompts_if_enabled,
@@ -49,6 +50,10 @@ async def build_context_parts(
     if prompt_messages := await build_system_prompt(state, agent_name, db_session):
         parts.extend(prompt_messages)
     if (m := await build_rules(db_session, state.get("project_id"))) is not None:
+        parts.append(m)
+    if (
+        m := await build_style_profile(db_session, state.get("project_id"), agent_name)
+    ) is not None:
         parts.append(m)
     if (
         m := await build_skills(state, agent_name, db_session, node_messages)

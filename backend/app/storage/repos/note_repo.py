@@ -24,6 +24,24 @@ async def get_by_id(session: AsyncSession, note_id: str) -> Note | None:
     return result.scalar_one_or_none()
 
 
+async def list_visible_root_by_title(
+    session: AsyncSession, project_id: str, title: str, *, limit: int = 2
+) -> list[Note]:
+    """Read only the designated visible root note, detecting ambiguous copies."""
+    result = await session.execute(
+        select(Note)
+        .where(
+            col(Note.project_id) == project_id,
+            col(Note.category_id).is_(None),
+            col(Note.title) == title,
+            col(Note.is_hidden) == False,  # noqa: E712
+        )
+        .order_by(col(Note.id))
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
 async def list_by_project(
     session: AsyncSession,
     project_id: str,

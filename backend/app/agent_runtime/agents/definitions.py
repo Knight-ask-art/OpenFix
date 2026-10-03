@@ -68,7 +68,11 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "character_read",
                 "character_write"
             ),
-            enabled_skills=(),
+            enabled_skills=(
+                "builtin-skill--style-profile",
+                "builtin-skill--deslop-writing",
+                "builtin-skill--prose-format",
+            ),
             metadata=MappingProxyType({}),
             color="blue",
             icon="pen-tool",
@@ -99,7 +103,10 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "note_read",
                 "character_read",
             ),
-            enabled_skills=(),
+            enabled_skills=(
+                "builtin-skill--style-profile",
+                "builtin-skill--narrative-deslop",
+            ),
             metadata=MappingProxyType({}),
             color="green",
             icon="list-checks",
@@ -151,7 +158,11 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "character_read",
                 "character_write"
             ),
-            enabled_skills=(),
+            enabled_skills=(
+                "builtin-skill--author-style-profile",
+                "builtin-skill--style-profile",
+                "builtin-skill--narrative-deslop",
+            ),
             metadata=MappingProxyType({}),
         ),
         "auditor": AgentDefinition(
@@ -191,7 +202,10 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "note_write",
                 "character_read"
             ),
-            enabled_skills=(),
+            enabled_skills=(
+                "builtin-skill--style-profile",
+                "builtin-skill--deslop-writing",
+            ),
             metadata=MappingProxyType({}),
         ),
         "actor": AgentDefinition(
@@ -214,7 +228,11 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "character_read",
                 "character_write"
             ),
-            enabled_skills=(),
+            enabled_skills=(
+                "builtin-skill--style-profile",
+                "builtin-skill--deslop-writing",
+                "builtin-skill--prose-format",
+            ),
             metadata=MappingProxyType({}),
         ),
         "reviewer": AgentDefinition(
@@ -233,7 +251,13 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "character_read",
                 "note_read"
             ),
-            enabled_skills=(),
+            enabled_skills=(
+                "builtin-skill--style-profile",
+                "builtin-skill--narrative-deslop",
+                "builtin-skill--deslop-lexicon",
+                "builtin-skill--story-quality",
+                "builtin-skill--dialogue-design",
+            ),
             metadata=MappingProxyType({}),
         ),
     }
