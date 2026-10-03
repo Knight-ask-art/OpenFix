@@ -1,5 +1,15 @@
 # OpenFix V1.0 完成验收 - Evidence
 
+## 2026-10-04 自然度增强最新包、实际备份缺陷与收尾
+
+- 当前源码 HEAD `f9d680b9f8157068571065dc92a3288ac52e4f4d` / `feature/branding`，一个工作树；`bfec5d1` 自然度增强、`d9e63e8` owned smoke 卸载、`f9d680b` session backup filter。
+- 首轮 `j-87fcyi` 退出 1：自动备份遇到 Chromium `Network/Cookies` EBUSY；其余安装/创作/重启检查、owned 卸载和目录清理通过。保留有效失败，最终成功不改写它。
+- `j-oj5yw5` 最终退出 0：当前包构建、26 项 release 静态检查、644 backend source/733 frontend 逐字节核对、64 项合成 packaged smoke 全通过。附加核验 56 desktop dist 与 app.asar，ZIP frontend/wheel/asar/update 一致。
+- `j-8zn3cb` 退出 0，41 Node passed 与 desktop lint/typecheck；`j-4hts2w` 退出 0，build:main、80 Node passed/1 POSIX-only skipped 与 desktop lint/typecheck；`j-ltrge5` 退出 0，Ruff/ty 与 250 个自然度/Style/Context/Skill/API 回归通过（5.98s）。原完整 2139 项后端结果见自然度报告，不冒充收尾重新全量执行。
+- 最终产物/包内容/签名/清理元数据见 `docs/aegis/reports/2026-10-04-current-package.md` 与 `tmp/v1-latest-package-20261004/{contents-readback,delivery-readback,portable-readback,signature-readback,cleanup-final}.json`。EXE/ZIP 为最新 hash，历史 71ef0d3 包记录保留为历史。
+- 独立 OS/registry 核查：owned 进程 0，9224 listener 0，smoke Temp 目录 0，OpenFix HKCU/HKLM 32/64 两类登记 0；原 9000 listener 1。精确清理 win-unpacked 和独立 UV cache 共 395,950,853 bytes，5 个交付文件 hash 清理前后不变。
+- 本机切片 evidence-finalized / 信心 B；完整 V1 仍 needs-verification：真实模型与小说盲评、干净历史升级/原数据、native ARM64、远端 Actions/Release、签名。安装包版本 0.11.1、Authenticode NotSigned，未签名结论由实际读取证实。
+
 ## 2026-10-03 本地 x64 包终态与资源清理
 
 - 当前证据：本地x64包已完成构建和静态验收，packageSourceHead为71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b，版本0.11.1。四个打包命令exit0，实际26项release静态校验通过；40个源码输入、733个验收frontend产物、5个交付文件重新读回hash一致。安装包Authenticode实测NotSigned。75 production-preview browser及184 Node、backend120target/2027full的已绑定证据保留。精确win-unpacked和独立UV缓存共清理395924501bytes，一个工作树；完整V1 needs-verification。
@@ -419,4 +429,14 @@
 - Source commit: c9d589fd6995abc3364e7514c75911bb50773c66
 - Summary: 在原openfic marker owner绑定expectedVersion+selected wheel实际字节SHA256，legacy纯版本marker一次重装；同名同版本内容变化强制重装，同字节移动路径不重装。读取失败不得ready、pip失败不写新身份、marker写失败传播；在线fallback及Python/CLI/venv/data layout保留。actual compiled exported inspect/ensure与actual commands模块经VM/严格fake subprocess/net测试，合成bytes不可安装。初轮fixture安装index fallback吞assert缺口以完整fakeSpawn checked记录修正；干净布局缺tmp以root核验后非递归mkdir/EEXIST+unlinked验证修正，不删除共享tmp。fresh SPEC/QUALITY PASS；j-wseclf terminal0，desktop lint/type/full build、10 cases passed(622.6769ms)，同一10 cases在初始无tmp隔离布局复跑passed(619.6525ms)，父目录创建且scratch全部删除。实际compiled inputs与复制/current hash相符；整体118 browser与七source hashes不变。精确任务目录51537bytes已删、19003释放，一棵worktree。runtime763(+16)/test473 physical lines，无新增installer/owner/依赖/公共schema或数据迁移；字节不同的等价rebuild也会重装是明确成本。confidence B；真实Python/pip/wheel安装、安装期间文件变化、marker写入中断、Windows覆盖升级、native ARM64和Release/signing未由此证明，完整V1仍needs-verification。
 - Verifier: 协调者源差异与完整终态检查；receipt verifier核对七个当前源码hash、实际编译后模块hash、八个命令exit0、118个完成用例、两轮同一10-case runtime suite及精确目录/端口清理。bundle/check仅证明记录结构，Git事实由白名单提交与终态读回。
+- Evidence status: evidence-finalized
+
+## EvidenceBundleDraft: v1-current-package-and-smoke-cleanup-20261004
+
+- Artifact key: v1-current-package-and-smoke-cleanup-20261004
+- Slice ID: v1-current-package-and-smoke-cleanup-20261004
+- Type: local-package-and-owned-smoke
+- Source: docs/aegis/reports/2026-10-04-current-package.md
+- Summary: 源码f9d680b当前0.11.1 x64包，j-oj5yw5退出0，26 release及64 smoke PASS；644后端、733前端、56 desktop dist逐字节一致，ZIP绑定一致；41 Node及80 Node/1 POSIX-only skip，Ruff/ty/250相关回归退出0。首轮j-87fcyi EBUSY失败保留；owned目录/登记/进程0，9224释放、9000保留，精确清理395950853bytes，5交付hash不变。NotSigned；整体V1仍需外部验收。
+- Verifier: coordinator actual commands, artifact bytes, OS process/port/registry and cleanup readback
 - Evidence status: evidence-finalized

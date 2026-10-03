@@ -4,14 +4,15 @@
   "taskIntentRef": "docs/aegis/work/2026-10-02-v1-completion/task-intent-draft.json",
   "baselineRefs": [
     "新版本/docs/03-source-change-list.md §42",
-    "docs/aegis/plans/2026-10-01-phase5-windows-release-updates.md"
+    "新版本/docs/04-fork-and-packaging-roadmap.md Phase 5",
+    "docs/aegis/reports/2026-10-04-novel-naturalness.md",
+    "docs/aegis/reports/2026-10-04-current-package.md"
   ],
-  "scopeStatus": "本地x64包已完成构建和静态验收，packageSourceHead为71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b，版本0.11.1。四个打包命令exit0，实际26项release静态校验通过；40个源码输入、733个验收frontend产物、5个交付文件重新读回hash一致。安装包Authenticode实测NotSigned。75 production-preview browser及184 Node、backend120target/2027full的已绑定证据保留。精确win-unpacked和独立UV缓存共清理395924501bytes，一个工作树；完整V1 needs-verification。",
-  "compatStatus": "保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。本轮只更新终态记录，本地x64包与验收输入hash一致；构建与静态检查不等同于当前安装包runtime、真实provider、干净升级或ARM64发布验收。",
-  "retirementStatus": "typed BackgroundModelUnavailableError仅HTTP400返回stable code/message，其他validation400/provider safe502及success/rollback保留；五消费者仅exact400+code显示en/zh-CN设置引导，退役onboarding中文关键词推断。原位置owner测量surface/viewport并fit/clamp，退役固定200/240/translateY推断；layout effect/observer/resize与CSS限高、结果宽度防越界。原scroll callback仅内部Node目标不close，外部/document/null/非Node继续close，selection/request/explicit Accept/conflict/Reject/Escape/pointer保留。writing原loadLastChapter effect等isChaptersLoading/chaptersData并绑定deps，退役未知目录上完成初始化；读取旧记忆只剥离一次chapter:前缀并经当前章树准入，producer复用currentChapterId写canonical rawID，笔记/空标签不覆盖记忆；退役tabID写入chapter-memory，原tabs-present/ready-empty/mobile fallback/desktop empty/schema/helper保留，无新state/API或owner。welcome仅提高原.onboarding-badge在原dialog下的CSS selector specificity，退役Radix.rt-Box覆盖flex的错误效果，56/26/BookOpenText/颜色/文案/JSX/开始交互保留。",
+  "scopeStatus": "本机切片evidence-finalized；源码f9d680b/feature/branding、一个worktree，26 release及64当前包合成smoke通过，250相关回归/Ruff/ty通过；用户授权显式路径提交并推送自有OpenFix。本次文档变更不改变业务/测试输入。",
+  "compatStatus": "复用现有Notes/Skill/context/dispatch及Data Manager；DB Agent/Prompt/空skills覆盖保留，普通数据不被session filter排除。版本0.11.1，第三方provider行为与升级尚需外部验收。",
+  "retirementStatus": "退役smoke只删目录不卸载的路径与备份Chromium网络状态；保留IndexedDB记录/数据库/凭据、fail-closed锁与symlink。owned卸载/登记及清理真实通过；win-unpacked和专用UV cache精确清理395950853bytes，交付hash不变，9000服务保留。",
   "newRiskSignals": [
-    "本地x64安装包/ZIP/wheel已重建并静态验收，安装包Authenticode实测NotSigned。当前包运行、真实provider/生产worker、Electron/native生命周期、真实NSIS Abort/registry/UAC/Windows锁/旧uninstaller执行、干净Windows11历史升级及原数据、native ARM64、远端双架构Release和正式签名仍未验收；完整V1 needs-verification。",
-    "原加载失败根因未知，后续当前source全组成功不证明其根因。"
+    "当前包合成model不能证明真实小说质量；干净历史升级/原数据、native ARM64、远端Actions/Release、正式签名仍未验收。NotSigned由实际Authenticode读回。首轮j-87fcyi备份EBUSY有效失败保留。"
   ],
   "decision": "needs-verification"
 }

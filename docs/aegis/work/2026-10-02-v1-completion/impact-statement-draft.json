@@ -1,13 +1,16 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "affectedLayers": [
-    "backend retrieval / context / storage / agent; frontend story-memory status; desktop release verification"
+    "backend retrieval / context / storage / agent; frontend story-memory status; desktop release verification",
+    "现有 Skills/Prompt/Notes 文风短卡；desktop smoke installation lifecycle、Data Manager/IPC session backup policy"
   ],
   "owners": [
-    "world_entry_meta_service and Story Memory index/status/search owners"
+    "world_entry_meta_service and Story Memory index/status/search owners",
+    "Notes/style_profile_service、既有 Skill loader/context part/dispatch；createSmokeInstallation；getDataOperationOptions/backupData/copyTree/measureTreeSize"
   ],
   "invariants": [
-    "ai_visible=false 即刻对模型生效；stale index 不可向 Agent 提供旧数据；source snapshot 改变后不得显示 ready"
+    "ai_visible=false 即刻对模型生效；stale index 不可向 Agent 提供旧数据；source snapshot 改变后不得显示 ready",
+    "用户自定义 Agent/Prompt 及显式空 Skills 优先；Style Card 不带原样本；只卸载本次 owned smoke；备份保留 IndexedDB 草稿、数据库和凭据，普通数据中的同名文件不被 session 排除策略误删"
   ],
   "compatBoundary": "复用既有 RetrievalIndex 与 Story Memory API；只在必要时追加向后兼容迁移；保留既有未提交 V1 改动",
   "nonGoals": [

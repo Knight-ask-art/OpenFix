@@ -47,3 +47,7 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-claude-review-attempt-20261004.json | 2026-10-04-llm-token-efficiency-delivery evidence claude-review-attempt-20261004 |
 | 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/gate-input-pack.json | 2026-10-04-llm-token-efficiency-delivery gate input pack |
 | 2026-10-04 | work | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/proof-bundle.md | 2026-10-04-llm-token-efficiency-delivery proof bundle |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-package-and-smoke-cleanup-20261004.json | 2026-10-02-v1-completion evidence v1-current-package-and-smoke-cleanup-20261004 |
+| 2026-10-04 | plan | docs/aegis/plans/2026-10-04-novel-naturalness.md | 小说自然度增强实施计划 |
+| 2026-10-04 | report | docs/aegis/reports/2026-10-04-novel-naturalness.md | 小说自然度增强实现与验证 |
+| 2026-10-04 | report | docs/aegis/reports/2026-10-04-current-package.md | 最新 Windows 包与 smoke 清理验收 |

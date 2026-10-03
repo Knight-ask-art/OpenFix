@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "v1-current-package-and-smoke-cleanup-20261004",
+  "type": "local-package-and-owned-smoke",
+  "source": "docs/aegis/reports/2026-10-04-current-package.md",
+  "summary": "源码f9d680b当前0.11.1 x64包，j-oj5yw5退出0，26 release及64 smoke PASS；644后端、733前端、56 desktop dist逐字节一致，ZIP绑定一致；41 Node及80 Node/1 POSIX-only skip，Ruff/ty/250相关回归退出0。首轮j-87fcyi EBUSY失败保留；owned目录/登记/进程0，9224释放、9000保留，精确清理395950853bytes，5交付hash不变。NotSigned；整体V1仍需外部验收。",
+  "verifier": "coordinator actual commands, artifact bytes, OS process/port/registry and cleanup readback",
+  "sliceId": "v1-current-package-and-smoke-cleanup-20261004",
+  "evidenceStatus": "evidence-finalized",
+  "attempts": [
+    {
+      "attemptId": "j-87fcyi",
+      "attemptStatus": "failed",
+      "summary": "首轮包运行的自动备份复制 Chromium Network/Cookies 遇到 EBUSY，退出1；创作与重启链路、owned卸载和临时目录清理通过。原有效失败保留，后续修复另验。",
+      "evidenceRefs": [
+        "docs/aegis/reports/2026-10-04-current-package.md"
+      ],
+      "updatedAt": "2026-10-04"
+    }
+  ],
+  "attemptSummary": {
+    "blocked": 0,
+    "failed": 1,
+    "attempted": 0,
+    "total": 1,
+    "lastAttemptId": "j-87fcyi"
+  },
+  "updatedAt": "2026-10-04"
+}

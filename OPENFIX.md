@@ -541,3 +541,15 @@ OpenFix 自有标识首轮设计已落地：以打开的书页和校订符号组
 * 安装包Authenticode只读实测 **NotSigned / 无签名证书**。构建日志出现signtool阶段不能用于宣称正式签名。
 * 精确展开目录清理 **394171878bytes**、独立UV缓存清理 **1752623bytes**，合计 **395924501bytes**，清理后独立确认不存在。保留交付包和小证据文件，仍只有一个工作树。
 * 当前包实际启动、真实模型、干净Windows11历史升级/原数据、native ARM64、远端双架构Release及正式签名仍需验收；**完整V1.0保持needs-verification**。本轮构建与静态包完成不等于正式V1发布。
+
+**小说自然度增强与最新 Windows x64 包（2026-10-04；本机合成验收通过）**：
+
+* 自然度源码提交 `bfec5d1`：统一事实/POV/声线/文风/自然度/格式/表层规则优先级，新增 Narrative N1–N8 与 Style Profile，复用现有 Notes、Skill lazy loading 和 dispatch。Writer 聚焦创作，Reviewer 输出风险向量与定位 issue，Actor 按最小有效修改处理。完整 25 文件说明与静态 Token 测量见 `docs/aegis/reports/2026-10-04-novel-naturalness.md`。
+* 源码门禁：实现阶段完整 backend **2139 passed**，收尾 `j-ltrge5` 的 Ruff/ty 与 **250 targeted passed**；frontend 452 文件 lint/type-check 零错误，desktop lint/type-check/build 通过。大 chunk warning 保留，真实小说质量未做盲评。
+* 首轮最新包 `j-87fcyi` 因自动备份复制 Chromium `Network/Cookies` 遇到 EBUSY 而退出 1；安装/创作/重启路径通过，owned 卸载和临时目录清理成功。这次失败保留，不能记为全绿。
+* `d9e63e8` 修复 smoke 缺少卸载造成登记残留；`f9d680b` 在原 Data Manager 中精确排除 session 网络状态和 LevelDB LOCK，保留数据库、凭据与 IndexedDB 草稿。新/相关 Node 回归分别 **41 passed**、**80 passed / 1 POSIX-only skipped**。
+* 最终 `j-oj5yw5` 在源码 HEAD `f9d680b9f8157068571065dc92a3288ac52e4f4d` 构建，版本仍为 `0.11.1`；**26 release checks、64 packaged smoke checks** 全通过，退出 0。包含首次安装/运行时、创作数据、Inline AI 候选/接受、Agent、一致性定位/分析、DOCX、重启数据/加密凭据、自动备份和 owned 卸载清理。
+* 包内 **644 backend source、733 frontend artifacts、56 desktop dist** 与本地逐字节一致，ZIP 的 frontend/wheel/asar/update 配置另行核对；自然度与 Token 优化已进入交付包。
+* 最新 EXE **158,052,978 bytes**，SHA-256 `a968b1113488e67f767d473c48ad9c51f811415d7cb35df075fdc775d80c525b`；ZIP **188,491,061 bytes**，SHA-256 `8958ec5fdf55bbc3fba1477ee29516b9539fa11ead75c50a0fd2e63f0008cadb`。签名只读实测 **NotSigned / 无 signer 或 timestamp certificate**。
+* 独立清理核查：smoke Temp 目录、安装登记、本次进程均为 0，9224 释放；原 9000 服务保留。展开目录与独立 UV 缓存精确清理 **395,950,853 bytes**，交付文件前后 hash 一致，维持一个工作树。
+* 用户已授权提交并推送自有 `Knight-ask-art/OpenFix`，覆盖此前不推送的限制。完整报告见 `docs/aegis/reports/2026-10-04-current-package.md`；正式 V1 仍需真实供应商/小说质量、干净 Windows 11 历史升级和原数据、native ARM64、远端 Actions/Release、签名身份/证书链验收，状态保持 **needs-verification**。

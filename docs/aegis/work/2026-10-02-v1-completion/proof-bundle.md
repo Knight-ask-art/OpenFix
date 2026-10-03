@@ -7,7 +7,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 ## Task Intent
 
 - Requested outcome: 按 V1.0 PRD 和源码改造清单第42节完成可在本机完成的产品修复与验收
-- Scope: 新版本/OpenFix 中 V1.0 残余实现与本机验收；不修改 OpenFic 上游；2026-10-03 用户明确授权本地里程碑提交；不创建 tag/Release，不签名/推送
+- Scope: 新版本/OpenFix 中 V1.0 残余实现与本机验收；用户明确授权完成后提交全部项目改动并推送自有 OpenFix 仓库，覆盖旧的仅本地提交限制；不修改 OpenFic 上游，不创建 tag/Release 或使用正式签名身份。当前切片验证自然度增强/Token 优化最新包、smoke 生命周期及备份文件锁修复。
 
 ## Impact
 
@@ -24,6 +24,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-package-and-smoke-cleanup-20261004.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-installer-manual-upgrade-preflight-20261003.json
@@ -42,6 +43,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-package-and-smoke-cleanup-20261004.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-installer-manual-upgrade-preflight-20261003.json
@@ -65,7 +67,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 
 ## Drift Check
 
-- Scope status: 本地x64包已完成构建和静态验收，packageSourceHead为71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b，版本0.11.1。四个打包命令exit0，实际26项release静态校验通过；40个源码输入、733个验收frontend产物、5个交付文件重新读回hash一致。安装包Authenticode实测NotSigned。75 production-preview browser及184 Node、backend120target/2027full的已绑定证据保留。精确win-unpacked和独立UV缓存共清理395924501bytes，一个工作树；完整V1 needs-verification。
-- Compatibility status: 保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。本轮只更新终态记录，本地x64包与验收输入hash一致；构建与静态检查不等同于当前安装包runtime、真实provider、干净升级或ARM64发布验收。
-- Retirement status: typed BackgroundModelUnavailableError仅HTTP400返回stable code/message，其他validation400/provider safe502及success/rollback保留；五消费者仅exact400+code显示en/zh-CN设置引导，退役onboarding中文关键词推断。原位置owner测量surface/viewport并fit/clamp，退役固定200/240/translateY推断；layout effect/observer/resize与CSS限高、结果宽度防越界。原scroll callback仅内部Node目标不close，外部/document/null/非Node继续close，selection/request/explicit Accept/conflict/Reject/Escape/pointer保留。writing原loadLastChapter effect等isChaptersLoading/chaptersData并绑定deps，退役未知目录上完成初始化；读取旧记忆只剥离一次chapter:前缀并经当前章树准入，producer复用currentChapterId写canonical rawID，笔记/空标签不覆盖记忆；退役tabID写入chapter-memory，原tabs-present/ready-empty/mobile fallback/desktop empty/schema/helper保留，无新state/API或owner。welcome仅提高原.onboarding-badge在原dialog下的CSS selector specificity，退役Radix.rt-Box覆盖flex的错误效果，56/26/BookOpenText/颜色/文案/JSX/开始交互保留。
+- Scope status: 本机切片evidence-finalized；源码f9d680b/feature/branding、一个worktree，26 release及64当前包合成smoke通过，250相关回归/Ruff/ty通过；用户授权显式路径提交并推送自有OpenFix。本次文档变更不改变业务/测试输入。
+- Compatibility status: 复用现有Notes/Skill/context/dispatch及Data Manager；DB Agent/Prompt/空skills覆盖保留，普通数据不被session filter排除。版本0.11.1，第三方provider行为与升级尚需外部验收。
+- Retirement status: 退役smoke只删目录不卸载的路径与备份Chromium网络状态；保留IndexedDB记录/数据库/凭据、fail-closed锁与symlink。owned卸载/登记及清理真实通过；win-unpacked和专用UV cache精确清理395950853bytes，交付hash不变，9000服务保留。
 - Advisory decision: needs-verification

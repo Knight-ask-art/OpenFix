@@ -9,7 +9,7 @@
   "nonGoals": [
     "OpenFic 上游、真实发布/签名、清理项目既有改动、未排期的全书检查任务化"
   ],
-  "scope": "新版本/OpenFix 中 V1.0 残余实现与本机验收；不修改 OpenFic 上游；2026-10-03 用户明确授权本地里程碑提交；不创建 tag/Release，不签名/推送",
+  "scope": "新版本/OpenFix 中 V1.0 残余实现与本机验收；用户明确授权完成后提交全部项目改动并推送自有 OpenFix 仓库，覆盖旧的仅本地提交限制；不修改 OpenFic 上游，不创建 tag/Release 或使用正式签名身份。当前切片验证自然度增强/Token 优化最新包、smoke 生命周期及备份文件锁修复。",
   "changeKinds": [
     "bugfix"
   ],

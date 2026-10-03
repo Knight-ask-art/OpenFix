@@ -2,11 +2,13 @@
   "schemaVersion": "aegis.schema.v0",
   "baselineRefs": [
     "新版本/docs/03-source-change-list.md §42",
-    "docs/aegis/plans/2026-10-01-phase5-windows-release-updates.md"
+    "新版本/docs/04-fork-and-packaging-roadmap.md Phase 5",
+    "docs/aegis/reports/2026-10-04-novel-naturalness.md",
+    "docs/aegis/reports/2026-10-04-current-package.md"
   ],
   "impactStatement": "docs/aegis/work/2026-10-02-v1-completion/impact-statement-draft.json",
   "compatPlan": "复用既有 RetrievalIndex 与 Story Memory API；只在必要时追加向后兼容迁移；保留既有未提交 V1 改动",
-  "retirementPlan": "typed BackgroundModelUnavailableError仅HTTP400返回stable code/message，其他validation400/provider safe502及success/rollback保留；五消费者仅exact400+code显示en/zh-CN设置引导，退役onboarding中文关键词推断。原位置owner测量surface/viewport并fit/clamp，退役固定200/240/translateY推断；layout effect/observer/resize与CSS限高、结果宽度防越界。原scroll callback仅内部Node目标不close，外部/document/null/非Node继续close，selection/request/explicit Accept/conflict/Reject/Escape/pointer保留。writing原loadLastChapter effect等isChaptersLoading/chaptersData并绑定deps，退役未知目录上完成初始化；读取旧记忆只剥离一次chapter:前缀并经当前章树准入，producer复用currentChapterId写canonical rawID，笔记/空标签不覆盖记忆；退役tabID写入chapter-memory，原tabs-present/ready-empty/mobile fallback/desktop empty/schema/helper保留，无新state/API或owner。welcome仅提高原.onboarding-badge在原dialog下的CSS selector specificity，退役Radix.rt-Box覆盖flex的错误效果，56/26/BookOpenText/颜色/文案/JSX/开始交互保留。",
+  "retirementPlan": "退役smoke只删目录不卸载的路径与备份Chromium网络状态；保留IndexedDB记录/数据库/凭据、fail-closed锁与symlink。owned卸载/登记及清理真实通过；win-unpacked和专用UV cache精确清理395950853bytes，交付hash不变，9000服务保留。",
   "evidenceBundle": [
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json",
@@ -15,6 +17,7 @@
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-package-and-smoke-cleanup-20261004.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-installer-manual-upgrade-preflight-20261003.json",
