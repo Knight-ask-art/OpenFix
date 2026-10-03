@@ -22,6 +22,11 @@ export const UNAVAILABLE_MESSAGE = "synthetic-backend-light-model-text";
 /** 普通失败的字符串 detail：包含“模型”也绝不能触发不可用分类。 */
 export const ORDINARY_DETAIL = "Synthetic ordinary failure 模型 400";
 
+/** inline-ai 成功分支返回的合成候选项（result 字段，单一导出常量）。 */
+export const INLINE_RESULT_TEXT = "Synthetic polished version of the selected text.";
+/** inline-ai 成功分支返回的合成模型标识（model 字段）。 */
+export const INLINE_MODEL = "synthetic-inline-model";
+
 export const CHAPTER_CONTENT = "Synthetic selection body for inline AI.";
 
 export type AiEndpoint =
@@ -42,7 +47,8 @@ export const AI_ENDPOINTS: AiEndpoint[] = [
 export type StubResponse =
   | { kind: "unavailable" }
   | { kind: "detail"; status: number; detail: string }
-  | { kind: "success" };
+  /** success 默认返回单一导出的短候选项；inlineResult 仅供长候选项滚动回归覆盖 result 字段。 */
+  | { kind: "success"; inlineResult?: string };
 
 export interface RecordedRequest {
   endpoint: AiEndpoint;
@@ -350,6 +356,21 @@ export async function installAiErrorApp(
       });
       return;
     }
+    if (endpoint === "inline-ai") {
+      const payload = body as { selected_text?: unknown } | null;
+      const original =
+        payload && typeof payload.selected_text === "string" ? payload.selected_text : "";
+      await route.fulfill({
+        status: 200,
+        json: {
+          original,
+          result: response.inlineResult ?? INLINE_RESULT_TEXT,
+          model: INLINE_MODEL,
+          usage: null,
+        },
+      });
+      return;
+    }
     await route.fulfill({ status: 200, json: {} });
   };
 
@@ -524,6 +545,129 @@ export async function expectNoUnexpected(page: Page, state: AiErrorState): Promi
   await expect.poll(() => state.socketConnected).toBe(true);
   const undrained = AI_ENDPOINTS.filter((endpoint) => state.pending(endpoint) > 0);
   expect(undrained).toEqual([]);
+}
+
+/** 应用自身（Dexie）创建的本地数据库与其 store，见 src/lib/local-db.ts。 */
+const LOCAL_DATABASE_NAME = "OpenFicDB";
+const LAST_CHAPTERS_STORE = "projectLastChapters";
+const TABS_STORE = "projectTabs";
+/** 等待应用自身建库的上限（毫秒）：超时即失败，绝不代为创建或迁移。 */
+const DATABASE_WAIT_TIMEOUT = 10_000;
+
+/**
+ * 用原生 IndexedDB 预置“最后访问章节”，让写作页自动打开编辑器。
+ *
+ * 只读写应用自身已创建的 OpenFicDB：先等它出现，再以无版本方式打开现有连接并校验两个 store，写入精确
+ * 记录、等待事务提交后回读校验，同时确认该项目没有遗留的持久标签页（不删除任何记录）。连接、事务与请求
+ * 错误一律 reject，连接一律在 finally 中关闭。
+ */
+export async function seedLastChapterMemory(
+  page: Page,
+  projectId: string,
+  chapterId: string,
+): Promise<void> {
+  await page.evaluate(
+    async (value: {
+      databaseName: string;
+      lastChaptersStore: string;
+      tabsStore: string;
+      waitTimeout: number;
+      projectId: string;
+      chapterId: string;
+    }): Promise<void> => {
+      const { databaseName, lastChaptersStore, tabsStore, waitTimeout } = value;
+
+      const requestResult = <R>(request: IDBRequest<R>): Promise<R> =>
+        new Promise<R>((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error ?? new Error("IndexedDB request failed"));
+        });
+
+      const transactionDone = (transaction: IDBTransaction): Promise<void> =>
+        new Promise<void>((resolve, reject) => {
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () =>
+            reject(transaction.error ?? new Error("IndexedDB transaction failed"));
+          transaction.onabort = () =>
+            reject(transaction.error ?? new Error("IndexedDB transaction aborted"));
+        });
+
+      const deadline = Date.now() + waitTimeout;
+      for (;;) {
+        const databases = await indexedDB.databases();
+        if (databases.some((entry) => entry.name === databaseName)) break;
+        if (Date.now() > deadline) throw new Error(`${databaseName} was not created by the app`);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        let failed = false;
+        const fail = (error: Error): void => {
+          if (failed) return;
+          failed = true;
+          reject(error);
+        };
+        const request = indexedDB.open(databaseName);
+        request.onupgradeneeded = () => {
+          request.transaction?.abort();
+          fail(new Error(`${databaseName} unexpectedly required an upgrade`));
+        };
+        request.onerror = () => fail(request.error ?? new Error(`${databaseName} open failed`));
+        request.onblocked = () => fail(new Error(`${databaseName} open blocked`));
+        request.onsuccess = () => (failed ? request.result.close() : resolve(request.result));
+      });
+
+      try {
+        for (const store of [lastChaptersStore, tabsStore]) {
+          if (!database.objectStoreNames.contains(store)) {
+            throw new Error(`${databaseName} is missing the ${store} store`);
+          }
+        }
+
+        const seed = database.transaction(lastChaptersStore, "readwrite");
+        const seedDone = transactionDone(seed);
+        await requestResult(
+          seed.objectStore(lastChaptersStore).put({
+            projectId: value.projectId,
+            chapterId: value.chapterId,
+            updatedAt: new Date(),
+          }),
+        );
+        await seedDone;
+
+        type StoredLastChapter = { projectId?: unknown; chapterId?: unknown };
+        const readback = database.transaction(lastChaptersStore, "readonly");
+        const readbackDone = transactionDone(readback);
+        const memory = await requestResult<StoredLastChapter | undefined>(
+          readback.objectStore(lastChaptersStore).get(value.projectId),
+        );
+        await readbackDone;
+        const seededProjectId = memory ? memory.projectId : null;
+        const seededChapterId = memory ? memory.chapterId : null;
+        if (seededProjectId !== value.projectId || seededChapterId !== value.chapterId) {
+          throw new Error(`failed to seed the last chapter memory for ${value.projectId}`);
+        }
+
+        const tabs = database.transaction(tabsStore, "readonly");
+        const tabsDone = transactionDone(tabs);
+        const savedTabs = await requestResult(tabs.objectStore(tabsStore).count(value.projectId));
+        await tabsDone;
+        if (savedTabs !== 0) {
+          throw new Error(`expected no saved tabs for ${value.projectId}, found ${savedTabs}`);
+        }
+      } finally {
+        database.close();
+      }
+    },
+    {
+      databaseName: LOCAL_DATABASE_NAME,
+      lastChaptersStore: LAST_CHAPTERS_STORE,
+      tabsStore: TABS_STORE,
+      waitTimeout: DATABASE_WAIT_TIMEOUT,
+      projectId,
+      chapterId,
+    },
+  );
 }
 
 /** 断言某个 AI 端点的原始请求体形状（不做实现复制，只做严格键校验）。 */
