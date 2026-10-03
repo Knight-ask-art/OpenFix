@@ -25,6 +25,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createSmokeInstallation } from "./packaged-smoke-installation.mjs";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = path.join(desktopDir, "dist-electron");
@@ -49,6 +50,7 @@ const smokeSpawnEnv = {
 // profile 在 %APPDATA%，两者天然分离。
 const installDir = path.join(workspace, "install");
 const userDataDir = path.join(workspace, "profile");
+const smokeInstallation = createSmokeInstallation({ installDir });
 const smokeData = {};
 const inlineSmokeText = "OpenFix-Smoke-Inline 原文：夜风吹过城门，灯火摇曳。";
 const inlineSmokeResult = "夜风轻拂城门，灯火在风中摇曳。";
@@ -115,6 +117,15 @@ async function cleanupSmokeWorkspace(recordChecks = true) {
   if (recordChecks) check("只关闭本次冒烟启动的进程", appStopped);
 
   if (keepProfile || !appStopped) {
+    console.log(`  保留环境: ${workspace}`);
+    return;
+  }
+
+  try {
+    await smokeInstallation.cleanup();
+    if (recordChecks) check("卸载本次冒烟安装并清除安装登记", true);
+  } catch (error) {
+    check("卸载本次冒烟安装并清除安装登记", false, error.message);
     console.log(`  保留环境: ${workspace}`);
     return;
   }
@@ -436,6 +447,7 @@ async function main() {
   );
 
   console.log("1/9 静默安装…");
+  smokeInstallation.begin();
   // NSIS 要求 /D 位于最后，且包含空格时也不能被自动加引号。
   const installer = spawn(setupPath, ["/S", `/D=${installDir}`], {
     stdio: "ignore",
@@ -452,6 +464,7 @@ async function main() {
       }
     });
   });
+  smokeInstallation.verifyInstalled();
   const installedExe = path.join(installDir, "OpenFix.exe");
   check("安装后存在 OpenFix.exe", existsSync(installedExe), installedExe);
 
