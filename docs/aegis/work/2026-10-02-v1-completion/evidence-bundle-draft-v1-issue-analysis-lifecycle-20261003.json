@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "type": "local-verification",
+  "taskStartSnapshot": "b86d4646550ff7b445ae907094db037a648e201e",
+  "evidenceStatus": "evidence-finalized",
+  "artifactKey": "v1-issue-analysis-lifecycle-20261003",
+  "sliceId": "v1-issue-analysis-lifecycle-20261003",
+  "sourceCommit": "0c622005cebdf790b3e22782e2e9486ade9a2bef",
+  "updatedAt": "2026-10-03",
+  "source": "Actual terminal logs j-r642f1 and j-d884ya; tmp/issue-analysis-terminal-receipt-20261003.json; tmp/issue-analysis-current-commit-receipt-20261003.json. Fresh independent readonly Claude SPEC j-elozfp then QUALITY j-bdildw PASS; coordinator recomputed two current source hashes and checked original log byte hashes and completed case counts before local commit.",
+  "verifier": "协调者执行实际 owner after诊断、frontend437 lint/type、desktop lint/type/full build六命令exit0；TEMP-empty harness assertion失误使前置runner整体exit1，browser接续在相同原source/compiled inputs下terminal0，22新lifecycle+原118共140 passed(7.2m)。历史receipt保留当时reviews pending状态，fresh两阶段现已PASS。提交检查发现spec末尾额外空行；当前spec精确等于已执行/审阅且已暂存的旧字节减最后一个LF，无case/断言改动，此格式绑定已独立核验。",
+  "logSha256": {
+    "j-r642f1": "d1d4a7efed233c7479d50d31e65de6ae1f6d78e17272332255bd43cfe0f693e9",
+    "j-d884ya": "b82a88f94603d5aa3829df461d7459ff0cab54982a37836ee53a07c69852c443"
+  },
+  "sourceSha256": {
+    "frontend/src/features/consistency/components/issue-card.tsx": "0ec25f3ec37f5b469a501788e8cb7903bd80836ed2898d92bc783685e91ed41f",
+    "frontend/e2e/consistency-issue-analysis-lifecycle.spec.ts": "f73bb5aec771dc2555b3f230002d6fbf2d7bd5ab4e28e351edc64b3b9cc2021e"
+  },
+  "reviewedAndExecutedSpecSha256": "efe3d26471fa1469408c260a9ea83f574c691607dcaf04bc3bad3e9a865b1433",
+  "summary": "在原IssueCard分析owner绑定commit-phase mounted cleanup和monotonic revision；success/error/finally仅当前请求可发布。dismiss同步失效和清空状态，restore新请求防ABA；普通关闭dialog继续pending原语义。API/parent/selection/layout未改，无新持久化owner、公共API、依赖或共享框架。原迟到toast及旧finally干扰已退役；243行production/657行spec有界。140个合成browser用例及actual owner证据通过，包含native XHR loadend/sequence/raw payload和unknown API/socket严格断言；两stage静态PASS不替代执行。精确两验证根8340316bytes已清，owned Vite45644树停，19003释放；一个worktree。仅两path本地提交并读回SHA/message/files。",
+  "confidence": "B",
+  "uncoveredScope": "真实provider/Electron/native lifecycle/完整V1；父页passive check cleanup、DEV Axios error含正文的观察未复现、closed completed结果重开成本、非detail错误/空sources分支。本证据不接受当前backup或关闭升级/ARM64/当前包/远端Release/签名门槛。",
+  "currentSpecReverification": {
+    "runJob": "j-oys5u6",
+    "runLogSha256": "436dda0cee6a8cb89342eac8350a6cc8b6ec4afbf90966bcf29f1f39e7302486",
+    "specSha256": "f73bb5aec771dc2555b3f230002d6fbf2d7bd5ab4e28e351edc64b3b9cc2021e",
+    "result": "22 lifecycle + original118 =140 passed(30.6m), singleworker/retries0, all raw/unknown/native assertions unchanged; current EOF bytes now executed, historical EOF binding retained."
+  }
+}

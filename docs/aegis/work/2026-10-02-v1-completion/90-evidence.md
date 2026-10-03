@@ -1,5 +1,16 @@
 # OpenFix V1.0 完成验收 - Evidence
 
+## 2026-10-03 最新源码切片：分析请求与自动备份
+
+- IssueCard source commit: `0c622005cebdf790b3e22782e2e9486ade9a2bef`。原分析 owner 收回卸载、忽略和旧 revision 的 success/error/finally 发布权限；普通关闭分析窗口继续原 pending 语义。fresh Claude SPEC `j-elozfp`、QUALITY `j-bdildw` 静态 PASS；最终 `j-oys5u6` 将当前 EOF/spec SHA-256 `f73bb5aec771dc2555b3f230002d6fbf2d7bd5ab4e28e351edc64b3b9cc2021e` 纳入全 140 case 执行，22 个分析生命周期回归全部通过，历史 EOF 格式绑定证据保留。
+- Automatic backup source commit: `768db08963b009a323c561d7e9224b7854eb1d3d`，7 个生产文件、5 个测试文件。原队列内重读配置/due，timer 成功和归档失败后都恢复原来运行的服务；canonical handle 端口经私有闭包贯通既有 local/dev 初始化，活页面继续原 URL。停止失败恢复原 handle 且不覆盖新 handle；配置 producer 保留其他字段；归档历史只接纳普通文件。daily、手动数据页返回重启和现有配置/数据布局保留。
+- Executed result: `j-8w3ud8` 的 6 个静态/build/owner 诊断命令及 2 个 Node 命令全部退出 0；新 41 + 原 bundled 10 = **51 Node passed / 0 skipped**。Windows native tar 的原 archive/data-manager **24 passed / 1 POSIX-only skipped / 1 privileged Windows symlink case excluded**。fresh Claude SPEC `j-sstr1i`、QUALITY `j-cq5u0u` 静态 PASS，均无内部代理调用。
+- Final browser result: `j-oys5u6` terminal exit 0，**140 passed (30.6m)**，single worker / retries 0 / 原 60 秒限，7 份 spec 的 24/22/27/6/25/28/8 case 全部执行；源码、断言和 timeout 未放宽。协调者 terminal receipt verifier 退出 0，38 个当前 source inputs、15 个 compiled inputs、12 个主冻结文件、三份完整日志及两份审查哈希一致。
+- Historical failure retained: 首次 `j-8w3ud8` browser 为 126 passed / 1 timeout / 1 interrupted / 12 not run，整次 exit 1；原两个用例在 `j-v6fvgz` 各重复两次共 4 passed，再完成最终全组重验。首次超时根因未知，单次内存观测不证明归因。原健康检查 mock 按 URL 找旧 handle 的歧义经单变量反证修正为 process 身份 + URL 核验，未改业务迎合 mock。
+- Cleanup and Git: 三次精确验证根已删除，共 **10,878,423 bytes**；只停止自建 Vite 树，19003 释放。源码显式 12 路径暂存、cached diff 检查及本地提交读回完成，仍一个工作树。两份 finalized sidecar 为 `evidence-bundle-draft-v1-issue-analysis-lifecycle-20261003.json`、`evidence-bundle-draft-v1-auto-backup-continuity-20261003.json`；Aegis bundle/check 只验证记录结构。
+- Covered boundary: confidence B for these source slices。原 IPC/UI 已超过 800 行软压力，本次在原 owner 有界修复，无新持久化 owner、公共 IPC/schema、依赖或迁移；两份接近 800 行的测试在继续扩展前需拆分合成 fixture。
+- Uncovered boundary: 真实 Electron/OS 停机、晚退出/rejected stopPromise、真实 provider/wheel/pip、干净 Windows 11 旧版升级及原数据、native ARM64、当前包运行、远端双架构 Release 和签名仍未验收。完整 V1 保持 `needs-verification`。
+
 ## 本机代码门禁（2026-10-02）
 
 - Action: `uv run ruff check . && uv run ty check app && uv run pytest -q`，FastCtx job `j-7wzemr`

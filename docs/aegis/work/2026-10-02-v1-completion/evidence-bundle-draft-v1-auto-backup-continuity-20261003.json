@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "type": "local-verification",
+  "taskStartSnapshot": "b86d4646550ff7b445ae907094db037a648e201e",
+  "artifactKey": "v1-auto-backup-continuity-20261003",
+  "sliceId": "v1-auto-backup-continuity-20261003",
+  "evidenceStatus": "evidence-finalized",
+  "sourceCommit": "768db08963b009a323c561d7e9224b7854eb1d3d",
+  "updatedAt": "2026-10-03",
+  "source": "业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。",
+  "summary": "在原IPC/main/port/config/history owner修复：queue内重读当前配置与due、同步互斥、成功归档才轮转；running后端stop→archive→rotate→ready resume→done，归档失败仍恢复，stop/resume失败无假done，nonrunning不启动；从canonical handle捕获端口经私有closure贯通既有local/dev链，端口冲突失败无fallback，活SPA的cache/API/socket继续原URL；stop拒绝时仅空slot恢复原handle且rethrow原错误，不覆盖新handle；local/remote producer保留previousConfig字段；lstat+isFile只接纳普通归档，不跟随/删除目录和junction/link。退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。source physical lines：auto-backup121→125、IPC835→877、main541→556、ports17→21、openfic763→764、dev196→197、UI822→823；五新test317/798/495/797/246。IPC/UI为原有超过800行soft pressure owner，本次local-fix-without-new-responsibility与wiring-only；闭环exceeded-and-governed，继续扩两份接近800行的测试前拆分synthetic fixture，禁止借此顺带重构runtime。",
+  "verifier": "协调者完整终态/审查JSON/current hashes/逐spec140cases/精确cleanup独立读回；用户授权explicit12路径本地提交，Git SHA/message/files/status/worktree已读回。",
+  "logSha256": {
+    "j-oys5u6": "436dda0cee6a8cb89342eac8350a6cc8b6ec4afbf90966bcf29f1f39e7302486",
+    "j-8w3ud8": "26f3f0e898a755f1e47f381f42ed580291466f2073abfe253f371d90247c2806",
+    "j-v6fvgz": "5030647f156eb801ca8ff622e7ede032f59763fe9df7796c4745b00bc2e59d62"
+  },
+  "receiptSha256": "8cd9ed096f5b4973b80f66495cecae6b57594e231bcff97ab17e5d359c62cba0",
+  "runnerSha256": "6b5b3b90208d80bb8afe74eb100d3df16011fd7c3865643a4c3aa88aec5f469f",
+  "browserConfigSha256": "32693f711656619a4c9ee32d2030bd31d03d3f60da0474a9bea421961d24f63f",
+  "sourceSha256": {
+    "desktop/src/main/auto-backup.ts": "244b7405c611da5999267ccee24cc63d23d55d70702a541fecdd8451a12a76bb",
+    "desktop/src/main/ipc.ts": "10c6ac086c9319b11f0a6e3a7fd6c71c042f86df70c85076777aa536a3fb2197",
+    "desktop/src/main/main.ts": "303b791b337477e6589ee7c3bbe4caae4bb47aff7f9a138ba7d4aab0727b689f",
+    "desktop/src/main/ports.ts": "8d3a0381390e9ffac23d4a2173f3c5d4dcf62585c1a21fed55dd84e138f8d2d4",
+    "desktop/src/main/runtime/openfic.ts": "f76814872a7eee6d6f09bef13405464302e2549e638e76eee87d2d055929487a",
+    "desktop/src/main/runtime/dev-backend.ts": "4b7b3b16fccc91e6f853fa1a8d0088898c0ad77237fde18f53bc27d54c1079b0",
+    "desktop/src/ui/app.tsx": "768f987d5916f614ebbd9e161008d83d6c821e7eb691f4311203ea02d6dc0d5b",
+    "desktop/tests/main/auto-backup.test.mjs": "cc9ebd1eb654174113a0f983a6ffd7ad3fa9eccc84c97fc5ee51233e4a1b0964",
+    "desktop/tests/main/auto-backup-ipc.test.mjs": "8fe41840759a3d8567952a67469c2a3f3ebae580d081b0eb27586c7b57fbf642",
+    "desktop/tests/main/auto-backup-config.test.mjs": "f6ec32cafcb86e3684f9e3e39bccbcb11ac819b60a5ada20f6f0a9f9c6214793",
+    "desktop/tests/main/auto-backup-runtime-continuity.test.mjs": "4adab6c33719e583051de6bf9484b01e212bac47b72654ef3bcefd02123ef728",
+    "desktop/tests/main/auto-backup-cleanup.test.mjs": "127f7c9227f111d2b86649e663c603cde4a4d72bae6027afbee041cc47580aa6"
+  },
+  "compiledInputSha256": {
+    "desktop/dist/main/auto-backup.js": "460e308c8b1ceb715ce1327e6c1d4173851d178fa946e0537c64398dd8142af4",
+    "desktop/dist/main/backend-stop.js": "f5925fa1f3ff54e8f39987cb37811c972165c5c9761e73c9df8f4fd6082be383",
+    "desktop/dist/main/data-manager.js": "83865490994e6164e2e952f15ff14d1f0d574ac92981fadd9b7e8abc6900c234",
+    "desktop/dist/main/health.js": "e35ca0692e5e6227f3cd1ae3afef20aa0d6d1fe95f118d3b1a28ce62af972e2d",
+    "desktop/dist/main/ipc.js": "45fb1127851eabec37c1886754a06f958cf2f1bd92607047c4e54901cf58dc40",
+    "desktop/dist/main/main.js": "9db999658e9749b4e9fc362febb9e91d47f8d735de8ef5b94bdad02c2fb7c8c7",
+    "desktop/dist/main/ports.js": "ce19f7ac058a9d3e429a7fcca537ac7dd4df700192e0dfc6603f8fc4709c0484",
+    "desktop/dist/main/process.js": "0b1729de9d132de9ca6b7273000e16fd795dc3c6b33df8f904e7a708f1e0ecc0",
+    "desktop/dist/main/runtime/dev-backend.js": "ff5d4875939f2de92ea36f73aea88ba48f9f4c69ac5eb110f13ff0d559fef56f",
+    "desktop/dist/main/runtime/openfic-commands.js": "df234a41d235a611f72e7d89230ef6f7af4bceeab57ed605623bccdceea4685b",
+    "desktop/dist/main/runtime/openfic.js": "42f0df0c2dc2ad1a521b231f4305d7b395ea91618560655a94bc6eb951a7174f",
+    "desktop/dist/main/runtime/setup-runner.js": "b2d1cf9576d125e719e79139a71cb91e71b2907da95f1ef15ed03e0ae8f1eb00",
+    "desktop/dist/main/runtime/tar-extract.js": "99e8ea0f705b60febbb794fcd14c821d9102774924d2b337805624d50c641951",
+    "desktop/dist/shared/config.js": "c07ae35cc4046a79a2138f04491373dd291606dd9370d090353f8e1b3e9404ac",
+    "desktop/dist/shared/ipc.js": "ab95b60c9775f171df5e2435cca80c1836007e2ba0340b4b8b1807acdd190173"
+  },
+  "reviews": {
+    "SPEC": {
+      "job": "j-sstr1i",
+      "logSha256": "4ada25128da55035051db1a77fef1be4ea97526c56c001ada0b08501c20d0e31",
+      "verdict": "PASS",
+      "scope": "independent static read review"
+    },
+    "QUALITY": {
+      "job": "j-cq5u0u",
+      "logSha256": "cedfb315ae16da9203bf75be9cee5306608267d40a41ed00f95fff320c819fa4",
+      "verdict": "PASS",
+      "scope": "independent static read review"
+    }
+  },
+  "cases": {
+    "newNode": 41,
+    "existingBundledNode": 10,
+    "legacyPassed": 24,
+    "legacyPosixSkipped": 1,
+    "legacyPrivilegedExcluded": 1,
+    "browserPassed": 140,
+    "browserBySpec": {
+      "consistency-ai-project-selection.spec.ts": 24,
+      "consistency-issue-analysis-lifecycle.spec.ts": 22,
+      "consistency-result-context.spec.ts": 27,
+      "markdown-export.spec.ts": 6,
+      "outline-memory-project-selection.spec.ts": 25,
+      "project-deep-links.spec.ts": 28,
+      "project-form-boundaries.spec.ts": 8
+    }
+  },
+  "historicalAttempt": "126 passed /1 timeout /1 interrupted /12 not run; failed run retained. Exact two-case repeats4 passed and later full1worker recheck140 passed, same inputs. Timeout cause unresolved; no source/assertion/timeout/retry accommodation.",
+  "allCleanups": [
+    {
+      "path": "D:\\Codex\\projects\\ai-novel\\新版本\\OpenFix\\tmp\\openfix-lifecycle-validation-20261003-9mr8i1i7",
+      "bytes": 8364603,
+      "removed": true
+    },
+    {
+      "path": "D:\\Codex\\projects\\ai-novel\\新版本\\OpenFix\\tmp\\openfix-lifecycle-validation-20261003-zmroqate",
+      "bytes": 1256910,
+      "removed": true
+    },
+    {
+      "path": "D:\\Codex\\projects\\ai-novel\\新版本\\OpenFix\\tmp\\openfix-lifecycle-validation-20261003-v6qdszha",
+      "bytes": 1256910,
+      "removed": true
+    }
+  ],
+  "cleanupBytes": 10878423,
+  "confidence": "B",
+  "fullV1": "needs-verification",
+  "uncoveredScope": "本机synthetic VM/AST/process/net/API/socket不证明真实Electron/OS生命周期、failed-stop晚退出、memoized rejected stopPromise、真实provider/worker并发/Windows锁、真实wheel/pip、干净Windows11旧版升级及原数据、native ARM64、当前包运行、远端双架构Release和签名。首次browser超时根因未知；87%memory单次观测与focused4passed都不证明归因。"
+}

@@ -6,15 +6,17 @@
   ],
   "impactStatement": "docs/aegis/work/2026-10-02-v1-completion/impact-statement-draft.json",
   "compatPlan": "复用既有 RetrievalIndex 与 Story Memory API；只在必要时追加向后兼容迁移；保留既有未提交 V1 改动",
-  "retirementPlan": "两页raw URL/stored initializer和竞争fallback退役到canonical选择hook，原算法未改；纯版本marker改为版本+wheel字节身份，legacy一次重装，online fallback/Python/CLI/venv/data layout保留。六业务文件内原owner修复，无新installer/持久化owner/依赖/endpoint/迁移；446/299/562/583/763/473 physical lines有界。字节不同的等价rebuild也重装为明确成本。最终hash一致；精确51537bytes目录已清，唯一worktree且无新smoke。",
+  "retirementPlan": "退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。source physical lines：auto-backup121→125、IPC835→877、main541→556、ports17→21、openfic763→764、dev196→197、UI822→823；五新test317/798/495/797/246。IPC/UI为原有超过800行soft pressure owner，本次local-fix-without-new-responsibility与wiring-only；闭环exceeded-and-governed，继续扩两份接近800行的测试前拆分synthetic fixture，禁止借此顺带重构runtime。",
   "evidenceBundle": [
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-issue-analysis-lifecycle-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json"

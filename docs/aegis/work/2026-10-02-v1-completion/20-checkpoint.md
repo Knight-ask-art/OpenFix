@@ -2,36 +2,103 @@
 
 ## Current Checkpoint
 
-- Current todo: Consistency/AI 上下文与内置 wheel 内容身份均已修复、独立两阶段审查及本机验证通过；源码本地提交 1e80000 / c9d589f 已读回。保存同一工作记录的终态证据，继续对照 §42；完整 V1 仍为 needs-verification。
-- Active slice: v1-context-identity-closeout-20261003
+- Current todo: 业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。
+- Active slice: v1-issue-analysis-and-auto-backup-20261003
 - Completed todos:
-- j-wseclf terminal exit0：frontend436文件lint/type零警告/错误、desktop lint/type/完整build；118 browser passed(4.3m)，新51与原67全部通过，七个源码输入hash不变。
-- Runtime actual compiled inspect/ensure/commands 的10用例通过；同一套件在初始无tmp隔离布局再次10通过，scratch清理和父目录创建已执行证明。
-- 源码白名单提交：1e80000766558571f220a5f9366bd13594c03d48（四个UI/测试文件）；c9d589fd6995abc3364e7514c75911bb50773c66（两个runtime/测试文件）。
-- Markdown/.md/MIME、固定 metadata 计划、标题字面转义、正文保留、批次/生命周期与前端实际 mapper/selector 已贯通；14 个最终源码/测试 hash 与两份验证日志一致。
-- j-p837lv 退出 0：八文件 scoped Ruff、app-wide ty、216 定向及 2015 完整后端测试通过；j-m70e49 退出 0：434 文件 lint/type-check 零警告/错误、完整 desktop build、6 个合成浏览器用例通过。
-- 最终 fixture 仅补三个真实页面 GET 的精确合成响应，unknown API/socket 与原始五字段 POST 断言保留；fresh 有界 SPEC/QUALITY 均 PASS。
-- DOCX 正文保留和导出清理源码提交 e753bcd / f5fb74f；fresh 两阶段审查通过，最终六文件 hash 不变，143 定向和 1942 完整后端测试通过。
-- 本地提交 aa590c15039d669780e51d0193538473d9fb92cb 已完成；201 文件，提交后 OpenFix 工作区干净且只有主工作树。
-- 359c8114a889a7e700fce48441ff2d4ac6ed0219：恢复/回滚保护配置运行时，统一平台名称匹配及 IPC 路径策略。
-- ebae8a3c1939c50616996cc5390a48f1f80ddf45：保留六平台矩阵，补 Windows/Linux ARM64 Python 映射和全平台 fork wheel staging，修复安装脚本参数/退出检查。
-- 49935a428a33223f6d95141e1487a311852b9db1：表单失败保护、异步提交/缓存隔离，以及人物/世界书共享深链选择与离页项目 metadata 生命周期。
-- 本轮两页复用唯一项目选择 hook；有效离页 URL/remembered/recent 项目经 API 校验后显示，URL null/invalid 重入、迟到读取/接口和同 id 编辑状态均有回归。
-- 修复候选 metadata reject 后遗漏的 manual/current guard；直接 hook seam 从 BETA → ALPHA 改为仅 BETA，新增两页真实 pending/404/retry 回归通过。
+- IssueCard两路径已提交0c622005cebdf790b3e22782e2e9486ade9a2bef；当前EOF/spec hash f73bb5a由最终全140case重新执行覆盖，历史EOF格式绑定证据保留。
+- 自动备份/runtime12路径源码提交768db08963b009a323c561d7e9224b7854eb1d3d，explicit allowlist/cached check/commit/readback通过；记录提交不改变冻结业务证据。
+- DOCX/Markdown/表单/项目选择/Consistency-AI/wheel identity的前轮源码提交与证据保留。
 - Evidence refs:
-- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json；evidence-bundle-draft-v1-bundled-backend-identity-20261003.json；C:/Users/20969/.fastctx/jobs/j-wseclf/output.log；tmp/context-identity-terminal-receipt-20261003.json。
-- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json；FastCtx j-p837lv / j-m70e49 完整日志，tmp/markdown-export-source-manifest-20261003.json 与完整冻结 diff。
-- FastCtx j-ioqgg0，docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json；final runner 退出 0，精确隔离目录已删除。
-- FastCtx j-7q3b9d：433 文件 lint/type-check 零警告/错误、完整 desktop build、25 selection + 28 deep-link + 8 forms = 61 browser passed（3.4m）；源码与用例保持最终 hash。
-- FastCtx j-taxftg / j-3n8bkv：actual hook 的受控 pending/reject Promise seam，前者复现手动选择被覆盖，后者确认修复；不是完整 React/browser 验收。
-- FastCtx j-klhqxv 退出 0：fresh QUALITY PASS，确认之前 rejection guard 声明已由当前 owner 修复；当前 sidecar 为 evidence-bundle-draft-v1-outline-memory-selection-20261003.json。
-- FastCtx j-9g2cte: frontend lint/type-check、完整 desktop build 和 36 个合成浏览器用例全部通过。
-- FastCtx j-mnfh77: desktop lint/type-check/build:main、24 passed / 1 POSIX-only skipped / 1 privileged symlink excluded，YAML/六映射/安装脚本静态检查通过。
-- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
-- Blocked on: 本轮两个源码主题无最终验证失败；真实 provider、干净 Windows 11 旧版升级及原数据、native ARM64 首启、最新安装包运行、远端双架构发布和签名仍待验收。独立 IssueCard 分析异步移除生命周期未由本切片证明。
-- Next step: 读回记录提交、最终status/worktree；继续逐项对照§42。有新仓库内缺陷先复现并独立定界；外部验收以真实provider、干净Windows升级与native ARM64环境为准，保持一棵工作树和现有不重跑packaged smoke限制。
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json
+- tmp/issue-analysis-backup-terminal-receipt-20261003.json；C:/Users/20969/.fastctx/jobs/j-8w3ud8/output.log；j-v6fvgz/output.log；j-oys5u6/output.log；fresh Claude j-sstr1i/j-cq5u0u。
+- Blocked on: 本切片无源码或Claude接入阻塞；完整V1的真实provider、干净升级/native ARM64/当前包/远端Release/签名验收尚缺。
+- Next step: 本切片源码、证据与本地提交已完成；原Claude writers/reviewers与三个runner均终态，不重派。回到§42核对剩余仓库链路，优先独立核实手动覆盖升级旧卸载器的runtime保护与light_model配置引导；只能先读源码/合成接缝，不能以本切片关闭真实provider、升级、ARM64、当前包或Release/signing。继续仅Claude CLI委派，协调者独占Git/shared验证/记录/精确cleanup，不新worktree或重跑installer/packaged smoke。
 
 ## Recent Checkpoint History
+
+## 2026-10-03 Automatic Backup / Final Terminal Evidence
+
+- Measured / Git: 业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。
+- Repair / retirement: 在原IPC/main/port/config/history owner修复：queue内重读当前配置与due、同步互斥、成功归档才轮转；running后端stop→archive→rotate→ready resume→done，归档失败仍恢复，stop/resume失败无假done，nonrunning不启动；从canonical handle捕获端口经私有closure贯通既有local/dev链，端口冲突失败无fallback，活SPA的cache/API/socket继续原URL；stop拒绝时仅空slot恢复原handle且rethrow原错误，不覆盖新handle；local/remote producer保留previousConfig字段；lstat+isFile只接纳普通归档，不跟随/删除目录和junction/link。 退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。
+- Health-seam correction: 初始恢复测试按URL首个handle选旧进程，复用端口时误报失败。actual current-suite in-memory before/after证明单变量；唯一Claude j-11kbsd只改process身份选择+URL核验两行，inverse-hash证明其余suite字节不变。修正后fresh两阶段静态审查及51Node通过；未改产品迎合mock。
+- Browser stability: 首次60秒总限超时和form中断保留；原两case各重复两次通过，再全140单worker通过。未改变source/spec/断言/retries/timeout，不声称低内存就是根因。
+- Cleanup: 当前root D:\Codex\projects\ai-novel\新版本\OpenFix\tmp\openfix-lifecycle-validation-20261003-v6qdszha精确清理1256910bytes；三次共10878423bytes。only owned Vite/19003均关闭并独立复核，无新worktree/smoke。
+- Complexity / boundary: source physical lines：auto-backup121→125、IPC835→877、main541→556、ports17→21、openfic763→764、dev196→197、UI822→823；五新test317/798/495/797/246。IPC/UI为原有超过800行soft pressure owner，本次local-fix-without-new-responsibility与wiring-only；闭环exceeded-and-governed，继续扩两份接近800行的测试前拆分synthetic fixture，禁止借此顺带重构runtime。 本机synthetic VM/AST/process/net/API/socket不证明真实Electron/OS生命周期、failed-stop晚退出、memoized rejected stopPromise、真实provider/worker并发/Windows锁、真实wheel/pip、干净Windows11旧版升级及原数据、native ARM64、当前包运行、远端双架构Release和签名。首次browser超时根因未知；87%memory单次观测与focused4passed都不证明归因。 信心B，整体V1 needs-verification；Aegis bundle/check仅验证记录结构。
+
+## 2026-10-03 Terminal Readback / Backup Review Gap
+
+- Current review readback: j-11kbsd terminal0/DONE，仅 health mock 两行改变，inverse-hash 精确回到旧 e9e295ff，其他11inputs不变；新runtime test4adab6c3/40002bytes/797行。fresh SPEC j-sstr1i 和 QUALITY j-cq5u0u 均terminal0/is_error=false/PASS、内部spawned0，完整result已解析。QUALITY 的“old let renderer reload onto new port”/“Retirement none”历史解释不采用：actual j-rqr2nj证明原活SPA继续缓存旧URL，实际退役的是无captured port的generic resume和timer停止后不恢复等旧路径；两阶段均为静态审查，不替代执行。
+- Browser attempt j-8w3ud8 terminal1：六前置命令/新41+原bundled10 Node均0/native legacy24pass+1POSIXskip+1privilegedexcluded；browser126passed/1world-info preference poll timeout/1form interrupted/12notrun (9.9m)，不可记为全通过。only owned Vite12300树停、19003释放、精确无link/identity结果根9mr8i1i7已清8364603bytes。初次该超时的error-context被runner清理，现runner在精确清理前保留最多5份、各≤256KB的synthetic error-context；日志仍完整保留。
+- Focused j-v6fvgz terminal0：相同source/compiled输入下原world-info偏好与new-project reopening各重复两次，4passed(2.6m)，未改production/spec/断言/timeout；only owned Vite32704树停、19003释放、精确zmroqate根清1256910bytes。观察到两用例在不同执行中33.1/55.0s与12.8/29.0s，Windows native memory counters87%/available1984MiB；这些不证明超时根因，不修改product迎合超时。CIM只读计数访问失败未取得结果。当前j-oys5u6全140单worker重验，强制复用前置证据同hash，未扩大timeout/retry或跳过case。
+- Resume correction: 原 Current/todo/resume 中 j-olr6mb running、helper 未修和 GNU tar 待反证已是过时快照；实际 writer j-olr6mb/j-x3o6t2/j-ulsre3 均终态冻结。j-ul4l4f 实际 cleanup11 passed；j-y49pxj 终态0/is_error=false/SPEC 静态 PASS，完整 result 已解析读回，未执行测试。其 static PASS 不能替代 j-tkp0mk 的 48/3 实际失败结论，也未识别该健康检查 mock 错绑。
+- Latest attempt j-tkp0mk terminal1：frontend437 lint/type、desktop lint/type/full build、IssueCard after 诊断六命令均0；51 Node 为48 pass/3 fail/0 skipped，三个恢复正向失败，legacy/browser 尚未开始。精确 isolated root ezh69s8a 已清 7083504 bytes，未启动 Vite。前置 j-npo3et 在普通 dict 大小写 SystemRoot 查询失败、未开始验证；已改 os.environ 大小写 lookup 和先 tar 校验后建 scratch，空 anfxs5yk 已清0bytes。
+- Diagnostic / repair decision: j-67fgs3 exact-current-suite in-memory before terminal1，实际 main caught log 指向 health mock 的旧 process；j-we3dal after terminal0/七 passed，只将 health owner 从 URL 首个 handle 改为 options.process，再验证对应 URL。两次 on-disk suite SHA256 e9e295ff461b9e142325f2399114da87bf3f3eba2a2968b75e58081291593545，未改产品或 test 文件。Decision code-change / sufficient repair 仅 test seam，TDD off/skipped；未知 process/URL 仍严格失败，原七用例与生产冻结。新有界 Claude contract tmp/claude-runtime-health-owner-correction-20261003.txt；不重派原已终态任务。
+- Canonical failed-stop ownership correction: actual j-otnfbf terminal0 drives actual backend-stop10000/5000 callbacks and exact main AST with still-live process; rejection leavesmain handle null/isBackendRunningfalse, allowing a later backup tick to miss the stop. Decision code-change at existing main stop owner: restore that known handle on rejection only if no newer handle exists, rethrow unchanged, no closure/archive/replacement process; process.ts stopPromise semantics retained (failure can remain reported, no silent fallback). New disjoint Claude correction owns main.stop block and newruntime test only; helper writer owns otherfourtests. Runtime harness also needs explicit api-client background-socket reexports and virtual readonly FS instead of ambient unlink access. Contract: tmp/claude-auto-backup-stop-and-runtime-test-correction-20261003.txt. Freeze both before shared verification.
+- runtime writer j-olr6mb terminal0/DONE freezes main/IPC/ports/local/dev threading and new709line sixcase actual-chain suite, existingIPC harness799lines; config helper untouched. No executed result yet. j-dkufl1 exact AST helper/strict virtualFS/no realwrites diagnostic terminal0 proves all three helpers duplicate root rmdir causingENOENT; new bounded Claude correction owns threetest cleanup blocks plus new focused actual-helper virtualFS regression only, preserves production and runtime harness freeze. Contract: tmp/claude-auto-backup-cleanup-correction-20261003.txt. Actual shared verification waits for this correction freeze.
+- Issue source local commit: 0c622005cebdf790b3e22782e2e9486ade9a2bef / fix(consistency): retire stale issue analysis responses，两允许paths，task paths clean、one worktree已读回。第一次cached diff拒绝spec额外EOF空行，未提交/未绕过；精确一个尾LF删除后独立对比已执行oldhash，case/body全部相同，restage/cachedcheck/commit成功。当前spec hash f73bb5a、657physical lines；原执行/审阅hash efe3d264保持在historical receipt；terminal sidecar采用格式绑定解释而不宣称重新执行。当前HEAD0c62200，backup仍以本轮start b86d464为TaskStartSnapshot。
+- Test cleanup source readback correction: j-hvk9oe声称全验证前不删除的结论不完整；auto helper先unlink已知links再扫描unknownlinks，三helper均将root加入directories并循环rmdir后再次rmdir(root)。尚未执行此版本；当前runtime writer拥有ipc/config tests，须等freeze后新的有界Claude correction，避免并行交叉写。已有helper核验进步保留，不能以报告DONE作为清理验收。
+- Dedicated runtime continuity card (supersedes old six-path prohibition only for this repair): j-rqr2nj actual compiled local producer + actual runtime-cache/API/socket seams reproduces lawful31001→31002 with configReads1/nextSave/socket still31001, no realnetwork/process. Initial harness missing explicit reexport/window-location was corrected, not a product fix. Canonical owner is main's running BackendProcessHandle and ports allocator; selected contract returns a one-shot-lifetime resume closure from successful stop, privately threads captured port through existing initialization/local/dev chain, rejects occupied port without fallback. Preserve consumer immutable cache and live editor without remount/reload; no persistent endpoint map, renderer notification owner or runtime rewrite. Manual callers ignore closure; failed stop cannot publish it. Decision code-change/sufficient repair, TDD off/skipped; main/local/dev/ports plus existing IPC lifecycle wiring and synthetic owner/consumer tests are the minimum boundary. Original §42/daily acceptance unchanged; this explicit bounded runtime task satisfies ../AGENTS.md §§5/33. Full allowlist, compatibility, seam matrix and freeze contract: tmp/claude-auto-backup-runtime-continuity-20261003.txt. New writer starts only after j-hvk9oe terminal/freeze.
+- j-f1s4gw actual stderr proves inherited GNU1.35 treats D: as remote (Cannot connect to D: resolve failed), native bsdtar3.8.4 samecase passes and oldsuite24pass/1POSIXskip/1privilegedexcluded. Product tar source unchanged; coordinator runner PATH selects native only for its task children and binds tar source/dist hashes. Exact diagnostic root/no-links/identity cleanup1626bytes; first output-capture-only attempt j-wndfpd also exited0 but lacked child output, superseded by full readback.
+- j-hvk9oe terminal0/DONE freezes only threetestpaths: exact root/realpath/dev-ino and knownjunction topology validation, manual noresume assertions and queued keep1→3 exact rotation added. Declared 23 cases, not yet executed after correction. No production crosswrites.
+- Correction ownership: new Claude CLI correction may edit only the three auto-backup test files, fixing owned scratch root/identity/known-link topology and manual/queued-keep coverage. No production edits or commands; coordinator diagnoses tar/runtime in parallel and waits for freeze before shared validation. Full contract is tmp/claude-auto-backup-test-correction-20261003.txt. No new durable work record or worktree.
+- j-bdildw terminal exit0/is_error=false/QUALITY PASS与j-elozfp SPEC PASS均已完整解析读回；IssueCard两source仍冻结，140-case独立receipt保留。parent passive cleanup、DEV Axios日志与closed completed分析成本仅独立观察，未复现，不混入本切片。
+- backup唯一writer j-yyw7cc terminal exit0/DONE，六允许文件冻结。j-g53l7f实际frontend437 lint/type、desktop lint/type/full build和IssueCard after diagnostic均通过，新backup22+existing runtime10共32 Node passed/0 skipped。随后旧archive/data-manager为14 passed/10 failed/1 POSIX skipped，另1 privileged case按原规则excluded；system tar exit2使runner整体exit1，未启动Vite或browser。精确isolated root已核验清理7083424bytes。
+- fresh backup SPEC j-8dk1wc terminal0/CHANGES REQUESTED：四原合同静态符合，但initializeApp→startLocalOpenFicBackend每次findFreePort，main更新runtime-config而活SPA的runtimeConfigPromise仅加载一次；timer路径没有manual return的webview重建。新端口时可能继续旧URL，审查报告不证明每次端口必变；待actual synthetic seam复现。不得以自动reload/remount牺牲未保存编辑。
+- 协调者发现三新test清理仅lexical/parent lstat，没有tmpRoot realpath、scratch dev/ino与已知junction拓扑身份核验；须修正再重跑。manual absence-of-resume和queued keep矩阵同时补全。QUALITY尚未启动。
+- Task环境实际PATH选Git GNU tar1.35；Windows native bsdtar3.8.4存在，尚未用同case作正向反证。此失败不得归入新backup产品实现；先证明并修协调者任务环境，保留原测试。
+- 当前HEAD b86d4646550ff7b445ae907094db037a648e201e/feature/branding，index空，only one worktree；没有本轮新提交或packaged smoke。旧record中的running/审查未执行是当时快照，当前checkpoint与resume已采用终态纠正。Goal active，有可执行工作，完整V1 needs-verification。
+
+## 2026-10-03 Claude Connection Restored / Live Ownership
+
+- Previous goal turn classified progress：新22+原118=140合成browser passed，receipt hash核对exit0，owned Vite/19003和精确8340316bytes临时目录已清。当前Git仍b86d464/feature/branding，index空，仅三records+IssueCard/new spec未提交，one worktree；旧Codex writer仍interrupted，两个审计均completed，未spawn/followup新Codex代理。
+- PowerShell listener枚举无输出/exit1，不足以判定gateway offline；独立TCP connect_ex到127.0.0.1:1111返回0。随后仅一次普通配置零工具Claude检查j-yd77t5 terminal exit0，is_error=false/terminal_reason=completed/result=OPENFIX_CONNECTION_OK。当前接入可用，之前三个失败的实际记录保留，不再以旧401/502宣称当前阻塞或等待用户恢复。
+- Live disjoint owners：j-elozfp为IssueCard fresh readonly SPEC（Read/Grep/Glob）；j-yyw7cc为backup六路径唯一writer（Read/Edit/Write/Grep/Glob）。两handle job_output均确认running，JSON模式终态前无输出正常；不盲重试。CLI使用既有普通配置/default model，disableAllHooks显式关闭hooks，strict MCP/no Chrome/no skills/no session persistence，无Bash/PowerShell/Agent/Task，不新worktree。
+- IssueCard source/spec冻结且140-case证据保持；SPEC包已纠正为实际terminal结果。backup writer仅允许ipc/auto-backup/remote config三个源码块和三份synthetic Node suites，不运行共享命令或Git。协调者只读核对原owner与initializeApp的ready/needs-setup合同，不与writer交叉编辑；其他所有源/记录/Git归协调者。
+- freeze后fresh SPEC→QUALITY与统一验证；Claude实现/审查报告不是实际验收。保留timer-only resume、manual停机语义、current config队列准入、普通文件history、原daily及single worktree约束；完整V1仍needs-verification。
+- j-elozfp已terminal exit0/is_error=false/SPEC PASS。完整result已解析读回：monotonic revision/commit-phase cleanup/dismiss-restore/close-current/raw payload/native barrier/strict unknown均静态符合；22-case declared counts正确。commit-phase精确时点与unmounted success的DOM渠道仅源码支持，error fallback/empty sources不在本切片实测；parent passive cleanup仅观察风险而非已复现缺陷，不借此扩scope。协调者实际核对card/spec两hash仍0ec25f3/efe3d264，与140-case receipt相同。
+- resolved SPEC后启动独立只读QUALITY j-bdildw，已确认running。backup唯一writer j-yyw7cc仍running，auto-backup、ipc、config三新test文件已存在；未执行新测试或build，不提前宣称完成。两review包与实现包均禁止内部Agent/Task。
+
+## 2026-10-03 User Steering: Claude Code Only Delegation
+
+- 用户明确要求不用Codex子代理，改用Claude Code CLI作为委派执行器。issue_analysis_lifecycle_implementation已中断并读回interrupted，停止编辑；其card/new spec的partial patch保留，当时尚未验证，后续协调者验证见下方记录。其他两个只读审计已完成冻结；自动备份Codex实现spawn因agent thread limit失败，没有创建writer或任何desktop patch。
+- 实际CLI发现：C:/Users/20969/.local/bin/claude.exe，version2.1.287。两个独立print任务issue接续j-49wk4f和auto-backup实现j-h8b4pe均已terminal exit1/API401（代理密钥缺失或错误）；is_error=true/terminal_reason=api_error/usage0，无实现或审查产出。此前running为当时快照，已被实际终态取代。safe-mode/file-only设置是否影响接入尚未证明；普通配置零工具检查j-frsx2o也terminal exit1/API502（本机gateway127.0.0.1:1111上游fetch失败）。已异步请求恢复第三方接入，不索取密钥或要求Claude账号登录，不盲目重试。
+- 用户最新授权覆盖原委派方法；后续fresh SPEC/QUALITY也用独立只读Claude CLI，协调者继续拥有共享验证、Git和记录。历史insufficient-credits不是登录失败，也不等于这次新handle结果；只有实际终态可结论化。
+
+## 2026-10-03 Coordinator Verification Continuation
+
+- 当前b86d464/feature/branding已读回，仅一个worktree；业务草稿仍仅IssueCard及独立658行/22-case spec，backup三源hash仍为原值且三个新test不存在。旧writer已中断，未把部分patch当DONE。
+- j-r642f1 terminal exit1：前端437文件lint/type零警告错误、desktop lint/type/full build、actual owner after诊断全部exit0；current failure toast1，unmounted/ignored late toast0，unmounted setters0。browser/Vite/Node suite均尚未开始；失败是runner把工具共用TEMP必须为空当成Node清理条件，不能判为产品失败。精确结果目录已核验并删除7083400bytes。
+- Decision code-change at verification harness owner：各suite负责自己的scratch，工具共用TEMP允许保留到最终精确task-root cleanup；原整体空断言退役。新增browser-only接续必须frontend-only，强制当前source和六compiled输入等于j-r642f1日志，并确认六个前置命令exit0及准确旧terminal，不重写初始manifest。禁止借此跳过改过的backup代码。
+- j-d884ya已terminal exit0：140 passed(7.2m)，新22 lifecycle + 原118（24 consistency/AI selection、27 result-context、25 outline-memory、28 deep-links、8 forms、6 Markdown），2 workers/retries0/maxFailures1。source及六compiled输入与前次log一致且全程不变；actual raw payload/native XHR completion/unknown断言保留。协调者receipt verifier exit0，再核对全部current hashes、逐spec case counts、两cleanup与端口释放。
+- 只停owned Vite45644树，19003释放；精确无链接/identity结果目录mm4n20ef已删除1256916bytes，连同前次7083400共8340316bytes。一个worktree，未产生新的installer/packaged smoke。独立Claude SPEC/QUALITY仍未执行；未把本机合成验收当整slice或完整V1完成，也未提交业务草稿。
+- 当前card243/spec658 physical lines，原API85/parent446/selection293均未修改。生命周期修复仍在原owner，退役迟到success/error/finally发布；不改dialog-close继续pending语义，不引入transport取消或shared框架。只读review包为tmp/claude-issue-analysis-spec-review-20261003.txt与tmp/claude-issue-analysis-quality-review-20261003.txt；两者尚未启动。
+
+## 2026-10-03 Issue Analysis Lifecycle Slice Card
+
+- Previous goal turn: progress；源码1e80000/c9d589f及记录b86d4646550ff7b445ae907094db037a648e201e均已读回。当前新TaskStartSnapshot为b86d464 / feature/branding，开始时工作区/index干净，只有OpenFix主工作树；外层ai-novel及只读OpenFic不在修改范围。
+- Parent / goal: source-change list §42的稳定一致性链路、PRD §20的AI分析/忽略与§33持续创作。分析中的问题已被目标切换/重新检查/离页卸载，或用户忽略后，旧请求不得在当前页面发布错误；有效当前请求仍正常显示分析及失败通知。
+- Fresh diagnosis: node tmp/diagnose-issue-analysis-lifecycle-20261003.cjs before退出0，实际transpiled IssueCard和API经strict synthetic React/HTTP seams执行。current failure toast=1正向；unmounted late rejection toast=1；ignored late rejection toast=1；unmounted setters=2仅seam观察，不是React可见跨实例污染。原card SHA25683f8d100bf8cd90daef08efe3e6419506c1fa5b4988890390133e151822cc888，API04e5f6918b5b49813e59847a9ebf750726d02c5d269aaa9fa0493192f099e128。
+- Independent audit: context_identity_quality_review只读确认P2失效分析发布全局toast；main.tsx的Toaster位于路由外，父页target change/recheck均移除卡片。未把同key、卸载setters或普通关闭dialog认定为额外缺陷；原118-case只立即返回analysis，没有pending失效接缝。
+- Decision / owner / shape: code-change；IssueCard.handleAnalyze是唯一分析调用者与UI/通知生命周期owner，API负责传输，父页target/check owner已正确清空result。原owner中绑定mounted与单调request revision；卸载收回发布权限，dismiss同步废止请求并清空本卡分析/busy，restore可启动新请求，旧success/error/finally不得干扰。普通关闭dialog继续原pending请求，不定义为取消。
+- Causal boundary: L2/L3单owner的失效异步副作用，待真实browser证明；不声称全局异步根因闭环。上游合法失败是允许输入，current reject正向证明通知传输正常；父页确实卸载，不应靠不清结果来容纳旧callback。最高风险反例为dismiss→restore→新analysis pending后旧请求完成；用revision而非仅dismissed/mounted避免ABA。请求取消和真实provider行为不是此UI发布权限修复的证明范围。
+- Minimality / complexity: 原card218 physical lines，原API85行且不改；在现有owner内修复，不新增持久化owner、公共API、依赖或共享async框架，不改父页/key/selection算法。新增独立spec保持800行软压力内，复用当前严格synthetic API/socket模式；不扩既有980行outline-memory suite。
+- Allowed implementation: frontend/src/features/consistency/components/issue-card.tsx；frontend/e2e/consistency-issue-analysis-lifecycle.spec.ts。实现者只写两路径，无shell/test/build/Git；协调者独占诊断、共享验证、记录与Git。独立自动备份审计只读，不交叉修改。
+- Verification / TDD: off / skipped，已有用户bug检查授权。freeze后fresh SPEC→QUALITY；协调者执行当前诊断after、frontend lint/type、完整desktop build、新分析lifecycle browser及现有118 cases。pending必须由真实请求与native completion barrier锚定，raw payload保持四字段/issue语义，未知API/socket/page error严格失败；包含当前success/error、项目/范围/章节/卷切换、recheck/离页、dismiss→restore及旧finally不清新busy。
+- Safety / stop: 合成fixture；不读真实正文/DB/.env/keys、不调用真实provider，不跑installer/packaged smoke、不新建worktree、不push/tag/Release/sign。仅清任务自建且精确路径/无链接核验过的结果目录与自建Vite；保留证据日志。完整V1保持needs-verification，不用本切片关闭外部门槛。
+
+## 2026-10-03 Auto Backup Continuity Slice Card
+
+- TaskStartSnapshot: 同轮b86d4646550ff7b445ae907094db037a648e201e / feature/branding / one worktree；本轮开始clean，IssueCard唯一实现者只写frontend两路径，与desktop实现完全disjoint。用户已授权并行、本地提交及bug检查；协调者独占Git、记录和共享验证。
+- Parent / goal: source-change list §§28-29/42和PRD§26/33，复用原Data Manager的daily自动备份，确保备份后写作服务可继续、用户保存的enabled/dir/keep保留并及时生效，只有普通归档占用retention槽位。§29将exit/hour/word触发延后，V1 daily足够，不扩示意PRD的退出模式。
+- Independent audit: context_identity_spec_review只读发现四项可达问题；历史24 desktop pass/1skip和superseded立即备份smoke不覆盖scheduler/disable/retention。目的目录嵌入数据树、共用目录多实例配额及秒级命名先保留为独立待核实边界，不混入此已复现修复。
+- Fresh reproduction: node tmp/diagnose-auto-backup-continuity-20261003.cjs退出0，actual transpiled IPC/registerIpc/startup tick/getAutoBackupTarget与实际local启动handler，actual handleConnectRemote AST callback、strict fake backend/config及真实隔离FS。timer success stops1/resumes0/archive1/running=false；failure running=false且rotation0；due pending期间saveConfig disabled已完成仍archive1；local/remote连接均丢autoBackup；匹配名future-mtime目录压制due且keep1删唯一普通archive。精确scratch路径/no-link核验后已删，无真实backend/config/数据I/O。
+- Attempt limit: 首次diagnostic exit1因transpile未开esModuleInterop，strict path import失败，未证明业务缺陷；纠正诊断编译选项后才得到上述终态实证。原sourceSHA256：ipc55437a309ebbcf0c6c1f2bba881601e152cf677f3e9c5b72b251d9d26afccc83；auto-backup36067c98e09805d8de7e31ce1073d95d63aebdbc75116b86216f1a00b72acc3a；ui7d486c6085837135f8e6cdd338b21c85f1ee4840bc203a3d7e3187e548b7084c。
+- Decision / owners: code-change；定时任务的backend suspend/resume与queued configuration admission在原registerIpc scheduler/execute owner修复，恢复调用复用现有context.initializeApp（dev/当前实例策略），不造backend进程owner；手动Data Manager停机/返回重启语义保留。两个配置producer保留previousConfig其他fields；历史准入在原auto-backup扫描/rotate owner以lstat+普通文件过滤修复，不跟随链接，不修改无关目录或其目标。
+- Causal shape / falsifiers: 这是同一自动备份主题的独立owner缺陷，不强称一个根因。成功归档/合法失败都会留下backend stopped，故不是tar失败或renderer数据页返回逻辑；disable已完成后旧target仍执行说明queue前snapshot不是事实源；两连接producer丢字段而normalize读回正常；真实directory/ordinary-file反例排除归档发布失败。各owner的positive/negative与compatibility须分别执行，单项绿色不能关闭其他因果路径。
+- Allowed source: desktop/src/main/ipc.ts（scheduler/auto execution与local nextConfig的有界块）；desktop/src/main/auto-backup.ts（扫描/轮转准入）；desktop/src/ui/app.tsx（remote nextConfig的wiring-only）。Allowed tests: desktop/tests/main/auto-backup.test.mjs；desktop/tests/main/auto-backup-ipc.test.mjs；desktop/tests/main/auto-backup-config.test.mjs。不改main runtime/共享schema/API/DataManager/renderer布局/依赖；不新建调度或备份系统。
+- Complexity: 原IPC835 physical lines、UI822行均已超过800软压力；本任务仅原owner内的有界生命周期/配置repair，不加入新职责或共享框架，最终记录增长及具体块范围。auto-backup121行，tests每份低于800；不为了降行数重排整个IPC/UI。
+- Verification / TDD: off/skipped；实现者不执行shell/test/build/Git。freeze后fresh independent SPEC→QUALITY，协调者desktop lint/type/full build、新实际compiledIPC/auto helper与actual AST config callback矩阵，再复跑现有archive/data-manager/runtime identity；保留本机symlink权限与POSIXskip边界，Windows目录junction可用独立合成scratch验收。测timer成功/失败恢复、nonrunning保持、resume失败、disable/dir/instance在eligibility/queue改变、同一tick互斥、配置三字段保留、due24h边界与文件/目录/link准入、失败不轮转及无关文件不删除。
+- Compatibility / stop: 保留daily间隔、名称前后缀、keep归一化、手动data操作行为和原runtime/data链接策略；新自动恢复只对原来running的backend，不将原未启动实例自动启动，不让skip/error假报成功。仅synthetic config/FS/timer，禁止真实用户DB/备份/.env/keys/provider、installer/packaged smoke、新worktree、push/tag/Release/sign。整体V1 remains needs-verification。
 
 ## 2026-10-03 Consistency / Runtime Terminal Evidence
 
@@ -252,10 +319,8 @@
 
 ## DriftCheckDraft
 
-- Scope status: 两个原owner修复与fresh两阶段审查完成；j-wseclf八个命令exit0、436文件前端静态、desktop静态/完整build、118 browser和10-case runtime两种布局均通过，七source/compiled hash相符。源码已按白名单提交1e80000/c9d589f，记录沿用唯一work record；完整§42仍needs-verification，迁移唯一头1028未改。
-- Compatibility status: 保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。
-- Retirement status: 原两页raw URL/stored initializer与competing fallback退役到唯一selection hook；原纯版本marker退役为版本+wheel字节身份，legacy一次迁移重装，原online fallback/Python/CLI/venv/data layout保留。六业务文件内修复，无新owner/依赖/endpoint/迁移；446/299/562/583/763/473 physical lines有界，shared hook未改。
-- New risk signals:
-- 表单/选择/restore/distribution、DOCX与Markdown已有成果保留；Consistency/AI与wheel身份已执行复现、修复和本机回归。跨生产session取消、真实worker/Windows文件占用并发、IssueCard分析移除生命周期及真实wheel安装仍未由合成测试证明。
-- Windows 符号链接用例仍缺少本机权限；冷缓存 remount 没有专门 fixture，当前安装包不覆盖最新源码，Windows ARM64 binary dependencies/首启与真实供应商、升级、远端 release、签名仍待验收。
+- Scope status: 业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。
+- Compatibility status: daily/manual/cache/API/socket/config/data/runtime布局与唯一worktree边界保留；§42正式验收未关闭。
+- Retirement status: 退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。
+- New risk signals: 本机synthetic VM/AST/process/net/API/socket不证明真实Electron/OS生命周期、failed-stop晚退出、memoized rejected stopPromise、真实provider/worker并发/Windows锁、真实wheel/pip、干净Windows11旧版升级及原数据、native ARM64、当前包运行、远端双架构Release和签名。首次browser超时根因未知；87%memory单次观测与focused4passed都不证明归因。
 - Advisory decision: needs-verification

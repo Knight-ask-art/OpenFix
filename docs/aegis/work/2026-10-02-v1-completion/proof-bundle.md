@@ -20,10 +20,12 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-issue-analysis-lifecycle-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json
@@ -33,10 +35,12 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-issue-analysis-lifecycle-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json
@@ -55,7 +59,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 
 ## Drift Check
 
-- Scope status: 两原owner修复完成，fresh独立SPEC/QUALITY通过；j-wseclf八命令exit0，436文件前端静态、desktop静态/full build、118 browser与10-case runtime两种布局均通过，七source/compiled hash相符。白名单源码提交1e80000/c9d589f已读回，记录沿用唯一work record；完整§42仍needs-verification，迁移唯一头1028未改。
+- Scope status: 业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。
 - Compatibility status: 保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。
-- Retirement status: 两页raw URL/stored initializer和竞争fallback退役到canonical选择hook，原算法未改；纯版本marker改为版本+wheel字节身份，legacy一次重装，online fallback/Python/CLI/venv/data layout保留。六业务文件内原owner修复，无新installer/持久化owner/依赖/endpoint/迁移；446/299/562/583/763/473 physical lines有界。字节不同的等价rebuild也重装为明确成本。最终hash一致；精确51537bytes目录已清，唯一worktree且无新smoke。
+- Retirement status: 退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。source physical lines：auto-backup121→125、IPC835→877、main541→556、ports17→21、openfic763→764、dev196→197、UI822→823；五新test317/798/495/797/246。IPC/UI为原有超过800行soft pressure owner，本次local-fix-without-new-responsibility与wiring-only；闭环exceeded-and-governed，继续扩两份接近800行的测试前拆分synthetic fixture，禁止借此顺带重构runtime。
 - Advisory decision: needs-verification

@@ -2,8 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
   "lastCheckpointRef": "docs/aegis/work/2026-10-02-v1-completion/todo-checkpoint-draft.json",
-  "resumeInstruction": "原TaskStartSnapshot27b5ac6/feature/branding/one worktree。Consistency/AI与wheel身份已独立复现、原owner修复、fresh SPEC→QUALITY和协调者j-wseclf终态0验证：436文件前端静态、desktop静态/full build、118 browser、新runtime10及同套件无tmp布局再次10通过，七source/compiled hash一致。源码白名单提交1e80000766558571f220a5f9366bd13594c03d48与c9d589fd6995abc3364e7514c75911bb50773c66已读回；终态目录51537bytes/Vite21284/19003已清。先核对最终记录提交Git回执，再继续§42，不重复修复已闭环主题。完整V1仍needs-verification；协调者独占Git/验证，维持一棵worktree，不跑packaged smoke/installer或真实provider，不读真实数据/密钥。",
+  "resumeInstruction": "业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。本切片源码、证据与本地提交已完成；原Claude writers/reviewers与三个runner均终态，不重派。回到§42核对剩余仓库链路，优先独立核实手动覆盖升级旧卸载器的runtime保护与light_model配置引导；只能先读源码/合成接缝，不能以本切片关闭真实provider、升级、ARM64、当前包或Release/signing。继续仅Claude CLI委派，协调者独占Git/shared验证/记录/精确cleanup，不新worktree或重跑installer/packaged smoke。",
   "knownPartialWork": [
+    "业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。在原IPC/main/port/config/history owner修复：queue内重读当前配置与due、同步互斥、成功归档才轮转；running后端stop→archive→rotate→ready resume→done，归档失败仍恢复，stop/resume失败无假done，nonrunning不启动；从canonical handle捕获端口经私有closure贯通既有local/dev链，端口冲突失败无fallback，活SPA的cache/API/socket继续原URL；stop拒绝时仅空slot恢复原handle且rethrow原错误，不覆盖新handle；local/remote producer保留previousConfig字段；lstat+isFile只接纳普通归档，不跟随/删除目录和junction/link。",
     "本轮三个源码主题本地提交为 359c811、ebae8a3、49935a4；最终前端静态/完整 desktop build 和 36 browser passed，desktop target 24 passed / 1 skipped / 1 excluded。",
     "本轮 Vite j-bckuz9 已停止，19003 已释放，精确的临时 browser results 已删除；日志与审阅材料保留。",
     "大纲/故事记忆共享选择修复已完成。初轮 QUALITY 的全分支 guard 声明被 exact hook rejection seam 反例纠正；Claude j-hux6tx 补 owner catch guard，两页新增真实 pending/404/retry 回归。fresh SPEC PASS，j-7q3b9d 最终61 passed。",
@@ -21,8 +22,7 @@
     "docs/aegis/work/2026-10-02-v1-completion/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "本地提交/合成浏览器回归不证明完整 V1.0；旧安装包不验证最新源码。",
-    "六页合成选择/上下文回归不证明真实provider或所有异步消费者。IssueCard分析移除生命周期未单独验收；既有outline-memory spec25cases/980行后续扩展前仍有fixture复用压力。",
-    "ARM64 asset mapping/CI staging 不证明 native binary dependencies 或首启；symlink privileged case 和冷缓存 remount 仍未单独运行验收。"
+    "本机synthetic VM/AST/process/net/API/socket不证明真实Electron/OS生命周期、failed-stop晚退出、memoized rejected stopPromise、真实provider/worker并发/Windows锁、真实wheel/pip、干净Windows11旧版升级及原数据、native ARM64、当前包运行、远端双架构Release和签名。首次browser超时根因未知；87%memory单次观测与focused4passed都不证明归因。",
+    "源码与记录本地提交不证明完整V1或旧安装包已包含本轮修复；不得重派终态Claude/runner。"
   ]
 }

@@ -1,8 +1,16 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
-  "currentTodo": "Consistency/AI与内置wheel身份已修复、fresh两阶段审查和本机验证通过；源码本地提交1e80000/c9d589f已读回，整理唯一work record的终态证据。完整V1仍needs-verification，继续逐项对照§42。",
+  "currentTodo": "业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。",
   "completedTodos": [
+    "业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。",
+    "在原IPC/main/port/config/history owner修复：queue内重读当前配置与due、同步互斥、成功归档才轮转；running后端stop→archive→rotate→ready resume→done，归档失败仍恢复，stop/resume失败无假done，nonrunning不启动；从canonical handle捕获端口经私有closure贯通既有local/dev链，端口冲突失败无fallback，活SPA的cache/API/socket继续原URL；stop拒绝时仅空slot恢复原handle且rethrow原错误，不覆盖新handle；local/remote producer保留previousConfig字段；lstat+isFile只接纳普通归档，不跟随/删除目录和junction/link。",
+    "退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。",
+    "source physical lines：auto-backup121→125、IPC835→877、main541→556、ports17→21、openfic763→764、dev196→197、UI822→823；五新test317/798/495/797/246。IPC/UI为原有超过800行soft pressure owner，本次local-fix-without-new-responsibility与wiring-only；闭环exceeded-and-governed，继续扩两份接近800行的测试前拆分synthetic fixture，禁止借此顺带重构runtime。",
+    "本轮j-r642f1六前置命令exit0：frontend437 lint/type、desktop lint/type/full build、IssueCard actual after诊断；最后TEMP空断言为harness failure，尚未运行browser。该断言已修正。",
+    "j-d884ya terminal exit0：同source/compiled hash绑定browser-only接续，22新lifecycle+原118共140 passed(7.2m)，源码未变；receipt verifier exit0，fresh Claude SPEC/QUALITY均PASS。backup改变后只绑定IssueCard两source，不沿用旧backup hashes。",
+    "j-g53l7f：frontend437 lint/type、desktop lint/type/full build、after diagnostic均通过，新backup22+runtime10 Node通过；旧system-tar回归14pass/10fail/1skip/1excluded导致整体exit1，browser未开始，精确7083424bytes已清。",
+    "只停止owned Vite45644树并释放19003；精确1256916bytes目录已删，连同前次7083400bytes共8340316bytes清理，保持一个worktree，无新smoke环境。",
     "Consistency/AI两页复用canonical选择hook；有效target同步revision防late result/error/finally与ABA，原树effect拒绝跨项目默认值写回。",
     "原marker以版本+selected wheel字节SHA256识别内置后端，legacy/同版本变内容重装、同字节路径变化保持，读取/安装/写marker失败不宣告完成。",
     "j-wseclf terminal0：frontend436文件lint/type零警告错误、desktop lint/type/full build、118 browser passed(4.3m)，actual runtime10及同10-case suite无tmp布局复跑通过。七source/compiled hash与完整log一致。",
@@ -26,8 +34,13 @@
     "j-p837lv exits 0: scoped Ruff, app-wide ty, 216 target and 2015 full backend passed. j-m70e49 exits 0: frontend lint/type 434 files zero warnings/errors, full desktop build and six synthetic browser cases passed.",
     "All 14 frozen source hashes match the terminal logs and current files; exact backend/frontend validation directories removed (38474137/166 bytes), owned Vite stopped and port 19003 released. One worktree, no packaged smoke."
   ],
-  "activeSlice": "v1-context-identity-closeout-20261003",
+  "activeSlice": "v1-issue-analysis-and-auto-backup-20261003",
   "evidenceRefs": [
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json",
+    "D:\\Codex\\projects\\ai-novel\\新版本\\OpenFix\\tmp\\issue-analysis-backup-terminal-receipt-20261003.json",
+    "C:\\Users\\20969\\.fastctx\\jobs\\j-oys5u6\\output.log",
+    "tmp/issue-analysis-terminal-receipt-20261003.json",
+    "C:/Users/20969/.fastctx/jobs/j-d884ya/output.log",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json",
     "C:/Users/20969/.fastctx/jobs/j-wseclf/output.log",
@@ -49,7 +62,7 @@
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
     "git log/show readback: 359c811, ebae8a3, 49935a4 on feature/branding"
   ],
-  "blockedOn": "本轮两个源码主题无最终验证失败。真实provider、干净Windows11旧版升级及原数据、native ARM64首启、最新安装包运行、远端双架构Release与签名未验收；IssueCard分析移除后的独立异步生命周期和真实pip/wheel仍未证明。",
-  "nextStep": "读回记录提交与最终status/worktree；按§42继续核对，有新仓库内缺陷先复现再定界，外部验收需真实provider/干净升级/native ARM64环境。维持一棵工作树及既有不重跑packaged smoke限制。",
+  "blockedOn": "本切片无未完成源码或接入阻塞；完整V1仍缺真实provider/干净升级/native ARM64/当前包/远端Release/签名验收。",
+  "nextStep": "本切片源码、证据与本地提交已完成；原Claude writers/reviewers与三个runner均终态，不重派。回到§42核对剩余仓库链路，优先独立核实手动覆盖升级旧卸载器的runtime保护与light_model配置引导；只能先读源码/合成接缝，不能以本切片关闭真实provider、升级、ARM64、当前包或Release/signing。继续仅Claude CLI委派，协调者独占Git/shared验证/记录/精确cleanup，不新worktree或重跑installer/packaged smoke。",
   "updatedAt": "2026-10-03"
 }
