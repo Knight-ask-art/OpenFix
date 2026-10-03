@@ -276,6 +276,7 @@ async function createHarness({ config, backendRunning = true, webviews = [] }) {
       getPath: (name) =>
         name === "exe"
           ? path.join(repoRoot, "tmp", "harness-exe", "OpenFix.exe")
+          : name === "sessionData" ? defaultDataDir
           : deny(`app.getPath(${name})`),
       getVersion: () => "0.11.1",
       isPackaged: false,
@@ -343,9 +344,10 @@ async function createHarness({ config, backendRunning = true, webviews = [] }) {
       resolveDataDir: (instance) => instance.dataDir ?? defaultDataDir,
     }),
     "./data-manager.js": synthetic("synthetic:data-manager", {
-      getDataOperationOptions: async (dataDir, runtimeDir) => {
+      getDataOperationOptions: async (dataDir, runtimeDir, sessionDataDir) => {
         assert.equal(typeof dataDir, "string");
         assert.equal(typeof runtimeDir, "string");
+        assert.equal(sessionDataDir, defaultDataDir, "Data policy must receive Electron's actual sessionData root");
         records.events.push("options");
         return { backup: {}, restore: {} };
       },

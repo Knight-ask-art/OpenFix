@@ -307,7 +307,7 @@ async function createHarness({ config, devMode = false, devBackendUrl = null } =
   const modules = {
     "electron": synthetic("synthetic:electron", {
       app: {
-        getPath: () => deny("app.getPath"),
+        getPath: (name) => name === "sessionData" ? localDataDir : deny(`app.getPath(${name})`),
         getVersion: () => VERSION,
         getAppPath: () => path.join(repoRoot, "desktop"),
         isPackaged: false,
@@ -410,9 +410,10 @@ async function createHarness({ config, devMode = false, devBackendUrl = null } =
       resolveDataDir: (instance) => instance.dataDir ?? path.join(repoRoot, "tmp", "synthetic-default-data"),
     }),
     "./data-manager.js": synthetic("synthetic:data-manager", {
-      getDataOperationOptions: async (dataDir, runtimeDir) => {
+      getDataOperationOptions: async (dataDir, runtimeDir, sessionDataDir) => {
         assert.equal(dataDir, localDataDir, "Data options must target the configured synthetic data dir");
         assert.equal(runtimeDir, localRuntimeDir, "Data options must target the configured synthetic runtime dir");
+        assert.equal(sessionDataDir, localDataDir, "Session policy must receive the canonical Electron path");
         records.events.push("options");
         return { backup: {}, restore: {} };
       },

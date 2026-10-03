@@ -136,7 +136,8 @@ export async function copyWithRetry(sourcePath: string, targetPath: string): Pro
   }
 }
 
-export async function measureTreeSize(entryPath: string): Promise<number> {
+export async function measureTreeSize(entryPath: string, skipSourcePath?: (entryPath: string) => boolean): Promise<number> {
+  if (skipSourcePath?.(entryPath)) return 0;
   const info = await lstat(entryPath);
   if (info.isSymbolicLink()) return 0;
   if (info.isDirectory()) {
@@ -144,7 +145,7 @@ export async function measureTreeSize(entryPath: string): Promise<number> {
     const entries = await readdir(entryPath, { withFileTypes: true });
     for (const entry of entries) {
       if (isExcludedRuntimeEntry(entry.name)) continue;
-      total += await measureTreeSize(path.join(entryPath, entry.name));
+      total += await measureTreeSize(path.join(entryPath, entry.name), skipSourcePath);
     }
     return total;
   }
@@ -152,6 +153,8 @@ export async function measureTreeSize(entryPath: string): Promise<number> {
 }
 
 export interface CopyTreeOptions {
+  /** Explicit app-owned paths outside the backup payload; never inferred from a lock error. */
+  skipSourcePath?: (entryPath: string) => boolean;
   /**
    * 备份路径必须开启：被占用的文件一旦按跳过处理，随后生成的清单就会把缺少用户数据的
    * 目录树认证为完整备份。还原路径保持既有的跳过语义，由还原校验与回滚负责一致性。
@@ -172,6 +175,7 @@ export async function copyTree(
   preserveSymlinks: boolean = false,
   options: CopyTreeOptions = {},
 ): Promise<void> {
+  if (options.skipSourcePath?.(sourcePath)) return;
   const sourceStat = await lstat(sourcePath);
   if (sourceStat.isSymbolicLink()) {
     if (options.failOnSymlink) {

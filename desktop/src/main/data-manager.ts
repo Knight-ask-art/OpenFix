@@ -35,6 +35,8 @@ export interface BackupDataOptions {
    * 名称匹配遵循 {@link createTopLevelEntryMatcher} 的平台策略，与还原保留保持一致。
    */
   excludedTopLevelEntries?: readonly string[];
+  /** Electron's actual sessionData root, supplied by the main process. */
+  sessionDataDir?: string;
 }
 
 export interface RestoreDataOptions {
@@ -48,12 +50,15 @@ export interface DataOperationOptions {
 }
 
 /** Derive the shared backup/restore policy before stopping the backend or modifying data. */
-export async function getDataOperationOptions(dataDir: string, runtimeDir: string): Promise<DataOperationOptions> {
+export async function getDataOperationOptions(dataDir: string, runtimeDir: string, sessionDataDir?: string): Promise<DataOperationOptions> {
   const dataPath = await resolveForCompare(dataDir);
   const runtimePath = await resolveForCompare(runtimeDir);
   const runtimeParent = await resolveForCompare(path.dirname(path.resolve(runtimeDir)));
   const entryName = path.basename(path.resolve(runtimeDir));
   const runtimeEntryPath = path.join(runtimeParent, entryName);
+  const sessionPath = sessionDataDir ? await resolveForCompare(sessionDataDir) : undefined;
+  const sessionOptions: BackupDataOptions = sessionPath && (pathEquals(dataPath, sessionPath) || pathContains(dataPath, sessionPath))
+    ? { sessionDataDir: sessionPath } : {};
 
   if (pathEquals(dataPath, runtimePath)) {
     throw new Error("运行环境目录不能与数据目录相同，无法安全执行数据操作");
@@ -68,7 +73,7 @@ export async function getDataOperationOptions(dataDir: string, runtimeDir: strin
       throw new Error("运行环境目录不能链接到数据目录中的其他条目，无法安全执行数据操作");
     }
     return {
-      backup: { excludedTopLevelEntries: [entryName] },
+      backup: { ...sessionOptions, excludedTopLevelEntries: [entryName] },
       restore: { preservedTopLevelEntries: [entryName] },
     };
   }
@@ -79,7 +84,34 @@ export async function getDataOperationOptions(dataDir: string, runtimeDir: strin
   ) {
     throw new Error("运行环境目录必须是数据目录的直接子目录，无法安全执行数据操作");
   }
-  return { backup: {}, restore: {} };
+  return { backup: sessionOptions, restore: {} };
+}
+
+/** Browser network state is app-owned, while IndexedDB contains recoverable
+ * writing/prompt drafts. Scope exclusions to the canonical Electron session
+ * root and OpenFix's persist:openfic-* partitions; preserve their actual data.
+ */
+function createSessionBackupFilter(sessionDataDir?: string): ((entryPath: string) => boolean) | undefined {
+  if (!sessionDataDir) return undefined;
+  const sessionRoot = path.resolve(sessionDataDir);
+  return (entryPath) => {
+    const relative = path.relative(sessionRoot, path.resolve(entryPath));
+    if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return false;
+    let parts = relative.split(path.sep);
+    if (process.platform === "win32") parts = parts.map((part) => part.toLowerCase());
+    const match = (value: string) => process.platform === "win32" ? value.toLowerCase() : value;
+    if (parts[0] === match("Partitions")) {
+      if (!parts[1]?.startsWith("openfic-")) return false;
+      parts = parts.slice(2);
+    }
+    if (parts[0] === match("Network") || (parts.length === 1 && parts[0] === match("Cookies"))) return true;
+    // LevelDB's LOCK is a live process mutex, not a database record. Its .log,
+    // .ldb/.sst, CURRENT and MANIFEST files (including pending drafts) stay in the archive.
+    return parts.at(-1) === match("LOCK") && (
+      (parts.length === 3 && parts[0] === match("IndexedDB") && parts[1].endsWith(".leveldb"))
+      || (parts.length === 3 && parts[0] === match("Local Storage") && parts[1] === "leveldb")
+    );
+  };
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
@@ -176,7 +208,7 @@ export async function backupDataDir(
       onPhase,
       createTopLevelEntryMatcher(options.excludedTopLevelEntries ?? []),
       // 备份必须整树成功：被占用的文件或符号链接一旦跳过，随后生成的清单就会把缺少用户数据的目录树认证为完整备份。
-      { failOnLockedFile: true, failOnSymlink: true },
+      { failOnLockedFile: true, failOnSymlink: true, skipSourcePath: createSessionBackupFilter(options.sessionDataDir) },
     );
     await writeFile(path.join(stagingDir, BACKUP_MANIFEST_NAME), JSON.stringify(await computeBackupManifest(stagingDir), null, 2));
     onPhase?.("pack");
@@ -216,7 +248,9 @@ async function copyDirectoryWithRetry(
     if (excludedTopLevelEntries.has(name)) continue;
     if (isExcludedRuntimeEntry(name)) continue;
     if (name === BACKUP_MANIFEST_NAME) continue;
-    const size = await measureTreeSize(path.join(sourceDir, name));
+    const sourcePath = path.join(sourceDir, name);
+    if (options.skipSourcePath?.(sourcePath)) continue;
+    const size = await measureTreeSize(sourcePath, options.skipSourcePath);
     copyable.push({ name, core: CORE_DATA_ENTRIES.has(name) });
     if (CORE_DATA_ENTRIES.has(name)) coreSizes.set(name, size);
     total += size;

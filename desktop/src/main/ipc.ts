@@ -495,7 +495,7 @@ export function registerIpc(context: IpcContext): void {
         // 配置重新校验已保存的启用目标，启动后的首次检查即可重新报出该错误。
         await assertBackupDirOutsideDataDir(target.dataDir, backupDir);
         if (!(await shouldRunAutoBackup(backupDir))) return null;
-        const dataOptions = await getDataOperationOptions(target.dataDir, target.runtimeDir);
+        const dataOptions = await getDataOperationOptions(target.dataDir, target.runtimeDir, app.getPath("sessionData"));
         // 写作窗口的保存确认排在停止后端之前：任何一个在线窗口没确认就取消这次尝试，
         // 既不停后端也不归档，失败的尝试由下一个调度周期重试。
         const writingPause = await requestWritingPause(target.instanceId);
@@ -916,7 +916,7 @@ export function registerIpc(context: IpcContext): void {
       // 一次性手动备份与自动备份共用同一准入：归档文件所在目录与数据目录重叠时，备份会被
       // 收进后续备份并在还原时覆盖用户数据，因此在停止后端或创建文件之前就拒绝。
       await assertBackupDirOutsideDataDir(dataDir, path.dirname(path.resolve(request.targetPath)));
-      const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir));
+      const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir), app.getPath("sessionData"));
       await withBackendRestart(request.instanceId, async () => {
         const emitProgress = (event: DataProgressEvent) =>
           context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
@@ -939,7 +939,7 @@ export function registerIpc(context: IpcContext): void {
       const instance = config?.instances.find((item) => item.id === request.instanceId);
       if (!instance) throw new Error("实例不存在");
       const dataDir = resolveDataDir(instance);
-      const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir));
+      const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir), app.getPath("sessionData"));
       await withBackendRestart(request.instanceId, async () => {
         const emitProgress = (event: DataProgressEvent) =>
           context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
@@ -971,7 +971,7 @@ export function registerIpc(context: IpcContext): void {
         // 成功清除历史失败，失败则在页面上留下可恢复的原因。
         try {
           await assertBackupDirOutsideDataDir(dataDir, backupDir);
-          const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir));
+          const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir), app.getPath("sessionData"));
           await withBackendRestart(request.instanceId, async () => {
             const emitProgress = (event: DataProgressEvent) =>
               context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
