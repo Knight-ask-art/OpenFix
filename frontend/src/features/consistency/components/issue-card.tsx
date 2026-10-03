@@ -1,6 +1,6 @@
 import { Badge, Box, Button, Dialog, Flex, Spinner, Text } from "@radix-ui/themes";
 import { FileText, Quote, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { toast } from "@/components";
@@ -32,6 +32,17 @@ export function IssueCard({ issue, projectId, scope, chapterId, volumeId }: Issu
   const [analysis, setAnalysis] = useState("");
   const [analysisModel, setAnalysisModel] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const mountedRef = useRef(false);
+  const analysisRevisionRef = useRef(0);
+
+  // Revoke publication during the unmount commit, before passive effects run.
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      analysisRevisionRef.current += 1;
+    };
+  }, []);
 
   if (dismissed) {
     return (
@@ -57,6 +68,9 @@ export function IssueCard({ issue, projectId, scope, chapterId, volumeId }: Issu
   const severityLabel = t(`consistency.severity.${issue.severity}`);
 
   const handleAnalyze = async () => {
+    const revision = ++analysisRevisionRef.current;
+    const isCurrentRequest = () =>
+      mountedRef.current && analysisRevisionRef.current === revision;
     setAnalysisOpen(true);
     setAnalysis("");
     setAnalysisModel("");
@@ -68,14 +82,25 @@ export function IssueCard({ issue, projectId, scope, chapterId, volumeId }: Issu
         volumeId,
         issue,
       });
+      if (!isCurrentRequest()) return;
       setAnalysis(result.analysis);
       setAnalysisModel(result.model);
     } catch (error) {
+      if (!isCurrentRequest()) return;
       toast.error(errorDetail(error) ?? t("consistency.analysisFailed"));
       setAnalysisOpen(false);
     } finally {
-      setIsAnalyzing(false);
+      if (isCurrentRequest()) setIsAnalyzing(false);
     }
+  };
+
+  const handleDismiss = () => {
+    analysisRevisionRef.current += 1;
+    setIsAnalyzing(false);
+    setAnalysis("");
+    setAnalysisModel("");
+    setAnalysisOpen(false);
+    setDismissed(true);
   };
 
   return (
@@ -191,7 +216,7 @@ export function IssueCard({ issue, projectId, scope, chapterId, volumeId }: Issu
           size="1"
           variant="ghost"
           color="gray"
-          onClick={() => setDismissed(true)}
+          onClick={handleDismiss}
         >
           {t("consistency.dismiss")}
         </Button>
