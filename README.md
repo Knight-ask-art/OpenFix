@@ -2,7 +2,7 @@
 
 OpenFix 是基于 [OpenFic](https://github.com/syrizelink/OpenFic)（Apache License 2.0）Fork 的 Windows AI 长篇小说写作软件。用户可见品牌为 OpenFix；上游版权、许可证与 NOTICE 义务予以保留。
 
-当前桌面端仍通过官方 PyPI 包 `openfic` 启动后端（V0.1）。V0.2 才会把 Python 后端彻底换成自有包。
+桌面端发布构建会从本仓库 `backend/` 源码构建 wheel 并随安装包一起分发，打包运行时优先使用与当前后端版本匹配的内置 wheel；仅在非打包方式运行，或安装包内缺少匹配版本的 wheel 时，才回退为从官方 PyPI 安装 `openfic`。wheel 的分发名仍为 `openfic`，不涉及包名迁移。
 
 以下为上游 OpenFic README，仅作能力说明与法律归属保留。
 
