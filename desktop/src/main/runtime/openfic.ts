@@ -1,5 +1,6 @@
 import { app, net } from "electron";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { access, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { findFreePort } from "../ports.js";
@@ -97,21 +98,27 @@ export async function findBundledBackendWheel(expectedVersion: string): Promise<
   }
 }
 
-/** venv 中的后端是否已由内置 wheel 安装过。 */
-async function isBundledBackendInstalled(runtimeDir: string, expectedVersion: string): Promise<boolean> {
+async function getBundledBackendIdentity(expectedVersion: string, wheelPath: string): Promise<string> {
+  const digest = createHash("sha256").update(await readFile(wheelPath)).digest("hex");
+  return `${expectedVersion}:sha256:${digest}`;
+}
+
+/** venv 中的后端是否已由当前版本和内容的内置 wheel 安装过。 */
+async function isBundledBackendInstalled(runtimeDir: string, expectedIdentity: string): Promise<boolean> {
   try {
     const marker = await readFile(getBundledBackendMarkerPath(runtimeDir), "utf-8");
-    return marker.trim() === expectedVersion;
+    return marker.trim() === expectedIdentity;
   } catch {
     return false;
   }
 }
 
-async function markBundledBackendInstalled(runtimeDir: string, expectedVersion: string): Promise<void> {
+async function markBundledBackendInstalled(runtimeDir: string, expectedIdentity: string): Promise<void> {
   try {
-    await writeFile(getBundledBackendMarkerPath(runtimeDir), `${expectedVersion}\n`, "utf-8");
+    await writeFile(getBundledBackendMarkerPath(runtimeDir), `${expectedIdentity}\n`, "utf-8");
   } catch (error) {
     appendLog("runtime", `写入内置后端标记失败：${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   }
 }
 
@@ -384,10 +391,17 @@ export async function inspectOpenFicRuntime(
     return { complete: false, message: "OpenFix 命令行程序缺失或不可用" };
   }
 
-  // 打包版内置 wheel：版本号相同但来源不同的旧 venv（例如从 PyPI 装的官方
-  // openfic==同版本）必须判定为不完整，否则新接口全部 404。
-  if (bundledWheel && !(await isBundledBackendInstalled(runtimeDir, expectedVersion))) {
-    return { complete: false, message: "OpenFix 后端需要从安装包更新" };
+  // 同版本 wheel 的内容也可能变化；旧版本标记不能证明已安装当前内容。
+  if (bundledWheel) {
+    let bundledBackendIdentity: string;
+    try {
+      bundledBackendIdentity = await getBundledBackendIdentity(expectedVersion, bundledWheel);
+    } catch {
+      return { complete: false, message: "安装包内置后端不可读取" };
+    }
+    if (!(await isBundledBackendInstalled(runtimeDir, bundledBackendIdentity))) {
+      return { complete: false, message: "OpenFix 后端需要从安装包更新" };
+    }
   }
 
   return { complete: true, message: "OpenFix 运行环境已完整安装" };
@@ -403,8 +417,11 @@ export async function ensureOpenFicRuntime(
   const venvPythonPath = getVenvPythonPath(runtimeDir);
   const uvPath = getUvPath(runtimeDir);
   const bundledWheel = await findBundledBackendWheel(expectedVersion);
-  const bundledBackendInstalled = bundledWheel
-    ? await isBundledBackendInstalled(runtimeDir, expectedVersion)
+  const bundledBackendIdentity = bundledWheel
+    ? await getBundledBackendIdentity(expectedVersion, bundledWheel)
+    : null;
+  const bundledBackendInstalled = bundledBackendIdentity
+    ? await isBundledBackendInstalled(runtimeDir, bundledBackendIdentity)
     : true;
   let pypiEnvironments: Promise<NodeJS.ProcessEnv[]> | null = null;
   const getPypiEnvironments = () =>
@@ -454,8 +471,7 @@ export async function ensureOpenFicRuntime(
   const openFicCliPath = resolveOpenFicCliPath(venvPythonPath);
   const openFicCliIsUsable =
     (await pathExists(openFicCliPath)) && (await succeeds(openFicCliPath, ["--help"], runtimeDir));
-  // bundledBackendInstalled=false 表示 venv 里是同版本的旧来源（例如 PyPI 官方包），
-  // 版本号相同也必须重装，否则新接口全部 404。
+  // 来源或 wheel 内容变化时，同版本也必须重装。
   if (installedVersion !== expectedVersion || !openFicCliIsUsable || !bundledBackendInstalled) {
     appendLog(
       "runtime",
@@ -490,8 +506,8 @@ export async function ensureOpenFicRuntime(
         runUvInstallWithSystemCertsRetry(uvPath, installCommand.args, runtimeDir, onProgress, environment),
       );
     }
-    if (bundledWheel) {
-      await markBundledBackendInstalled(runtimeDir, expectedVersion);
+    if (bundledBackendIdentity) {
+      await markBundledBackendInstalled(runtimeDir, bundledBackendIdentity);
     }
   }
 
