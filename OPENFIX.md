@@ -506,3 +506,38 @@ OpenFix 自有标识首轮设计已落地：以打开的书页和校订符号组
 * 源码提交：`1e80000766558571f220a5f9366bd13594c03d48`（四个UI/测试文件）与 `c9d589fd6995abc3364e7514c75911bb50773c66`（两个runtime/测试文件）。逐次白名单暂存、cached diff和Git读回；终态记录沿用同一工作目录。
 * 原有owner内修复，无新持久化owner、installer、依赖、公共端点或迁移。生产446/299、两新spec562/583、runtime763与test473 physical lines；canonical hook293行且算法未改，维持有界复杂度。
 * 本地源码切片信心 B，**完整 V1.0 仍为 `needs-verification`**。合成 API/socket/XHR 与 VM/fake subprocess 不证明真实 provider、IssueCard 分析移除的独立异步生命周期、安装期间文件变化、marker 写入中断、干净旧版升级及原数据、native ARM64、最新安装包运行、远端双架构 Release 或签名。后端应用源码本轮未变，旧后端测试不能冒充本次新 UI/runtime 验收。
+
+**V1.0 AI 模型错误契约与设置引导（2026-10-03；本地源码验收）**：
+
+* 新书搭建、Inline AI、大纲四项 AI 动作、一致性检查和问题分析继续采用既有 `light_model` 策略；默认 Agent 模型与轻量模型由用户在既有设置中选择。
+* 这些接口的 `BackgroundModelUnavailableError` 维持 HTTP 400，`detail` 从字符串改为 `{"code":"background_model_unavailable","message":"原有安全说明"}`。配置为空、所选模型已删除、模型提供商已删除共享此码。成功数据与其他错误契约保持：普通校验仍为字符串 detail，既有安全 provider 502 仍为调用失败。
+* 五个前端 AI 消费者按 HTTP 状态和稳定错误码显示 en/zh-CN 配置引导。普通字符串错误兼容显示为一般失败；字符串中的「模型」不再决定错误类型。新书搭建的 provider 502 必须显示生成失败，不能提示尚未配置模型。
+* 设置说明与 onboarding 引导明确实际步骤：配置提供商、创建可用对话模型、选择默认 Agent 模型和轻量模型；轻量模型说明列出新书搭建、Inline AI、大纲、一致性、标题与摘要用途。
+* 源码21路径本地提交 `75379c362bb3a0e8acae55a6fd8d00d62e7c1132`；后端120定向/2027全量通过、12输入hash仍一致。前端最新 `tmp/ai-error-preview-native-final-20261003.log` 的四个命令（lint/type、完整desktop build、全75production-preview浏览器回归）通过；184Node检查按真实测试/业务输入hash未变从前一轮成功终态复用，未冒充该最新日志重新执行。各主题独立Claude SPEC/QUALITY静态PASS。完整V1仍为 `needs-verification`，终态证据沿用同一工作记录。
+
+**V1.0 手动升级 preflight（2026-10-03；本地源码验收）**：
+
+* 在原 NSIS 定制中，将仅更新器触发的 `customInit` 和推测的新安装路径替换为先于框架安装 Section 的隐藏 preflight Section。最终安装模式、目录及必要提权完成后，准备注册表实际选择的旧卸载器；all-users 的两个 hive 都在旧卸载执行前处理。fresh 未注册时跳过；已注册但路径无效、缺失、目录或复制失败时中止。
+* 现有安装模式、完成页、卸载时 runtime 保留与真实卸载清理语义保留。兼容镜像绑定 `app-builder-lib 26.15.6`；上游提供读取旧卸载元数据的前置 hook 时移除该镜像。
+* 协调者 `j-rpttco` 退出 0：desktop lint/type-check、**13 Node passed**，主注册路径、兼容路径、卸载器隔离三个缩减 NSIS 编译均通过。夹具补齐实际 MUI2 include 后无未定义符号警告；源码、模板和头文件 hash 已记录。编译输出未运行，精确临时目录 **94,305 bytes** 已删除。
+* 独立 Claude SPEC 和 QUALITY 为静态 PASS；两文件本地提交 `971e60b0235f28fa7a6e9fa3ff7bdcbd8a661670`。实际 Abort 的 OS 退出码、注册表与 UAC、Windows 锁、历史旧包升级及原数据保留尚未执行验收；完整 V1.0 保持 `needs-verification`。
+
+**V1.0 Inline AI 定位与内部滚动（2026-10-03；本地源码验收）**：
+
+* 浮动菜单与结果按实测尺寸和视口定位，自动翻转并限制越界；窗口缩小时允许内部滚动。内部菜单与长候选diff滚动保持候选，正文仅在明确接受后改变；外部滚动与原关闭行为保留。
+* 5路径源码提交 `8dd06ae8de5205bd8546765424c98d4ee66ea456`。原29几何检查加10实际callback检查共39通过；8定位/滚动浏览器用例覆盖en/zh-CN、两常规窗口、缩窗和长候选滚动/Reject，纳入全75用例。30行合成候选在滚动前后逐行精确一致。
+* writing初始化/章节记忆5路径提交 `a6cf22ddc4c9b52f9c43ae1100add961f7d103e8`：原effect等待目录就绪、真实依赖驱动重新评估；旧chapter:记录单次归一化且经当前章树准入，producer写canonical rawID，笔记/空标签不覆盖记忆。33init+41memory actual-AST检查、两目录屏障及四raw/prefixed×desktop/mobile真实native IndexedDB恢复/回首页删除合成tabs再返回用例通过。schema/helper保留；不解释全部旧dev加载超时，production-built hashes绑定。
+* 欢迎顶部书本图标2路径提交 `2994b6e672bc8691e922eeaf7b058180422faaa3`：原selector调整为.onboarding-dialog .onboarding-badge，56/26尺寸、图案/颜色/文案/交互保留。en/zh-CN×1600desktop/390mobile四实际欢迎用例严格测量center≤1px、尺寸与视口内、正常开始进入下一步通过，纳入全75。
+* 原j-afabvo25pass/1initial-project-load-failure/35notrun、j-eke1xn2pass/1initial-writing-load-failure/7notrun保留为有效失败，j-qdv9dc57pass/1initial-writing-load-failure/7notrun和诊断j-6xeh5h/j-43ur3a保留；dev启动j-por33y没有browser命令。旧超时根因未知；j-hrgilq27sTCP与原1sHTTP成功只证明本次就绪，exact121bytes根/owned进程已清。独立真实AST仅证明目录晚于tabs的latch，不解释全部旧超时；新production-preview成功亦不倒推旧根因。j-r7vksb3pass中第三项证明内部scroll会关闭菜单，是缺陷诊断而非修复验收。j-f9wjki原报告candidate-unchanged超过断言；j-3zuztf仅单spec补30行候选before/after exact数据和before-scroll model，实际只有一个语言循环模板增加8行，不采用报告的每个case+8行计数。QUALITY j-aavnen将model也称为before/after断言不采用：实际candidate before/after精确30行，model仅before-scroll header断言；静态review不证明执行。新执行未放宽60秒/10秒/retries0/normalclick/raw/unknown guards。writing writer j-eaxab4实际静态/no执行；其736行计数不采用，初始Node实际752内容行。协调者Node初验32/33，唯一失败为测试误拒原tabs.length，后仅测试接缝修正，生产冻结；browser退役dev-only/src导入，在fresh context观察真实native IndexedDB项目tabs读取完成后恢复章节，finally释放parked routes。tmp/ai-error-preview-final-20261003.log仅lint0/type1（unbound-method），descriptor unknown/function guard/authentic typed cast修正后，tmp/ai-error-preview-memory-final-20261003.log仍仅lint0/type1（require-array-sort-compare）；两次均未执行后续build/Node/browser，exact0byte根清理。仅三个sort补等价UTF16 comparator，inverse-hash证明其余字节及其他39inputs冻结。最终writing完整SPEC静态40memory计数不采用，实际执行41；原pre-memory reviews保持为历史。actual AST exec27346仅证明tabID/rawID mismatch：desktop空/mobile错first，内存canonical producer+legacy reader恢复正确；不是nativebrowser验收。welcome j-eecyh1四case原display:block/icon偏移-15，临时单display:flex后0/0只是诊断；最终四case才验收fixedsource。welcome静态报告79行/9或10声明/默认9000和30s不采用：实际CSS76内容行（此前77含末尾LF计数）、八声明、专用19003/expect10s。tmp/ai-error-preview-lexical-final-20261003.log七前置命令0，但browser1pass/1dev-only-import-failure/73notrun，精确10062byte根清理/ownedVite50452停止。仅两个oldspec退役/src/lib/local-db.ts动态import，sharedfixture新增单native-existing-DB seed，原routes/各case/断言/timeout保留；fresh独立seed两阶段审查与全75验收另绑定，旧失败不改为全通过。actual源码seed开库promise合成before normalClose1/blocked-lateClose0、after均1，原新helper加入failure marker/迟到连接close，外层finally与各transaction不变；无实际IDB/网络诊断。三test逆向hash匹配原snapshot与失败run输入、其他37current hashes不变。
+* 前后端精确验证根共 **38,435,357 bytes** 已清理，owned Vite及19003已释放，仍只有一个工作树；保留小日志与receipt。
+* 此源码切片记录打包前状态：真实provider/生产worker、Electron/native生命周期、真实NSIS OS行为、历史升级/原数据、native ARM64、当前包运行及Release/签名仍未验收；最新本地包的源码绑定见下文。
+
+**V1.0 本地 Windows x64 包（2026-10-03；构建与静态验收）**：
+
+* 以业务源码HEAD `71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b` 重建wheel、NSIS安装包和便携ZIP，工程版本仍为 `0.11.1`。四个打包命令全部退出0，实际release静态校验 **26项PASS**，完整终态与独立readback verifier均通过；纠正交接摘要的28项统计。
+* 当前 **40个源码输入、733个验收frontend文件、5个交付资产** 的hash一致；包内frontend和wheel在ZIP/unpacked中逐文件核对，清理后再次核对交付文件。欢迎书本图标、章节恢复及Inline AI修复包含在本次包中。
+* EXE：`desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe`，**158053544bytes**，SHA-256 `a3b74cfeeb3b98ea744c3453d133b10c1c24dca1794213ac082766c20c0a494b`。
+* ZIP：`desktop/dist-electron/OpenFix-0.11.1-win-x86_64.zip`，**188489089bytes**，SHA-256 `0802960a13bf8cd79951dc53425069fe44b3ef360eacce9e279a955c3f8a52df`。wheel为30844173bytes；其他资产hash/mtime见同一工作记录的本地包sidecar与readback receipt。
+* 安装包Authenticode只读实测 **NotSigned / 无签名证书**。构建日志出现signtool阶段不能用于宣称正式签名。
+* 精确展开目录清理 **394171878bytes**、独立UV缓存清理 **1752623bytes**，合计 **395924501bytes**，清理后独立确认不存在。保留交付包和小证据文件，仍只有一个工作树。
+* 当前包实际启动、真实模型、干净Windows11历史升级/原数据、native ARM64、远端双架构Release及正式签名仍需验收；**完整V1.0保持needs-verification**。本轮构建与静态包完成不等于正式V1发布。

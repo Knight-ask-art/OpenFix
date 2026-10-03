@@ -1,8 +1,12 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
-  "currentTodo": "业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。",
+  "currentTodo": "本地x64包已完成构建和静态验收，packageSourceHead为71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b，版本0.11.1。四个打包命令exit0，实际26项release静态校验通过；40个源码输入、733个验收frontend产物、5个交付文件重新读回hash一致。安装包Authenticode实测NotSigned。75 production-preview browser及184 Node、backend120target/2027full的已绑定证据保留。精确win-unpacked和独立UV缓存共清理395924501bytes，一个工作树；完整V1 needs-verification。",
   "completedTodos": [
+    "本地x64包已完成构建和静态验收，packageSourceHead为71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b，版本0.11.1。四个打包命令exit0，实际26项release静态校验通过；40个源码输入、733个验收frontend产物、5个交付文件重新读回hash一致。安装包Authenticode实测NotSigned。75 production-preview browser及184 Node、backend120target/2027full的已绑定证据保留。精确win-unpacked和独立UV缓存共清理395924501bytes，一个工作树；完整V1 needs-verification。",
+    "TaskStartSnapshot fe829172aba18a5571b7be8250812135ee2c5553 / feature/branding，HEAD71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b、index空、一个工作树。AI错误21路径提交75379c362bb3a0e8acae55a6fd8d00d62e7c1132；定位/滚动5路径提交8dd06ae8de5205bd8546765424c98d4ee66ea456；writing初始化/章节记忆5路径提交a6cf22ddc4c9b52f9c43ae1100add961f7d103e8；welcome对齐2路径提交2994b6e672bc8691e922eeaf7b058180422faaa3；error-spec原生seed单路径提交71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b。tmp/ai-error-preview-native-final-20261003.log终态0：当前frontend lint/type、无测试backend覆盖的完整desktop build与75production-preview browser四命令0；71error+39position/scroll+33writing-init+41writing-memory共184Node检查以相同真实测试/业务输入从上一轮七前置0精确复用，当前production-built全hash绑定；backend j-t5kn8c的120target/2027full与12current hashes继续绑定。fresh Claude SPECj-hse0gi→QUALITYj-aavnen静态PASS，writing完整SPEC及三sort增补SPECtmp/claude-writing-final-spec-addendum-result-20261003.json→QUALITYtmp/claude-writing-final-quality-review-result-20261003.json静态PASS；welcome SPECtmp/claude-onboarding-alignment-spec-review-result-20261003.json→QUALITYtmp/claude-onboarding-alignment-quality-review-result-20261003.json静态PASS，production-built完整hash绑定且未改；terminal verifier独立核对current inputs/命令/计数/reviews/cleanup通过，前后端精确验证根共38435357bytes已清、owned Vite/19003释放。installer971e60b与13Node/三tinycompile证据继续有效；完整V1 needs-verification。",
+    "typed BackgroundModelUnavailableError仅HTTP400返回stable code/message，其他validation400/provider safe502及success/rollback保留；五消费者仅exact400+code显示en/zh-CN设置引导，退役onboarding中文关键词推断。原位置owner测量surface/viewport并fit/clamp，退役固定200/240/translateY推断；layout effect/observer/resize与CSS限高、结果宽度防越界。原scroll callback仅内部Node目标不close，外部/document/null/非Node继续close，selection/request/explicit Accept/conflict/Reject/Escape/pointer保留。writing原loadLastChapter effect等isChaptersLoading/chaptersData并绑定deps，退役未知目录上完成初始化；读取旧记忆只剥离一次chapter:前缀并经当前章树准入，producer复用currentChapterId写canonical rawID，笔记/空标签不覆盖记忆；退役tabID写入chapter-memory，原tabs-present/ready-empty/mobile fallback/desktop empty/schema/helper保留，无新state/API或owner。welcome仅提高原.onboarding-badge在原dialog下的CSS selector specificity，退役Radix.rt-Box覆盖flex的错误效果，56/26/BookOpenText/颜色/文案/JSX/开始交互保留。",
+    "AI错误21路径源码提交75379c362bb3a0e8acae55a6fd8d00d62e7c1132；error8browser和71Node/后端120target+2027full通过，独立静态审查已读回。installer971e60b两路径源码及six-command证据保留。",
     "业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。",
     "在原IPC/main/port/config/history owner修复：queue内重读当前配置与due、同步互斥、成功归档才轮转；running后端stop→archive→rotate→ready resume→done，归档失败仍恢复，stop/resume失败无假done，nonrunning不启动；从canonical handle捕获端口经私有closure贯通既有local/dev链，端口冲突失败无fallback，活SPA的cache/API/socket继续原URL；stop拒绝时仅空slot恢复原handle且rethrow原错误，不覆盖新handle；local/remote producer保留previousConfig字段；lstat+isFile只接纳普通归档，不跟随/删除目录和junction/link。",
     "退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。",
@@ -34,8 +38,19 @@
     "j-p837lv exits 0: scoped Ruff, app-wide ty, 216 target and 2015 full backend passed. j-m70e49 exits 0: frontend lint/type 434 files zero warnings/errors, full desktop build and six synthetic browser cases passed.",
     "All 14 frozen source hashes match the terminal logs and current files; exact backend/frontend validation directories removed (38474137/166 bytes), owned Vite stopped and port 19003 released. One worktree, no packaged smoke."
   ],
-  "activeSlice": "v1-issue-analysis-and-auto-backup-20261003",
+  "activeSlice": "v1-local-x64-package-20261003",
   "evidenceRefs": [
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-x64-package-20261003.json",
+    "tmp/local-x64-package-readback-20261003.json",
+    "tmp/local-x64-package-owned-cache-final-20261003.log",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-ai-model-error-and-inline-position-20261003.json",
+    "D:\\Codex\\projects\\ai-novel\\新版本\\OpenFix\\tmp\\ai-error-position-terminal-receipt-20261003.json",
+    "C:/Users/20969/.fastctx/jobs/j-xxn95g/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-eecyh1/output.log",
+    "tmp/claude-writing-init-spec-review-result-20261003.json",
+    "C:/Users/20969/.fastctx/jobs/j-xxn95g/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-eecyh1/output.log",
+    "tmp/claude-writing-init-spec-review-result-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json",
     "D:\\Codex\\projects\\ai-novel\\新版本\\OpenFix\\tmp\\issue-analysis-backup-terminal-receipt-20261003.json",
     "C:\\Users\\20969\\.fastctx\\jobs\\j-oys5u6\\output.log",
@@ -62,7 +77,7 @@
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
     "git log/show readback: 359c811, ebae8a3, 49935a4 on feature/branding"
   ],
-  "blockedOn": "本切片无未完成源码或接入阻塞；完整V1仍缺真实provider/干净升级/native ARM64/当前包/远端Release/签名验收。",
-  "nextStep": "本切片源码、证据与本地提交已完成；原Claude writers/reviewers与三个runner均终态，不重派。回到§42核对剩余仓库链路，优先独立核实手动覆盖升级旧卸载器的runtime保护与light_model配置引导；只能先读源码/合成接缝，不能以本切片关闭真实provider、升级、ARM64、当前包或Release/signing。继续仅Claude CLI委派，协调者独占Git/shared验证/记录/精确cleanup，不新worktree或重跑installer/packaged smoke。",
+  "blockedOn": "本地x64安装包/ZIP/wheel已重建并静态验收，安装包Authenticode实测NotSigned。当前包运行、真实provider/生产worker、Electron/native生命周期、真实NSIS Abort/registry/UAC/Windows锁/旧uninstaller执行、干净Windows11历史升级及原数据、native ARM64、远端双架构Release和正式签名仍未验收；完整V1 needs-verification。",
+  "nextStep": "交付当前本地x64包和已验证的欢迎图标修复，沿用唯一工作记录推进§42剩余运行验收；优先核验当前包首启、真实模型与历史升级/原数据，native ARM64、远端Release和正式签名继续按Phase5独立验收。仅Claude CLI委派并禁内部Agent/Task，终态实现/审查不重派，协调者拥有共享验证/Git/精确cleanup，保持一个工作树。",
   "updatedAt": "2026-10-03"
 }

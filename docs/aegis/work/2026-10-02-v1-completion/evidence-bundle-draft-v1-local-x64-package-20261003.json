@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "v1-local-x64-package-20261003",
+  "taskStartSnapshot": "fe829172aba18a5571b7be8250812135ee2c5553",
+  "updatedAt": "2026-10-03",
+  "source": "实际exec session64524终态exit0，四个打包命令全部0，完整日志实际26项PASS；独立readback verifier重新核对资产、40源码输入、733验收frontend文件和cleanup退出0。",
+  "summary": "当前0.11.1业务源码已重建本地Windows x64安装包/便携ZIP/wheel，包内验收frontend与wheel逐文件hash绑定；setup.exe实测NotSigned。精确展开目录与task-owned UV缓存共清395924501bytes，一个工作树；当前包运行及§42外部门槛仍needs-verification。",
+  "verifier": "协调者独立取回打包实际终态，核对完整日志、terminal/UV cleanup/readback receipts、当前5资产大小hash/mtime和源码输入，只读Authenticode确认安装包NotSigned；本轮process-only记录提交后独立Git读回。",
+  "type": "local-verification",
+  "taskId": "openfix-v1-completion-20261002",
+  "sliceId": "v1-local-x64-package-20261003",
+  "evidenceStatus": "evidence-finalized",
+  "sourceCommit": "71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b",
+  "parentRefs": [
+    "新版本/docs/03-source-change-list.md §42",
+    "docs/aegis/plans/2026-10-01-phase5-windows-release-updates.md"
+  ],
+  "version": "0.11.1",
+  "architecture": "x86_64",
+  "commandExitCodes": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "counts": {
+    "releaseStaticPassed": 26,
+    "sourceHashes": 40,
+    "frontendArtifactHashes": 733,
+    "deliveryAssets": 5,
+    "productionPreviewBrowserPassed": 75
+  },
+  "assets": {
+    "desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe": {
+      "bytes": 158053544,
+      "sha256": "a3b74cfeeb3b98ea744c3453d133b10c1c24dca1794213ac082766c20c0a494b",
+      "modifiedUtc": "2026-10-03T13:20:59.522705+00:00"
+    },
+    "desktop/dist-electron/OpenFix-0.11.1-win-x86_64.zip": {
+      "bytes": 188489089,
+      "sha256": "0802960a13bf8cd79951dc53425069fe44b3ef360eacce9e279a955c3f8a52df",
+      "modifiedUtc": "2026-10-03T13:19:15.680129+00:00"
+    },
+    "desktop/dist-electron/OpenFix-0.11.1-win-x86_64-setup.exe.blockmap": {
+      "bytes": 167008,
+      "sha256": "1552bd68301811951af45f1f639a4a32d8fe3bce40fe059f7b3966ff960e4d87"
+    },
+    "desktop/dist-electron/latest.yml": {
+      "bytes": 368,
+      "sha256": "7e4dee58311b1c5fb0dec6e615538e366a8c5cc35275a9608645ed3682cd7a20"
+    },
+    "desktop/backend-wheel/openfic-0.11.1-py3-none-any.whl": {
+      "bytes": 30844173,
+      "sha256": "4486a90f10ed58774d89658d7ad37afa94f35d3a5e5c69b0a36258efdc90d806"
+    }
+  },
+  "installerAuthenticode": {
+    "status": "NotSigned",
+    "certificatePresent": false,
+    "scope": "只读检查本次setup.exe"
+  },
+  "cleanup": [
+    {
+      "path": "desktop/dist-electron/win-unpacked",
+      "bytes": 394171878,
+      "removed": true
+    },
+    {
+      "path": "tmp/openfix-package-uv-20261003-jldmkwl3",
+      "bytes": 1752623,
+      "removed": true
+    }
+  ],
+  "cleanupBytes": 395924501,
+  "commandRefs": [
+    "tmp/run-local-package-owned-uv-20261003.py 71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b",
+    "tmp/verify-local-x64-package-readback-20261003.py"
+  ],
+  "evidenceRefs": [
+    "tmp/local-x64-package-owned-cache-final-20261003.log",
+    "tmp/local-x64-package-terminal-receipt-20261003.json",
+    "tmp/local-package-uv-cleanup-20261003.json",
+    "tmp/local-x64-package-readback-20261003.json",
+    "evidence-bundle-draft-v1-ai-model-error-and-inline-position-20261003.json",
+    "evidence-bundle-draft-v1-installer-manual-upgrade-preflight-20261003.json"
+  ],
+  "logSha256": {
+    "tmp/local-x64-package-owned-cache-final-20261003.log": "e0a6820dc419ba36b90824d31a066ca0159599f791c586fa3569d5cc07014d8c"
+  },
+  "readbackVerifierSha256": "74fdffb11b75960e87fd43b3751513984b2d6c16fc4e392e6096204634b22e36",
+  "frontendVerificationReceiptSha256": "7fe6784ddc3f5600c91ab5b060fa67d847b6d986d9153ddc565e26e470275e6f",
+  "corrections": [
+    "交接摘要称28项PASS；真实完整日志为26项PASS，四个打包命令均exit0和ALL CHECKS PASSED不变。",
+    "构建日志的signtool阶段不证明签名；本次安装包Authenticode实测NotSigned。",
+    "先前源码记录的未打包状态属于本轮打包前快照；本终态以当前source/asset hashes绑定新包，仍不证明包实际运行。"
+  ],
+  "covered": [
+    "本地wheel与Windows x64安装包/便携ZIP构建",
+    "release资产命名、update元数据和版本静态不变量",
+    "验收frontend全部733文件在ZIP/unpacked中的hash一致，cleanup后重新核对当前frontend和5个交付文件",
+    "重建wheel在ZIP/unpacked中的hash一致",
+    "真实setup.exe的Authenticode签名状态"
+  ],
+  "uncovered": [
+    "当前安装包或便携应用实际运行",
+    "真实provider及生产worker",
+    "干净Windows11历史升级、原数据保留和真实NSIS OS行为",
+    "native ARM64",
+    "远端双架构Release与正式签名"
+  ],
+  "worktreeCount": 1,
+  "confidence": "B",
+  "overallV1": "needs-verification",
+  "methodPackAuthority": "只保存本地证据，结构检查不授予正式V1验收"
+}

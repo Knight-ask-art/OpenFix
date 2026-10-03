@@ -6,11 +6,12 @@
     "新版本/docs/03-source-change-list.md §42",
     "docs/aegis/plans/2026-10-01-phase5-windows-release-updates.md"
   ],
-  "scopeStatus": "业务源码提交 768db08963b009a323c561d7e9224b7854eb1d3d / feature/branding / 一个工作树。12冻结输入与三执行日志/current source/compiled精确一致；j-8w3ud8八前置命令0、41新Node+10原bundled共51passed/0skip、native legacy24passed/1POSIXskip/1privilegedexcluded。该次browser126passed/1timeout/1interrupted/12notrun为有效失败；原两个用例j-v6fvgz各重复两次4passed；最终j-oys5u6单worker/retries0/原60秒限全140passed(30.6m)/terminal0，case/断言未放宽。fresh Claude SPEC j-sstr1i与QUALITY j-cq5u0u静态PASS/内部spawned0；独立terminal receipt verifier退出0。仅owned Vite树停止，19003释放，三次精确无link/identity验证根清理共10878423bytes。完整V1保持needs-verification。",
-  "compatStatus": "保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。",
-  "retirementStatus": "退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。source physical lines：auto-backup121→125、IPC835→877、main541→556、ports17→21、openfic763→764、dev196→197、UI822→823；五新test317/798/495/797/246。IPC/UI为原有超过800行soft pressure owner，本次local-fix-without-new-responsibility与wiring-only；闭环exceeded-and-governed，继续扩两份接近800行的测试前拆分synthetic fixture，禁止借此顺带重构runtime。",
+  "scopeStatus": "本地x64包已完成构建和静态验收，packageSourceHead为71ef0d3a4c8cc822ef8a37de5a54a2946e192d8b，版本0.11.1。四个打包命令exit0，实际26项release静态校验通过；40个源码输入、733个验收frontend产物、5个交付文件重新读回hash一致。安装包Authenticode实测NotSigned。75 production-preview browser及184 Node、backend120target/2027full的已绑定证据保留。精确win-unpacked和独立UV缓存共清理395924501bytes，一个工作树；完整V1 needs-verification。",
+  "compatStatus": "保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。本轮只更新终态记录，本地x64包与验收输入hash一致；构建与静态检查不等同于当前安装包runtime、真实provider、干净升级或ARM64发布验收。",
+  "retirementStatus": "typed BackgroundModelUnavailableError仅HTTP400返回stable code/message，其他validation400/provider safe502及success/rollback保留；五消费者仅exact400+code显示en/zh-CN设置引导，退役onboarding中文关键词推断。原位置owner测量surface/viewport并fit/clamp，退役固定200/240/translateY推断；layout effect/observer/resize与CSS限高、结果宽度防越界。原scroll callback仅内部Node目标不close，外部/document/null/非Node继续close，selection/request/explicit Accept/conflict/Reject/Escape/pointer保留。writing原loadLastChapter effect等isChaptersLoading/chaptersData并绑定deps，退役未知目录上完成初始化；读取旧记忆只剥离一次chapter:前缀并经当前章树准入，producer复用currentChapterId写canonical rawID，笔记/空标签不覆盖记忆；退役tabID写入chapter-memory，原tabs-present/ready-empty/mobile fallback/desktop empty/schema/helper保留，无新state/API或owner。welcome仅提高原.onboarding-badge在原dialog下的CSS selector specificity，退役Radix.rt-Box覆盖flex的错误效果，56/26/BookOpenText/颜色/文案/JSX/开始交互保留。",
   "newRiskSignals": [
-    "本机synthetic VM/AST/process/net/API/socket不证明真实Electron/OS生命周期、failed-stop晚退出、memoized rejected stopPromise、真实provider/worker并发/Windows锁、真实wheel/pip、干净Windows11旧版升级及原数据、native ARM64、当前包运行、远端双架构Release和签名。首次browser超时根因未知；87%memory单次观测与focused4passed都不证明归因。"
+    "本地x64安装包/ZIP/wheel已重建并静态验收，安装包Authenticode实测NotSigned。当前包运行、真实provider/生产worker、Electron/native生命周期、真实NSIS Abort/registry/UAC/Windows锁/旧uninstaller执行、干净Windows11历史升级及原数据、native ARM64、远端双架构Release和正式签名仍未验收；完整V1 needs-verification。",
+    "原加载失败根因未知，后续当前source全组成功不证明其根因。"
   ],
   "decision": "needs-verification"
 }

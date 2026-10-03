@@ -6,18 +6,21 @@
   ],
   "impactStatement": "docs/aegis/work/2026-10-02-v1-completion/impact-statement-draft.json",
   "compatPlan": "复用既有 RetrievalIndex 与 Story Memory API；只在必要时追加向后兼容迁移；保留既有未提交 V1 改动",
-  "retirementPlan": "退役原timer stop-without-resume、queue前snapshot、丢字段producer、stat跟随非普通归档及无captured-port generic resume；原timer没有renderer reload行为，QUALITY的旧renderer-reload/Retirement none历史表述不采用。daily/文件名/原手动stop→return/配置与数据布局/process.ts语义保留；无新owner、公共IPC/schema、endpoint、依赖或migration。source physical lines：auto-backup121→125、IPC835→877、main541→556、ports17→21、openfic763→764、dev196→197、UI822→823；五新test317/798/495/797/246。IPC/UI为原有超过800行soft pressure owner，本次local-fix-without-new-responsibility与wiring-only；闭环exceeded-and-governed，继续扩两份接近800行的测试前拆分synthetic fixture，禁止借此顺带重构runtime。",
+  "retirementPlan": "typed BackgroundModelUnavailableError仅HTTP400返回stable code/message，其他validation400/provider safe502及success/rollback保留；五消费者仅exact400+code显示en/zh-CN设置引导，退役onboarding中文关键词推断。原位置owner测量surface/viewport并fit/clamp，退役固定200/240/translateY推断；layout effect/observer/resize与CSS限高、结果宽度防越界。原scroll callback仅内部Node目标不close，外部/document/null/非Node继续close，selection/request/explicit Accept/conflict/Reject/Escape/pointer保留。writing原loadLastChapter effect等isChaptersLoading/chaptersData并绑定deps，退役未知目录上完成初始化；读取旧记忆只剥离一次chapter:前缀并经当前章树准入，producer复用currentChapterId写canonical rawID，笔记/空标签不覆盖记忆；退役tabID写入chapter-memory，原tabs-present/ready-empty/mobile fallback/desktop empty/schema/helper保留，无新state/API或owner。welcome仅提高原.onboarding-badge在原dialog下的CSS selector specificity，退役Radix.rt-Box覆盖flex的错误效果，56/26/BookOpenText/颜色/文案/JSX/开始交互保留。",
   "evidenceBundle": [
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-ai-model-error-and-inline-position-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-installer-manual-upgrade-preflight-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-issue-analysis-lifecycle-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-x64-package-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json"
   ]

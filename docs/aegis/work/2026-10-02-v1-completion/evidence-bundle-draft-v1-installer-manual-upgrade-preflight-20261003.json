@@ -1,0 +1,78 @@
+{
+  "type": "local-verification",
+  "sourceCommit": "971e60b0235f28fa7a6e9fa3ff7bdcbd8a661670",
+  "sourceSha256": {
+    "desktop/build/installer.nsh": "bbd3dea7d70f5d24bca93b717380315f89bbad5ea8bc910ac1d42cf310c5ea6f",
+    "desktop/tests/main/installer-preflight.test.mjs": "e58ee8605d731173b4987872383188467cfe59ead6d94d03d841275262c7672e"
+  },
+  "logSha256": {
+    "j-rpttco": "6b9a7699aa46ab405ee5f33d3262c39882da10573764e97f247d5fa6af9f1e07"
+  },
+  "runnerSha256": "af9ded3984ee3f4cceb77b80565301dc8ff74f617e515b78d5a2db7e296feba0",
+  "templateSha256": {
+    "out\\targets\\nsis\\nsisScriptGenerator.js": "f4a1d3fd2b2ee511ea5c4e1e628c78298087879f739c297d9700afae55ddd154",
+    "templates\\nsis\\include\\installUtil.nsh": "97bd546b5cd2aaf16b77bc9e2be8a18962dd74ab5c4d23b35b163ca89bf4dd2a",
+    "templates\\nsis\\installSection.nsh": "74c4dbb4163cdd90ca4850b75d304e916235c882d6af7b5cdad63bffbc977072",
+    "templates\\nsis\\installer.nsi": "8811964416d122612c3e7601728af5d3f998d677918df829a4e8b4c739c8b9f8",
+    "templates\\nsis\\multiUser.nsh": "9aca256695c289ec8a875143101fae8c6236bc8c6a7cf369bbe8b4986e09c9cb"
+  },
+  "headerSha256": {
+    "Contrib/Modern UI 2/MUI2.nsh": "efd501fc7d84be4513a2bb8bdda994be32c846fec48f025aa1339cc00fae1ec9",
+    "Include/MUI2.nsh": "2c847d2009b55ff46f8bc1591ffda00f0194fb08ffebc0876cda669b7957b396",
+    "Include/WinMessages.nsh": "cc8e13c1ad4d949b85e7f76f486480c86f4895623e8d13242c2fb521693cd0fd"
+  },
+  "reviews": {
+    "SPEC": {
+      "job": "j-nu8g6e",
+      "logSha256": "463c2ea61d93f53449d8c6e5d248c3fa83ebfc8956660269c47ffef5fc9b476c",
+      "verdict": "PASS",
+      "scope": "independent static review only"
+    },
+    "QUALITY": {
+      "job": "j-zqdid0",
+      "logSha256": "abaac8812b6ec1ab1d17416ed775f2db2939b0a716e5e2d67c436be769f5d173",
+      "verdict": "PASS",
+      "scope": "independent static review only"
+    }
+  },
+  "cleanup": {
+    "path": "C:\\Users\\20969\\AppData\\Local\\Temp\\openfix-installer-compile-20261003-jers1gve",
+    "bytes": 94305,
+    "removed": true
+  },
+  "counts": {
+    "nodePassed": 13,
+    "compiledVariants": 3,
+    "commandExitCodes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "reviewCorrections": [
+    "Win32 FindFirstFileW在合成empty/nonempty目录的\\*.*均返回点条目，regular/missing不匹配；未采用QUALITY的empty directory漏判说法为confirmed bug。该诊断不是实际NSIS执行。",
+    "基线269为此前含末尾LF计数，与当前350不同；current采用349内容行。",
+    "payload embed已在baseline存在；未测包体大小，不能由本diff推断翻倍。"
+  ],
+  "uncovered": [
+    "actual installer Abort OS exit code",
+    "registry/UAC/locks/old uninstaller execution",
+    "historical upgrade/data retention",
+    "full current package/signing/release"
+  ],
+  "schemaVersion": "aegis.schema.v0",
+  "taskStartSnapshot": "fe829172aba18a5571b7be8250812135ee2c5553",
+  "artifactKey": "v1-installer-manual-upgrade-preflight-20261003",
+  "sliceId": "v1-installer-manual-upgrade-preflight-20261003",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-03",
+  "source": "j-rpttco终态0：desktop lint/type、13实际源码合成Node用例与主路径/兼容路径/卸载器隔离三次缩减NSIS编译共六命令全部0。未定义SW_HIDE源于夹具漏载正式模板MUI2头，夹具补齐后无warning6000；product两输入全程冻结。",
+  "summary": "原installer owner内，将isUpdated-only customInit和猜测新目标路径退役；hidden customHeader Section在final mode/directory/elevation之后、两旧uninstall之前准备registry-selected旧文件，fresh no-op，registered unusable fail-closed。保持runtime/uninstall语义和hives顺序；镜像绑定pinned26.15.6，待上游metadata-aware before-uninstall hook可用时退役。基线268/current349内容行，test796；再扩tests先拆synthetic fixture。原customInit已embed同payload，不采用新增第二份/包体翻倍表述。",
+  "verifier": "协调者独立读回完整终态/current hashes/计数/静态review JSON/cleanup及精确白名单Git提交。",
+  "receiptSha256": "c3f149f2fe918b77b064db0a29a0ed0494bea8ec72fb2de44d8eab4bd77a3680",
+  "confidence": "B",
+  "overallV1": "needs-verification"
+}
