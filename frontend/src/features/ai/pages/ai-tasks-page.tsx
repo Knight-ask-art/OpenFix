@@ -11,16 +11,15 @@ import {
   Wand2,
   type LucideIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { toast } from "@/components";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
-import { useProjects } from "@/features/projects";
+import { useProjectSelection } from "@/features/projects/hooks/use-project-selection";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { getRecentProjects } from "@/lib/local-db";
-import type { RecentProject } from "@/lib/recent-projects";
 
 import "./ai-tasks-page.css";
 
@@ -111,10 +110,6 @@ function persistProject(value: string) {
   }
 }
 
-function isKnownProject(projects: { id: string }[], value: string | null) {
-  return Boolean(value) && projects.some((project) => project.id === value);
-}
-
 export function AiTasksPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -127,66 +122,39 @@ export function AiTasksPage() {
     onClose: closeSidebar,
   });
 
-  const { data: projectsData, isLoading: isLoadingProjects } = useProjects({
-    page: 1,
-    pageSize: 100,
-  });
-  const projects = useMemo(() => projectsData?.items ?? [], [projectsData]);
-  const { data: recentProjects = [] } = useQuery({
+  const { data: recentProjects = [], isPending: isRecentProjectsPending } = useQuery({
     queryKey: ["recent-projects"],
     queryFn: getRecentProjects,
     staleTime: Infinity,
   });
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const queryProjectId = searchParams.get("projectId");
-
-  const [projectId, setProjectId] = useState<string | null>(() => readStoredProject());
-  const consumedQueryProjectRef = useRef<string | null>(null);
-
-  // URL 中的 projectId 只在项目列表加载完成后应用一次，避免覆盖用户之后的手动选择。
-  useEffect(() => {
-    if (isLoadingProjects) return;
-    if (projects.length === 0) return;
-    if (!queryProjectId) return;
-    if (consumedQueryProjectRef.current === queryProjectId) return;
-    consumedQueryProjectRef.current = queryProjectId;
-
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("projectId");
-        return next;
-      },
-      { replace: true },
-    );
-
-    if (isKnownProject(projects, queryProjectId)) {
-      setProjectId(queryProjectId);
-    }
-  }, [isLoadingProjects, projects, queryProjectId, setSearchParams]);
-
-  // 无有效选中项时回退到最近项目或首个项目；已有有效选中项则保持不变。
-  useEffect(() => {
-    if (isLoadingProjects) return;
-    if (projects.length === 0) return;
-    const preferred =
-      (recentProjects as RecentProject[]).find((item) =>
-        projects.some((project) => project.id === item.projectId),
-      )?.projectId ?? projects[0].id;
-    setProjectId((current) => (isKnownProject(projects, current) ? current : preferred));
-  }, [isLoadingProjects, projects, recentProjects]);
-
-  // 只持久化仍然有效的项目 id，避免把已删除的项目写回本地存储。
-  useEffect(() => {
-    if (projectId && isKnownProject(projects, projectId)) {
-      persistProject(projectId);
-    }
-  }, [projectId, projects]);
-
-  const handleProjectChange = useCallback((value: string) => {
-    setProjectId(value);
+  const [searchParams] = useSearchParams();
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const projectIdRef = useRef<string | null>(null);
+  const setCurrentProject = useCallback((nextProjectId: string | null) => {
+    if (projectIdRef.current === nextProjectId) return;
+    projectIdRef.current = nextProjectId;
+    setProjectId(nextProjectId);
+    if (nextProjectId) persistProject(nextProjectId);
   }, []);
+  const getCurrentProjectId = useCallback(() => projectIdRef.current, []);
+  const readProjectCandidates = useCallback(
+    () => Promise.resolve([
+      readStoredProject(),
+      ...recentProjects.map((recentProject) => recentProject.projectId),
+    ]),
+    [recentProjects],
+  );
+  const { projects, isLoadingProjects, selectProjectManually } = useProjectSelection({
+    urlProjectId: searchParams.get("projectId"),
+    getCurrentProjectId,
+    setCurrentProject,
+    isPreferenceReady: !isRecentProjectsPending,
+    getPreferenceCandidates: readProjectCandidates,
+  });
+  const handleProjectChange = (value: string) => {
+    selectProjectManually(value);
+  };
 
   const handleSelect = useCallback(
     (task: PresetTask) => {
