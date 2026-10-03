@@ -1,4 +1,5 @@
 import { Box, Button, Flex, Spinner, Text, TextArea } from "@radix-ui/themes";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import axios from "axios";
 import { Sparkles, X } from "lucide-react";
@@ -102,6 +103,12 @@ interface SavedSelection {
   rawText: string;
 }
 
+/** 已发出的最后一次改写请求：重新生成必须复用它，用户无需重新选中。 */
+interface SavedRequest {
+  action: InlineAiAction;
+  instruction?: string;
+}
+
 type InlineAiPhase = "idle" | "menu" | "custom" | "requesting" | "result";
 
 interface InlineAiMenuProps {
@@ -129,12 +136,34 @@ function readSelectionRect(editor: Editor): SelectionRect | null {
   }
 }
 
+/**
+ * 纯位置计算：给定选区终点，返回“插入下方”在文档里的落点。
+ *
+ * 选区终点通常落在段落内部，而块级节点插在段落内部会被 ProseMirror 拆开该段落；
+ * 因此这里把落点归一到包含选区终点的那个顶层块之后，保证原文段落完整、候选成为其后的独立块。
+ * 位置越界或没有匹配的顶层块时回退到文档末尾，绝不返回段落内部的位置。
+ */
+function resolveInsertBelowPosition(doc: ProseMirrorNode, to: number): number {
+  const docSize = doc.content.size;
+  if (to <= 0) return 0;
+  if (to >= docSize) return docSize;
+
+  let position = docSize;
+  doc.forEach((node, offset) => {
+    if (offset < to && to <= offset + node.nodeSize) {
+      position = offset + node.nodeSize;
+    }
+  });
+  return position;
+}
+
 export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps) {
   const { t } = useTranslation();
   const [phase, setPhase] = useState<InlineAiPhase>("idle");
   const [anchor, setAnchor] = useState<SelectionRect | null>(null);
   const [savedSelection, setSavedSelection] = useState<SavedSelection | null>(null);
   const [response, setResponse] = useState<InlineAiTransformResponse | null>(null);
+  const [lastRequest, setLastRequest] = useState<SavedRequest | null>(null);
   const [instruction, setInstruction] = useState("");
   const [surface, setSurface] = useState<SurfaceSize | null>(null);
   const [viewport, setViewport] = useState<ViewportSize>(() => ({
@@ -149,6 +178,7 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
     setAnchor(null);
     setSavedSelection(null);
     setResponse(null);
+    setLastRequest(null);
     setInstruction("");
   }, []);
 
@@ -263,6 +293,7 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
       }
 
       setSavedSelection(selection);
+      setLastRequest({ action, instruction: customInstruction });
       setPhase("requesting");
       try {
         const result = await transformInlineAi({
@@ -281,24 +312,35 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
           const detail = getErrorDetail(error);
           toast.error(detail ? `${t("inlineAi.failed")}: ${detail}` : t("inlineAi.failed"));
         }
-        setPhase("menu");
+        // 请求失败一律不写正文：已有候选时回到结果表面（保留候选与已保存选区），
+        // 首次请求失败时回到动作菜单。
+        setPhase(response ? "result" : "menu");
       }
     },
-    [captureSelection, chapterId, close, projectId, savedSelection, t],
+    [captureSelection, chapterId, close, projectId, response, savedSelection, t],
   );
+
+  /** 已保存选区在当前文档里是否仍然逐字一致；任何写入前都必须通过这里。 */
+  const isSavedSelectionLive = useCallback(() => {
+    if (!savedSelection) return false;
+    const { from, to, rawText } = savedSelection;
+    const docSize = editor.state.doc.content.size;
+    // 文档可能已被删短到选区范围之外，此时 textBetween 会因位置越界抛错，必须先校验范围。
+    if (from < 0 || from > to || to > docSize) return false;
+    return editor.state.doc.textBetween(from, to, "\n", "\n") === rawText;
+  }, [editor, savedSelection]);
 
   const handleAccept = useCallback(() => {
     if (!response || !savedSelection) {
       close();
       return;
     }
-    const { from, to, rawText } = savedSelection;
-    const currentText = editor.state.doc.textBetween(from, to, "\n", "\n");
-    if (currentText !== rawText) {
+    if (!isSavedSelectionLive()) {
       toast.error(t("inlineAi.conflict"));
       close();
       return;
     }
+    const { from, to } = savedSelection;
     editor
       .chain()
       .focus()
@@ -306,7 +348,35 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
       .run();
     toast.success(t("inlineAi.applied"));
     close();
-  }, [close, editor, response, savedSelection, t]);
+  }, [close, editor, isSavedSelectionLive, response, savedSelection, t]);
+
+  /** 在已保存选区最后一个段落之后插入候选：原文一律保留，只做插入，不做替换。 */
+  const handleInsertBelow = useCallback(() => {
+    if (!response || !savedSelection) {
+      close();
+      return;
+    }
+    if (!isSavedSelectionLive()) {
+      toast.error(t("inlineAi.conflict"));
+      close();
+      return;
+    }
+    // 选区可能结束在段落中间，落点归一到该段落之后，避免把原文段落切开。
+    const position = resolveInsertBelowPosition(editor.state.doc, savedSelection.to);
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(position, newlinesToHtml(response.result))
+      .run();
+    toast.success(t("inlineAi.insertedBelow"));
+    close();
+  }, [close, editor, isSavedSelectionLive, response, savedSelection, t]);
+
+  /** 重新生成：复用同一动作、同一选区与同一指令，不需要用户重新选中。 */
+  const handleRegenerate = useCallback(() => {
+    if (!lastRequest) return;
+    void runTransform(lastRequest.action, lastRequest.instruction);
+  }, [lastRequest, runTransform]);
 
   const handleTriggerClick = () => {
     const selection = captureSelection();
@@ -322,6 +392,9 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
     if (phase !== "result") return;
     const handleEnter = (event: KeyboardEvent) => {
       if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      // 焦点落在结果表面的按钮或自定义指令输入框时，Enter 归它们自己，不劫持为接受。
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest("button, textarea, input, select")) return;
       event.preventDefault();
       event.stopPropagation();
       handleAccept();
@@ -460,6 +533,8 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
               model={response.model}
               onAccept={handleAccept}
               onReject={close}
+              onRegenerate={handleRegenerate}
+              onInsertBelow={handleInsertBelow}
             />
           ) : null}
         </Box>

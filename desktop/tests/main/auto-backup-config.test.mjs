@@ -263,6 +263,7 @@ async function createIpcHarness({ config }) {
       backupDataDir: () => deny("backupDataDir"),
       arePathsEqual: () => deny("arePathsEqual"),
       doPathsOverlap: () => deny("doPathsOverlap"),
+      assertBackupDirOutsideDataDir: () => deny("assertBackupDirOutsideDataDir"),
       inspectDataDir: () => deny("inspectDataDir"),
       isPathWithin: () => deny("isPathWithin"),
       migrateDataDir: () => deny("migrateDataDir"),

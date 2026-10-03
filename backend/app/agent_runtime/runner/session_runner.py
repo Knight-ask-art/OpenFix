@@ -12,6 +12,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context import ContextBuildError, build_context_parts
+from app.agent_runtime.context.budget import calculate_context_budget
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
 from app.agent_runtime.context.compaction.window import (
     CompactionNoWindowError,
@@ -35,7 +36,10 @@ from app.agent_runtime.persistence import (
 )
 from app.agent_runtime.persistence.model import AgentRunMessage
 from app.agent_runtime.revisions import begin_user_revision, finalize_revision_status
-from app.agent_runtime.runner.checkpointer import get_checkpointer, prune_thread_checkpoints
+from app.agent_runtime.runner.checkpointer import (
+    get_checkpointer,
+    prune_thread_checkpoints,
+)
 from app.agent_runtime.runner.event_translator import EventTranslator
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
@@ -306,7 +310,8 @@ class SessionRunner:
             except Exception:
                 candidate_state = None
             if candidate_state is not None and (
-                getattr(candidate_state, "next", ()) or _interrupt_payloads(candidate_state)
+                getattr(candidate_state, "next", ())
+                or _interrupt_payloads(candidate_state)
             ):
                 resumable_state = candidate_state
 
@@ -327,7 +332,9 @@ class SessionRunner:
         status_session = await create_session()
         try:
             revision_status = "interrupted" if resumable_state is not None else "failed"
-            finalized = await finalize_revision_status(status_session, revision_id, revision_status)
+            finalized = await finalize_revision_status(
+                status_session, revision_id, revision_status
+            )
             await status_session.commit()
         finally:
             await status_session.close()
@@ -410,12 +417,18 @@ class SessionRunner:
                 room=self._room,
             )
 
-    async def _current_root_checkpoint_id(self, graph: CompiledStateGraph) -> str | None:
+    async def _current_root_checkpoint_id(
+        self, graph: CompiledStateGraph
+    ) -> str | None:
         state = await graph.aget_state({"configurable": {"thread_id": self.session_id}})
         config = getattr(state, "config", None)
-        configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
+        configurable = (
+            config.get("configurable", {}) if isinstance(config, dict) else {}
+        )
         checkpoint_id = configurable.get("checkpoint_id")
-        return checkpoint_id if isinstance(checkpoint_id, str) and checkpoint_id else None
+        return (
+            checkpoint_id if isinstance(checkpoint_id, str) and checkpoint_id else None
+        )
 
     async def materialize_state(self, values: dict) -> str | None:
         graph = await self._get_graph()
@@ -423,9 +436,13 @@ class SessionRunner:
             {"configurable": {"thread_id": self.session_id}},
             values,
         )
-        configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
+        configurable = (
+            config.get("configurable", {}) if isinstance(config, dict) else {}
+        )
         checkpoint_id = configurable.get("checkpoint_id")
-        return checkpoint_id if isinstance(checkpoint_id, str) and checkpoint_id else None
+        return (
+            checkpoint_id if isinstance(checkpoint_id, str) and checkpoint_id else None
+        )
 
     def _normalize_usage_event(self, event_data: dict) -> dict:
         usage = event_data.get("usage") if isinstance(event_data, dict) else None
@@ -518,9 +535,10 @@ class SessionRunner:
 
     async def _emit_persisted_task_usage_events(self, event_data: dict) -> None:
         async with self._event_session_lock():
-            usage_payload, delta_payload = await self._persist_task_usage_and_build_payload(
-                event_data
-            )
+            (
+                usage_payload,
+                delta_payload,
+            ) = await self._persist_task_usage_and_build_payload(event_data)
             await self._emit_agent_event(
                 "agent:task_usage_delta",
                 delta_payload,
@@ -591,7 +609,7 @@ class SessionRunner:
                 "inject_message_consumed_sink": self._mark_injected_user_message_sent,
                 "inject_message_attachments": self._get_injected_user_message_attachments,
                 "model_config": self.model_config,
-            }
+            },
         }
 
     async def _mark_injected_user_message_sent(self, message_id: str) -> bool:
@@ -680,7 +698,9 @@ class SessionRunner:
     ) -> tuple[Any, Any]:
         pre_run_checkpoint_id = await self._current_root_checkpoint_id(graph)
         persistence_kwargs = {"attachments": attachments} if attachments else {}
-        user_message = await self._persist_user_message(user_request, **persistence_kwargs)
+        user_message = await self._persist_user_message(
+            user_request, **persistence_kwargs
+        )
 
         revision_session = await create_session()
         try:
@@ -758,20 +778,23 @@ class SessionRunner:
         try:
             history_messages = await load_history(session, self.session_id)
             node_messages = [_to_history_dict(message) for message in history_messages]
-            state = cast(AgentRuntimeState, {
-                "session_id": self.session_id,
-                "task_id": self.task_id,
-                "project_id": self.project_id,
-                "model_config": without_api_key(self.model_config),
-                "active_agent": None,
-                "agent_key": self.agent_key,
-                "is_completed": False,
-                "error": None,
-                "retry_count": 0,
-                "user_request": "",
-                "user_attachments": [],
-                "current_revision_id": None,
-            })
+            state = cast(
+                AgentRuntimeState,
+                {
+                    "session_id": self.session_id,
+                    "task_id": self.task_id,
+                    "project_id": self.project_id,
+                    "model_config": without_api_key(self.model_config),
+                    "active_agent": None,
+                    "agent_key": self.agent_key,
+                    "is_completed": False,
+                    "error": None,
+                    "retry_count": 0,
+                    "user_request": "",
+                    "user_attachments": [],
+                    "current_revision_id": None,
+                },
+            )
             agent_name = state.get("active_agent") or state.get("agent_key") or "build"
             parts = await build_context_parts(
                 state,
@@ -780,19 +803,18 @@ class SessionRunner:
                 session,
             )
             history = [
-                part
-                for part in parts
-                if (part.metadata or {}).get("part") == "history"
+                part for part in parts if (part.metadata or {}).get("part") == "history"
             ]
             existing_compactions = await compaction_repo.list_by_session(
                 session,
                 self.session_id,
             )
+            context_budget = calculate_context_budget(self.model_config)
             try:
                 window = select_compaction_window(
                     history,
                     existing_compactions,
-                    int(self.model_config["max_context_tokens"]),
+                    context_budget.usable_input_tokens,
                 )
             except CompactionNoWindowError as exc:
                 raise CompactionError(
@@ -893,7 +915,9 @@ class SessionRunner:
 
                 ws_events = self._translator.translate(event_dict)
                 if ws_events:
-                    for ws_event in ws_events if isinstance(ws_events, list) else [ws_events]:
+                    for ws_event in (
+                        ws_events if isinstance(ws_events, list) else [ws_events]
+                    ):
                         payload = ws_event["data"]
                         if ws_event["name"] == "agent:usage":
                             await self._emit_persisted_task_usage_events(payload)
@@ -910,7 +934,9 @@ class SessionRunner:
             if reason == "cancelled":
                 status_session = await create_session()
                 try:
-                    await finalize_revision_status(status_session, revision.id, "cancelled")
+                    await finalize_revision_status(
+                        status_session, revision.id, "cancelled"
+                    )
                     await status_session.commit()
                 finally:
                     await status_session.close()
@@ -954,9 +980,7 @@ class SessionRunner:
             await self._prune_thread_checkpoints()
 
         # Check for interrupt after stream ends
-        state = await graph.aget_state(
-            {"configurable": {"thread_id": self.session_id}}
-        )
+        state = await graph.aget_state({"configurable": {"thread_id": self.session_id}})
         if state.next:
             status_session = await create_session()
             try:
@@ -1023,7 +1047,9 @@ class SessionRunner:
         self._injected_user_message_attachments[message_id] = attachments or []
         await self._inject_queue.put((message_id, "user", content))
 
-    def _get_injected_user_message_attachments(self, message_id: str) -> list[dict[str, Any]]:
+    def _get_injected_user_message_attachments(
+        self, message_id: str
+    ) -> list[dict[str, Any]]:
         return list(self._injected_user_message_attachments.get(message_id, []))
 
     async def queue_pending_user_message(
@@ -1051,7 +1077,9 @@ class SessionRunner:
             "created_at": created_at_iso,
         }
 
-    async def cancel_pending_user_message(self, message_id: str) -> dict[str, str] | None:
+    async def cancel_pending_user_message(
+        self, message_id: str
+    ) -> dict[str, str] | None:
         queued = self._queued_user_messages.pop(message_id, None)
         if queued is None:
             return None
@@ -1164,9 +1192,15 @@ class SessionRunner:
         snapshot = await graph.aget_state(
             {"configurable": {"thread_id": self.session_id}}
         )
-        values = snapshot.values if isinstance(getattr(snapshot, "values", None), dict) else {}
+        values = (
+            snapshot.values
+            if isinstance(getattr(snapshot, "values", None), dict)
+            else {}
+        )
         revision_id = values.get("current_revision_id")
-        revision_id = revision_id if isinstance(revision_id, str) and revision_id else None
+        revision_id = (
+            revision_id if isinstance(revision_id, str) and revision_id else None
+        )
         runtime_context: dict[str, Any] = {}
         audit_context = AuditContext(
             session_id=self.session_id,
@@ -1265,9 +1299,7 @@ class SessionRunner:
                 if matching is None or not resume_id:
                     raise ValueError("待恢复的问题不存在或已处理")
                 resume_value = {resume_id: payload}
-            stream_options = (
-                {"durability": "exit"} if is_terminal_skip_resume else {}
-            )
+            stream_options = {"durability": "exit"} if is_terminal_skip_resume else {}
             async for event in graph.astream_events(
                 Command(resume=resume_value),
                 config=config,
@@ -1280,7 +1312,9 @@ class SessionRunner:
                     break
                 ws_events = self._translator.translate(event_dict)
                 if ws_events:
-                    for ws_event in ws_events if isinstance(ws_events, list) else [ws_events]:
+                    for ws_event in (
+                        ws_events if isinstance(ws_events, list) else [ws_events]
+                    ):
                         payload = ws_event["data"]
                         if ws_event["name"] == "agent:usage":
                             await self._emit_persisted_task_usage_events(payload)
@@ -1293,7 +1327,9 @@ class SessionRunner:
             if reason == "cancelled":
                 status_session = await create_session()
                 try:
-                    await finalize_revision_status(status_session, revision_id, "cancelled")
+                    await finalize_revision_status(
+                        status_session, revision_id, "cancelled"
+                    )
                     await status_session.commit()
                 finally:
                     await status_session.close()
@@ -1331,9 +1367,7 @@ class SessionRunner:
         finally:
             await runtime_session.close()
 
-        state = await graph.aget_state(
-            {"configurable": {"thread_id": self.session_id}}
-        )
+        state = await graph.aget_state({"configurable": {"thread_id": self.session_id}})
         if state.next:
             status_session = await create_session()
             try:

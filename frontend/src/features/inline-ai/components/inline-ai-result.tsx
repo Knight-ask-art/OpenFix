@@ -12,9 +12,19 @@ interface InlineAiResultProps {
   model: string;
   onAccept: () => void;
   onReject: () => void;
+  onRegenerate: () => void;
+  onInsertBelow: () => void;
 }
 
-export function InlineAiResult({ original, result, model, onAccept, onReject }: InlineAiResultProps) {
+export function InlineAiResult({
+  original,
+  result,
+  model,
+  onAccept,
+  onReject,
+  onRegenerate,
+  onInsertBelow,
+}: InlineAiResultProps) {
   const { t } = useTranslation();
   const rows = useMemo(() => buildInlineAiDiffRows(original, result), [original, result]);
 
@@ -72,9 +82,8 @@ export function InlineAiResult({ original, result, model, onAccept, onReject }: 
       </div>
 
       <Flex
+        direction="column"
         gap="2"
-        justify="end"
-        align="center"
         className="inline-ai-result__footer"
       >
         <Text
@@ -84,20 +93,42 @@ export function InlineAiResult({ original, result, model, onAccept, onReject }: 
         >
           {t("inlineAi.keyboardHint")}
         </Text>
-        <Button
-          size="2"
-          variant="soft"
-          color="gray"
-          onClick={onReject}
+        <Flex
+          gap="2"
+          justify="end"
+          align="center"
+          wrap="wrap"
         >
-          {t("inlineAi.reject")}
-        </Button>
-        <Button
-          size="2"
-          onClick={onAccept}
-        >
-          {t("inlineAi.accept")}
-        </Button>
+          <Button
+            size="2"
+            variant="soft"
+            color="gray"
+            onClick={onReject}
+          >
+            {t("inlineAi.reject")}
+          </Button>
+          <Button
+            size="2"
+            variant="soft"
+            color="gray"
+            onClick={onRegenerate}
+          >
+            {t("inlineAi.regenerate")}
+          </Button>
+          <Button
+            size="2"
+            variant="soft"
+            onClick={onInsertBelow}
+          >
+            {t("inlineAi.insertBelow")}
+          </Button>
+          <Button
+            size="2"
+            onClick={onAccept}
+          >
+            {t("inlineAi.accept")}
+          </Button>
+        </Flex>
       </Flex>
     </Box>
   );

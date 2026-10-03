@@ -88,6 +88,18 @@ def _no_chapters_detail(filename: str) -> str:
     return "文件解析失败，未能识别任何章节"
 
 
+async def _rollback_failed_import(session: AsyncSession) -> None:
+    """回滚失败的流式导入。
+
+    流式响应的 session 依赖会在流结束之后提交，因此导入失败时必须显式回滚，
+    否则已经写入的部分数据会被提交。回滚本身失败也不能影响 SSE 错误事件。
+    """
+    try:
+        await session.rollback()
+    except Exception:
+        logger.exception("回滚失败的流式导入 session 时出错")
+
+
 @router.post(
     "/preview",
     response_model=ImportPreviewResponse,
@@ -322,6 +334,7 @@ async def confirm_import_stream(
 
         except Exception as e:
             logger.exception(f"导入失败: {e}")
+            await _rollback_failed_import(session)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(

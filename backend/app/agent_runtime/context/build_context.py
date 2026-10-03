@@ -7,10 +7,15 @@ from app.agent_runtime.context.parts.history import build_history
 from app.agent_runtime.context.parts.rules import build_rules
 from app.agent_runtime.context.parts.skills import build_skills
 from app.agent_runtime.context.parts.system_prompt import build_system_prompt
-from app.agent_runtime.context.processors.compress import compress_system_prompts_if_enabled
+from app.agent_runtime.context.processors.compress import (
+    compress_system_prompts_if_enabled,
+)
 from app.agent_runtime.context.processors.filter import (
     filter_invalid,
     filter_tool_result_metadata,
+)
+from app.agent_runtime.context.processors.soft_gc import (
+    soft_prune_duplicate_tool_results,
 )
 from app.agent_runtime.context.processors.sanitize import sanitize_surrogates
 from app.agent_runtime.context.processors.to_langchain import to_langchain_messages
@@ -45,7 +50,9 @@ async def build_context_parts(
         parts.extend(prompt_messages)
     if (m := await build_rules(db_session, state.get("project_id"))) is not None:
         parts.append(m)
-    if (m := await build_skills(state, agent_name, db_session, node_messages)) is not None:
+    if (
+        m := await build_skills(state, agent_name, db_session, node_messages)
+    ) is not None:
         parts.append(m)
     parts.extend(await build_history(node_messages, db_session))
 
@@ -53,7 +60,9 @@ async def build_context_parts(
     static = [m for m in cleaned if not _is_history(m)]
     history = [m for m in cleaned if _is_history(m)]
     try:
-        compactions = await compaction_repo.list_by_session(db_session, state["session_id"])
+        compactions = await compaction_repo.list_by_session(
+            db_session, state["session_id"]
+        )
     except Exception as e:
         raise ContextBuildError(
             "compaction",
@@ -61,6 +70,7 @@ async def build_context_parts(
             cause=e,
         ) from e
     overlaid_history = apply_compaction_overlay(history, compactions)
+    overlaid_history = soft_prune_duplicate_tool_results(overlaid_history).messages
     result = static + overlaid_history
     result = await compress_system_prompts_if_enabled(result, db_session)
     return result

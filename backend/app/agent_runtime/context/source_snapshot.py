@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import html
 import json
-from collections.abc import Mapping, Sequence
-from typing import Any
+import re
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, cast
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 
 MAX_CONTEXT_SOURCES = 500
 MAX_SOURCE_LABEL_LENGTH = 160
@@ -20,13 +28,60 @@ _SOURCE_TYPES_BY_CATEGORY: dict[str, set[str]] = {
         "chapterSummary",
         "rangeSummary",
         "storyMemorySearch",
+        "mentionReference",
+        "mentionExcerpt",
     },
-    "character": {"characterList", "characterProfile", "storyMemorySearch"},
-    "worldEntry": {"worldEntryList", "worldEntryContent", "storyMemorySearch"},
+    "character": {
+        "characterList",
+        "characterProfile",
+        "storyMemorySearch",
+        "mentionReference",
+    },
+    "worldEntry": {
+        "worldEntryList",
+        "worldEntryContent",
+        "storyMemorySearch",
+        "mentionReference",
+    },
     "outline": {"storyMemorySearch"},
-    "note": {"noteList", "noteContent", "storyMemorySearch"},
+    "note": {
+        "noteList",
+        "noteContent",
+        "storyMemorySearch",
+        "mentionReference",
+    },
     "conversation": {"compactionSummary"},
+    "skill": {"availableSkill", "activatedSkill", "mentionReference"},
+    "rule": {"agentRules"},
 }
+
+_MENTION_SOURCE_CATEGORY_BY_KIND: dict[str, str] = {
+    "chapter": "chapter",
+    "character": "character",
+    "world_info_entry": "worldEntry",
+    "note": "note",
+}
+# A mention label ends at whitespace or at sentence punctuation, so trailing
+# prose such as "@note:写作笔记，最后用 @skill:节奏控制" cannot leak into the
+# reported title. Colons stay inside a label: an excerpt anchor carries a
+# ":start-end" suffix, and CJK titles such as "卷一：风起" may contain one.
+_MENTION_LABEL_BOUNDARY_CHARS = "。，、；！？,;!?"
+_MENTION_ANCHOR_RE = re.compile(
+    rf"(?<![\w@])@(?P<kind>[a-z_]+):"
+    rf"(?P<label>[^\s{re.escape(_MENTION_LABEL_BOUNDARY_CHARS)}]+)"
+)
+_MENTION_LINE_RANGE_SUFFIX_RE = re.compile(r":\d+-\d+$")
+# Still needed for punctuation that stays inside a label, such as a trailing
+# colon or a closing quote.
+_MENTION_LABEL_TRIM_CHARS = "。，、；：！？.,;:!?\"'”’"
+_AVAILABLE_SKILLS_RE = re.compile(
+    r"<available_skills\b[^>]*>(?P<body>.*?)</available_skills\s*>",
+    re.DOTALL,
+)
+_SKILL_NAME_RE = re.compile(r"<name>(?P<name>.*?)</name>", re.DOTALL)
+_ACTIVATED_SKILL_RE = re.compile(r'<skill_content\s+name="(?P<name>[^"]*)"')
+_RULES_MARKER = "<rules>"
+_SKILL_ACTIVATION_TOOL_NAMES = frozenset({"activate_skill"})
 
 
 def _record(value: Any) -> Mapping[str, Any] | None:
@@ -157,6 +212,83 @@ def _items(value: Any, key: str | None = None) -> list[Any]:
     return items if isinstance(items, list) else []
 
 
+def _human_text(message: HumanMessage) -> str | None:
+    """Return the text actually sent for a human message, including text blocks."""
+    content = message.content
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return None
+    blocks: list[str] = []
+    for block in content:
+        if not isinstance(block, Mapping):
+            continue
+        text_block = cast(Mapping[str, Any], block)
+        text = text_block.get("text")
+        if text_block.get("type") == "text" and isinstance(text, str):
+            blocks.append(text)
+    return "\n".join(blocks) if blocks else None
+
+
+def _mention_label(value: str) -> str | None:
+    has_excerpt = bool(_MENTION_LINE_RANGE_SUFFIX_RE.search(value))
+    label = _MENTION_LINE_RANGE_SUFFIX_RE.sub("", value) if has_excerpt else value
+    return _label(label.rstrip(_MENTION_LABEL_TRIM_CHARS))
+
+
+def _add_mention_sources(text: str, add: Callable[..., None]) -> None:
+    """Read only compiled mention anchors, never the excerpt body they carry."""
+    for match in _MENTION_ANCHOR_RE.finditer(text):
+        kind = match.group("kind")
+        if kind == "skill":
+            name = _mention_label(match.group("label"))
+            if name:
+                add("skill", name, "mentionReference")
+            continue
+        category = _MENTION_SOURCE_CATEGORY_BY_KIND.get(kind)
+        if category is None:
+            continue
+        raw_label = match.group("label")
+        has_excerpt = bool(_MENTION_LINE_RANGE_SUFFIX_RE.search(raw_label))
+        title = _mention_label(raw_label)
+        if not title:
+            continue
+        source_type = (
+            "mentionExcerpt"
+            if has_excerpt and category == "chapter"
+            else "mentionReference"
+        )
+        add(category, title, source_type)
+
+
+def _add_injected_system_sources(value: Any, add: Callable[..., None]) -> None:
+    """Report the rules and skill blocks that the context builder injected."""
+    if not isinstance(value, str):
+        return
+    if _RULES_MARKER in value:
+        add("rule", "", "agentRules", identity="prompt-rules")
+    skills_match = _AVAILABLE_SKILLS_RE.search(value)
+    if skills_match is None:
+        return
+    for name_match in _SKILL_NAME_RE.finditer(skills_match.group("body")):
+        name = _label(html.unescape(name_match.group("name")))
+        if name:
+            add("skill", name, "availableSkill")
+
+
+def _add_activated_skill_source(value: Any, add: Callable[..., None]) -> bool:
+    """Report an activated skill by name; its instructions stay out of the panel."""
+    if not isinstance(value, str):
+        return False
+    match = _ACTIVATED_SKILL_RE.match(value.lstrip())
+    if match is None:
+        return False
+    name = _label(html.unescape(match.group("name")))
+    if name:
+        add("skill", name, "activatedSkill")
+    return True
+
+
 def build_agent_context_sources(
     messages: Sequence[BaseMessage],
 ) -> list[dict[str, Any]]:
@@ -206,17 +338,22 @@ def build_agent_context_sources(
         sources[source_id] = source
 
     for message in messages:
-        if (
-            isinstance(message, HumanMessage)
-            and isinstance(message.content, str)
-            and "<compaction-summary>" in message.content
-        ):
-            add(
-                "conversation",
-                "压缩后的对话摘要",
-                "compactionSummary",
-                identity="compaction-summary",
-            )
+        if isinstance(message, SystemMessage):
+            _add_injected_system_sources(message.content, add)
+            continue
+        if isinstance(message, HumanMessage):
+            text = _human_text(message)
+            if text is None:
+                continue
+            if "<compaction-summary>" in text:
+                add(
+                    "conversation",
+                    "压缩后的对话摘要",
+                    "compactionSummary",
+                    identity="compaction-summary",
+                )
+                continue
+            _add_mention_sources(text, add)
             continue
         if not isinstance(message, ToolMessage):
             continue
@@ -226,6 +363,10 @@ def build_agent_context_sources(
             else tool_names_by_id.get(message.tool_call_id)
         )
         if not isinstance(tool_name, str):
+            continue
+        if tool_name in _SKILL_ACTIVATION_TOOL_NAMES and _add_activated_skill_source(
+            message.content, add
+        ):
             continue
         result = _decoded_result(message.content)
         if result is None:

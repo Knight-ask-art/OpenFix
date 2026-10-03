@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-10-04-llm-token-efficiency-delivery",
+  "taskIntentRef": "docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/task-intent-draft.json",
+  "baselineRefs": [
+    "feature/branding at b2b2a8f687d3fa51b4c3a6e42db11f6dd40d71e5; origin remote verified as Knight-ask-art/OpenFix"
+  ],
+  "scopeStatus": "Within the authorized OpenFix working tree; all current user-authorized modifications are included.",
+  "compatStatus": "Migration 1029 is additive; missing provider cache/reasoning usage falls back to zero metrics; active-model fallback remains available.",
+  "retirementStatus": "No legacy path was retired; deferred context optimization features remain explicitly documented.",
+  "newRiskSignals": [
+    "Three context-panel browser E2E cases require the unavailable 127.0.0.1:8000 API; Claude CLI review could not start because the local CLI is not logged in; full-repo Ruff formatting is not clean at the legacy baseline."
+  ],
+  "decision": "continue"
+}

@@ -74,6 +74,7 @@ export function DataManagementPage({
     keep: DEFAULT_AUTO_BACKUP_KEEP,
   });
   const [autoBackupLoaded, setAutoBackupLoaded] = useState(false);
+  const [autoBackupError, setAutoBackupError] = useState<string | null>(null);
 
   const backendNote = backendRunning ? `${t("desktop.data.backendRestartNote")}` : "";
   const backendStoppedNote = backendRunning ? `\n${t("desktop.data.backendStoppedNote")}` : "";
@@ -84,6 +85,8 @@ export function DataManagementPage({
     try {
       const info = await window.openficDesktop.getDataInfo(instance.id);
       setDataInfo(info);
+      // 定时备份可能在页面打开之前就失败过，主进程保留的原因在这里取回。
+      setAutoBackupError(info.autoBackupError);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -110,13 +113,29 @@ export function DataManagementPage({
   }, [autoBackupLoaded]);
 
   const saveAutoBackup = async (next: AutoBackupSettings) => {
-    const config = await window.openficDesktop.getConfig();
-    await window.openficDesktop.saveConfig({
-      ...(config ?? { activeInstanceId: null, instances: [] }),
-      autoBackup: next,
-    });
-    setAutoBackup(next);
-    onConfigChanged();
+    setError(null);
+    setNotice(null);
+    try {
+      const config = await window.openficDesktop.getConfig();
+      await window.openficDesktop.saveConfig({
+        ...(config ?? { activeInstanceId: null, instances: [] }),
+        autoBackup: next,
+      });
+      setAutoBackup(next);
+      // 与主进程的准入条件保持一致：目录被更换或重新启用时主进程会重新校验并清除失败记录，
+      // 只改保留份数不重新校验，页面也不清除，避免抹掉仍在持续的失败。
+      const targetReverified = next.enabled && autoBackup.enabled && next.dir === autoBackup.dir;
+      if (!targetReverified) setAutoBackupError(null);
+      onConfigChanged();
+    } catch (err) {
+      // 主进程拒绝重叠的备份目录时不会写入配置；这里用既有错误提示把拒绝原因显示出来，
+      // 并保持原目录不变，避免用户在界面上看到已被拒绝的路径。
+      setError(
+        t("desktop.data.autoBackup.saveFailed", {
+          message: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }
   };
 
   const handleAutoBackupToggle = async (enabled: boolean) => {
@@ -137,15 +156,24 @@ export function DataManagementPage({
     await run(t("desktop.data.autoBackup.running"), async () => {
       await window.openficDesktop.autoBackupNow(instance.id);
       setNotice(`${t("desktop.data.autoBackup.done")}\n${backendStoppedNote}`);
+      setAutoBackupError(null);
     });
   };
 
 
   useEffect(() => {
-    if (!busyLabel) return;
-    setProgress(null);
-    return window.openficDesktop.onDataProgress(setProgress);
-  }, [busyLabel]);
+    // 定时备份没有页面内的触发点：只监听正在运行的手动操作会漏掉它的失败，
+    // 因此常驻监听，把自动备份的终态单独记成页面上的失败提示。
+    return window.openficDesktop.onDataProgress((event) => {
+      if (event.automatic) {
+        setAutoBackupError(
+          event.phase === "error" ? event.message ?? t("desktop.data.autoBackup.failedNoDetail") : null,
+        );
+        return;
+      }
+      setProgress(event);
+    });
+  }, [t]);
 
   useEffect(() => {
     if (!confirm) return;
@@ -160,6 +188,7 @@ export function DataManagementPage({
     setConfirm(null);
     setConfirmClosing(false);
     setBusyLabel(label);
+    setProgress(null);
     setError(null);
     setNotice(null);
     try {
@@ -419,6 +448,12 @@ export function DataManagementPage({
               </>
             ) : null}
 
+            {autoBackupError ? (
+              <div className="data-alert data-alert-error">
+                <AlertTriangle size={15} strokeWidth={2} />
+                <span>{t("desktop.data.autoBackup.failed", { message: autoBackupError })}</span>
+              </div>
+            ) : null}
             {error ? (
               <div className="data-alert data-alert-error">
                 <AlertTriangle size={15} strokeWidth={2} />

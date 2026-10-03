@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "requestedOutcome": "基于当前本地 OpenFix 代码完成 Token 与上下文效率优化、验证，并将工作树内全部授权改动提交后仅推送到 origin/feature/branding。",
+  "goal": "减少重复和低价值输入 Token，同时保留小说连续性、人物认知边界与世界设定；以可观测数据和离线基准验证。",
+  "successEvidence": [
+    "后端全量测试、Ruff/ty、前端和桌面质量检查、合成 benchmark；审查全工作树；本地提交成功；确认远端快进并推送 origin/feature/branding；明确报告未执行的真实 Provider 和 V1.0 发布门槛。"
+  ],
+  "stopCondition": "确认提交与 origin/feature/branding 推送后完成；若远端分歧、测试失败或推送结果不确定则 needs-verification。",
+  "nonGoals": [
+    "不新增通用 Context/RAG/Memory 架构，不做实时供应商账单/质量评估，不做签名、发布或远端 Release。"
+  ],
+  "scope": "仅 D:/Codex/projects/ai-novel/新版本/OpenFix 工作树；包含当前 Token 效率实现、所有用户授权的现有改动与必要计划/证据记录。",
+  "changeKinds": [
+    "implementation"
+  ],
+  "riskHints": [
+    "既有未提交改动较多；保持全部现有改动，不 reset/clean，不 force push，不修改 upstream/OpenFic。"
+  ]
+}

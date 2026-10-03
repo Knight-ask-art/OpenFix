@@ -1,9 +1,9 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { AtSign } from "lucide-react";
+import { AtSign, DatabaseBackup } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import wordsCountModule from "words-count";
@@ -20,6 +20,13 @@ import { InlineAiMenu } from "@/features/inline-ai";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
 import { fetchChapter } from "@/lib/api-client";
 import type { Chapter } from "@/lib/chapter.types";
+import {
+  isAutoBackupPaused,
+  isAutoBackupWriteLocked,
+  registerAutoBackupPauseResponder,
+  subscribeAutoBackupPause,
+  type AutoBackupPauseOutcome,
+} from "@/lib/desktop-appearance-bridge";
 import {
   getEditorContentLimit,
   MAX_EDITOR_CONTENT_CHARACTERS,
@@ -140,6 +147,7 @@ function ChapterEditorContent({
     isChapterEditorDraftDirty(lastSavedDraftRef.current, initialDraft),
   );
   const [isSaving, setIsSaving] = useState(false);
+  const isBackupPaused = useSyncExternalStore(subscribeAutoBackupPause, isAutoBackupPaused);
   const [findReplaceMode, setFindReplaceMode] = useState<"closed" | "find" | "replace">("closed");
   const [wordCount, setWordCount] = useState(() => wordsCount(initialDraft.content));
   const [lineNumberDigits, setLineNumberDigits] = useState(1);
@@ -269,7 +277,7 @@ function ChapterEditorContent({
         },
       },
     }),
-    editable: !isAgentLocked,
+    editable: !isAgentLocked && !isBackupPaused,
     content: initialDraft.content ? newlinesToHtml(initialDraft.content) : "",
     onUpdate: ({ editor }) => {
       if (isAgentLocked) return;
@@ -308,12 +316,16 @@ function ChapterEditorContent({
     };
   }, [chapter.id, containerRef, editor, onScrollPositionChange]);
 
+  /**
+   * 真实保存路径。除了原有的保存语义，还向上返回可靠的成功/失败结果：
+   * 定时自动备份只有在拿到成功结果后才允许主进程停止后端。
+   */
   const handleSave = useCallback(
-    async (isManualSave = false) => {
-      if (!editor) return;
+    async (isManualSave = false): Promise<AutoBackupPauseOutcome> => {
+      if (!editor) return { ok: false, reason: "editor-unavailable" };
       if (isAgentLocked) {
         showLockedToast();
-        return;
+        return { ok: false, reason: "agent-locked" };
       }
 
       const draftToSave = latestDraftRef.current;
@@ -324,7 +336,7 @@ function ChapterEditorContent({
         hasChangesRef.current = true;
         setHasChanges(true);
         showContentLimitToast(draftToSave.content);
-        return;
+        return { ok: false, reason: "content-limit" };
       }
       rejectedContentRef.current = null;
       const currentWordCount = wordsCount(draftToSave.content);
@@ -352,8 +364,10 @@ function ChapterEditorContent({
         if (isManualSave) {
           toast.success(t("writing.saved"));
         }
+        return { ok: true };
       } catch {
         syncDirtyStateFromEditor(editor);
+        return { ok: false, reason: "save-failed" };
       } finally {
         setIsSaving(false);
       }
@@ -373,6 +387,28 @@ function ChapterEditorContent({
     ],
   );
 
+  /**
+   * 定时自动备份的保存确认：有未保存改动时走真实保存路径并等写库完成；
+   * 没有改动时只确认编辑器就绪且未被 Agent 锁定。任何失败都不确认。
+   *
+   * 进入这里之前桥接层已经同步上了写入锁，所以这次快照在确认送达前不会再被输入改写。
+   */
+  const respondToAutoBackupPause = useCallback(async (): Promise<AutoBackupPauseOutcome> => {
+    if (!editor) return { ok: false, reason: "editor-unavailable" };
+    if (isAgentLocked) return { ok: false, reason: "agent-locked" };
+    if (!hasChangesRef.current) return { ok: true };
+    return handleSave();
+  }, [editor, handleSave, isAgentLocked]);
+
+  useEffect(
+    () => registerAutoBackupPauseResponder(respondToAutoBackupPause),
+    [respondToAutoBackupPause],
+  );
+
+  const autoSave = useCallback(async () => {
+    await handleSave();
+  }, [handleSave]);
+
   useEffect(() => {
     titleRef.current = title;
   }, [title]);
@@ -386,9 +422,19 @@ function ChapterEditorContent({
     return () => window.removeEventListener(MANUAL_SAVE_EVENT, handleManualSave);
   }, [handleSave]);
 
+  /**
+   * 编辑权限跟着定时备份协议走，并且用订阅直接套用而不是等下一次 React 渲染：
+   * 暂停请求到达时要立刻只读，否则在保存快照之后敲进去的字会被漏掉，确认成功后主进程
+   * 就直接停后端了。解除或失败同样在同一个 tick 里恢复可编辑。
+   */
   useEffect(() => {
     if (!editor) return;
-    editor.setEditable(!isAgentLocked);
+
+    const applyEditable = () => {
+      editor.setEditable(!isAgentLocked && !isAutoBackupWriteLocked());
+    };
+    applyEditable();
+    return subscribeAutoBackupPause(applyEditable);
   }, [editor, isAgentLocked]);
 
   useEffect(() => {
@@ -450,7 +496,7 @@ function ChapterEditorContent({
   ]);
 
   useAutoSave({
-    onSave: handleSave,
+    onSave: autoSave,
     hasChanges,
     enabled: !isAgentLocked,
     interval: 3000,
@@ -629,8 +675,30 @@ function ChapterEditorContent({
         showChapterTools
       />
 
+      {isBackupPaused && (
+        <Flex
+          className="chapter-editor-backup-pause"
+          align="center"
+          gap="2"
+          px="4"
+          py="2"
+          style={{
+            borderBottom: "1px solid var(--gray-a4)",
+            background: "var(--gray-a3)",
+          }}
+        >
+          <DatabaseBackup size={14} />
+          <Text
+            size="1"
+            color="gray"
+          >
+            {t("writing.autoBackupPauseNotice")}
+          </Text>
+        </Flex>
+      )}
+
       <AnimatePresence>
-        {findReplaceMode !== "closed" && editor && !isAgentLocked && (
+        {findReplaceMode !== "closed" && editor && !isAgentLocked && !isBackupPaused && (
           <FindReplacePanel
             key="find-replace-panel"
             editor={editor}
@@ -642,7 +710,13 @@ function ChapterEditorContent({
 
       <Box
         ref={containerRef}
-        style={{ flex: 1, minHeight: 0, overflow: "auto" }}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
+          // 自动备份期间不接受鼠标操作（编辑器本身也已设为只读），避免在归档时写入正文。
+          pointerEvents: isBackupPaused ? "none" : undefined,
+        }}
         className={`tiptap-editor-wrapper${showLineNumbers ? " tiptap-editor-wrapper--line-numbers" : ""} ${scrollbarProps.className}`}
         onWheel={scrollbarProps.onWheel}
         onMouseMove={scrollbarProps.onMouseMove}
@@ -665,7 +739,7 @@ function ChapterEditorContent({
                 handleSave();
               }
             }}
-            disabled={isAgentLocked}
+            disabled={isAgentLocked || isBackupPaused}
             onDisabledClick={showLockedToast}
           />
           <Box style={{ borderBottom: "1px solid var(--gray-a4)" }} />
@@ -681,7 +755,7 @@ function ChapterEditorContent({
         </Box>
       </Box>
 
-      {!isAgentLocked && (
+      {!isAgentLocked && !isBackupPaused && (
         <ContextMenu
           editor={editor}
           containerRef={editorContentRef}
@@ -689,7 +763,7 @@ function ChapterEditorContent({
         />
       )}
 
-      {!isAgentLocked && editor && (
+      {!isAgentLocked && !isBackupPaused && editor && (
         <InlineAiMenu
           editor={editor}
           projectId={chapter.projectId}

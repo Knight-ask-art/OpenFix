@@ -24,7 +24,7 @@ import { WritingPage } from "./features/writing";
 // 初始化 i18n
 import i18n, { type LanguageCode } from "./i18n";
 import { checkHealth, fetchAuthPreferences, fetchAuthStatus } from "./lib/api-client";
-import { publishDesktopAppearance, publishDesktopLanguage } from "./lib/desktop-appearance-bridge";
+import { publishDesktopAppearance, publishDesktopLanguage, installDesktopAutoBackupBridge } from "./lib/desktop-appearance-bridge";
 import {
   applyBaseFontSize,
   applyCodeFontFamily,
@@ -572,5 +572,9 @@ function Root() {
 }
 
 registerSW();
+
+// 桌面壳里注册定时自动备份的保存确认通道：主进程停止后端前要求本窗口确认章节已保存。
+// 浏览器环境下没有 openficDesktopHost，这里是空操作。
+installDesktopAutoBackupBridge();
 
 getOrCreateRoot(document.getElementById("root")!).render(<Root />);

@@ -13,6 +13,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.background.jobs import service as background_service
@@ -374,3 +375,32 @@ async def enqueue_story_memory_rebuild(
         subject_id=project_id,
     )
     return job.id
+
+
+async def delete_project_story_memory_documents(
+    session: AsyncSession, *, project_id: str
+) -> None:
+    """删除项目 Story Memory 索引中的向量文档。
+
+    必须在人物、世界设定、大纲、笔记等源行删除前调用：文档 ID 由源行派生，
+    源行消失后无法再定位。仅作用于该项目的 index_key，不影响其它项目向量。
+    索引未注册或底层删除失败时只记录告警，保持 best-effort 语义。
+    """
+    index_key = story_memory_index_key(project_id)
+    try:
+        index_row = await retrieval_index_repo.get_by_index_key(session, index_key)
+        if index_row is None:
+            return
+        document_ids = [
+            document.document_id
+            for document in await build_story_memory_documents(session, project_id)
+        ]
+        if not document_ids:
+            return
+        await OpenFicRetrievalService().delete_documents(
+            session, index_key, document_ids
+        )
+    except Exception as exc:
+        logger.bind(project_id=project_id).warning(
+            f"delete story memory documents failed: {exc}"
+        )

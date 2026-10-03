@@ -75,6 +75,10 @@ class FakeQueryBuilder:
         self.calls.append(("filter_eq", (field, value)))
         return self
 
+    def rerank(self, rerank_client, *, top_n=None):
+        self.calls.append(("rerank", (rerank_client, top_n)))
+        return self
+
     def limit(self, count: int):
         self.calls.append(("limit", count))
         return self
@@ -130,6 +134,7 @@ def _chunk(
     chunk_id: str,
     text: str,
     score: float,
+    rerank_score: float | None = None,
 ) -> ChunkSearchResult:
     return ChunkSearchResult(
         document_id=document_id,
@@ -138,12 +143,18 @@ def _chunk(
         text=text,
         metadata=metadata,
         score=score,
+        rerank_score=rerank_score,
         matched_by="hybrid",
     )
 
 
 def _chapter_chunk(
-    *, chapter_id: str, text: str, score: float, project_id: str = PROJECT_ID
+    *,
+    chapter_id: str,
+    text: str,
+    score: float,
+    project_id: str = PROJECT_ID,
+    rerank_score: float | None = None,
 ) -> ChunkSearchResult:
     return _chunk(
         metadata={
@@ -157,11 +168,17 @@ def _chapter_chunk(
         chunk_id=f"{chapter_id}-c0",
         text=text,
         score=score,
+        rerank_score=rerank_score,
     )
 
 
 def _entity_chunk(
-    *, source: str, entity_id: str, text: str, score: float
+    *,
+    source: str,
+    entity_id: str,
+    text: str,
+    score: float,
+    rerank_score: float | None = None,
 ) -> ChunkSearchResult:
     return _chunk(
         metadata={
@@ -173,6 +190,7 @@ def _entity_chunk(
         chunk_id=f"{source}:{entity_id}:0",
         text=text,
         score=score,
+        rerank_score=rerank_score,
     )
 
 
@@ -506,6 +524,16 @@ async def test_search_story_memory_covers_all_sources_with_attribution(
     assert data["results"][3]["title"] == "全书主线"
     assert data["results"][4]["title"] == "设定笔记"
 
+    # 未启用 rerank 时 score 仍是 RRF 置信度，重排字段为 null。
+    assert [item["score"] for item in data["results"]] == [
+        0.91,
+        0.88,
+        0.83,
+        0.72,
+        0.61,
+    ]
+    assert all(item["rerank_score"] is None for item in data["results"])
+
     # 两个索引都被查询，并按 project_id 过滤。
     assert retrieval.queries == [CHAPTER_INDEX_KEY, STORY_MEMORY_INDEX_KEY]
     for builder in retrieval.builders:
@@ -820,3 +848,212 @@ async def test_search_story_memory_rejects_unknown_source_key(
     assert data["type"] == "fail"
     assert data["code"] == "validation_error"
     assert retrieval.queries == []
+
+
+# ============================================
+# rerank 配置
+# ============================================
+
+
+class _FakeRerankClient:
+    """rerank client 替身：按文本查表给出相关度，并按相关度降序返回。"""
+
+    def __init__(self, scores_by_text: dict[str, float]) -> None:
+        self.scores_by_text = scores_by_text
+        self.calls: list[tuple[str, list[str], int | None]] = []
+
+    async def rerank(self, query: str, documents: list[str], top_n: int | None = None):
+        from app.models.clients.rerank_client import RerankItem, RerankResponse
+
+        self.calls.append((query, documents, top_n))
+        items = [
+            RerankItem(index=index, relevance_score=self.scores_by_text.get(text, 0.0))
+            for index, text in enumerate(documents)
+        ]
+        items.sort(key=lambda item: item.relevance_score, reverse=True)
+        if top_n is not None:
+            items = items[:top_n]
+        return RerankResponse(results=items, model="fake-reranker")
+
+
+async def _enable_rerank(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    module,
+    client: Any,
+) -> None:
+    """打开 rerank 设置，并把 rerank client 构造替换为替身。"""
+    await setting_repo.upsert(session, "index_rerank_enabled", "true")
+    await setting_repo.upsert(session, "default_rerank_model", "rerank-model-1")
+    await session.commit()
+
+    async def _fake_build_rerank_client(session_, model_ref_id: str):
+        _ = (session_, model_ref_id)
+        return client
+
+    monkeypatch.setattr(module, "_build_rerank_client", _fake_build_rerank_client)
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_keeps_rrf_order_when_rerank_disabled(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """未启用 rerank 时不调用 rerank，候选上限与 RRF 顺序保持不变。"""
+    results_by_index = {
+        CHAPTER_INDEX_KEY: [
+            _chapter_chunk(chapter_id="chapter-1", text="章节正文", score=0.9)
+        ],
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(
+                source="character", entity_id="char-1", text="人物：林洛", score=0.4
+            )
+        ],
+    }
+    module, retrieval, tool = await _prepare_session(
+        session, monkeypatch, results_by_index
+    )
+
+    data = await _invoke(tool, session, {"query": "北城"})
+
+    assert [item["source"] for item in data["results"]] == ["chapter", "character"]
+    # 未启用 rerank 时只暴露 RRF 分数，不虚构重排分数。
+    assert [item["score"] for item in data["results"]] == [0.9, 0.4]
+    assert [item["rerank_score"] for item in data["results"]] == [None, None]
+    assert len(retrieval.builders) == 2
+    for builder in retrieval.builders:
+        assert all(name != "rerank" for name, _ in builder.calls)
+        assert ("limit", module.CANDIDATE_TOP_K) in builder.calls
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_reranks_candidates_before_limit(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """启用 rerank 后两个索引都先重排候选池，再按重排相关度合并返回。"""
+    results_by_index = {
+        CHAPTER_INDEX_KEY: [
+            _chapter_chunk(
+                chapter_id="chapter-1", text="章节正文", score=0.9, rerank_score=0.12
+            )
+        ],
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(
+                source="character",
+                entity_id="char-1",
+                text="人物：林洛",
+                score=0.4,
+                rerank_score=0.95,
+            )
+        ],
+    }
+    module, retrieval, tool = await _prepare_session(
+        session, monkeypatch, results_by_index
+    )
+    rerank_client = _FakeRerankClient({"章节正文": 0.12, "人物：林洛": 0.95})
+    await _enable_rerank(session, monkeypatch, module, rerank_client)
+
+    data = await _invoke(tool, session, {"query": "北城"})
+
+    # 重排相关度高的故事记忆候选，排在 RRF 更高但重排分低的章节候选之前。
+    assert [item["source"] for item in data["results"]] == ["character", "chapter"]
+    # score 保持原有 RRF 含义不变，排序依据另以 rerank_score 单独暴露，
+    # 模型不会再收到「顺序与唯一分数相互矛盾」的结果。
+    assert [item["score"] for item in data["results"]] == [0.4, 0.9]
+    assert [item["rerank_score"] for item in data["results"]] == [0.95, 0.12]
+    assert len(retrieval.builders) == 2
+    for builder in retrieval.builders:
+        names = [name for name, _ in builder.calls]
+        assert ("rerank", (rerank_client, module.CANDIDATE_TOP_K)) in builder.calls
+        # rerank 必须发生在最终候选上限之前。
+        assert names.index("rerank") < names.index("limit") < names.index("run")
+
+    # FakeQueryBuilder 只记录 rerank 配置，run() 直接返回预置结果，不会真正调用
+    # rerank client；实际重排由检索服务在 run() 内完成。所以这里断言的是「工具把
+    # 配置好的 reranker 挂到两个索引的查询构建器上，各一次」，以及「工具自身不直接
+    # 调用 rerank client、把执行权委托给检索服务」，而不是替身 client 的执行次数。
+    rerank_configs = [
+        payload
+        for builder in retrieval.builders
+        for name, payload in builder.calls
+        if name == "rerank"
+    ]
+    assert rerank_configs == [
+        (rerank_client, module.CANDIDATE_TOP_K),
+        (rerank_client, module.CANDIDATE_TOP_K),
+    ]
+    assert rerank_client.calls == []
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_only_marks_reranked_candidates(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """候选池大于 top_n 时，只有真正被重排的候选带 rerank_score，其余保持 null。"""
+    results_by_index = {
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(
+                source="character",
+                entity_id="char-1",
+                text="人物：林洛",
+                score=0.4,
+                rerank_score=0.95,
+            ),
+            _entity_chunk(
+                source="note",
+                entity_id="note-1",
+                text="笔记：设定笔记",
+                score=0.9,
+                rerank_score=None,
+            ),
+        ]
+    }
+    module, _retrieval, tool = await _prepare_session(
+        session, monkeypatch, results_by_index
+    )
+    rerank_client = _FakeRerankClient({"人物：林洛": 0.95})
+    await _enable_rerank(session, monkeypatch, module, rerank_client)
+
+    data = await _invoke(
+        tool, session, {"query": "北城", "sources": ["character", "note"]}
+    )
+
+    # 已重排候选排在前面并带重排分；未重排的尾部候选仍只按 RRF 分数暴露。
+    assert [item["source"] for item in data["results"]] == ["character", "note"]
+    assert [item["rerank_score"] for item in data["results"]] == [0.95, None]
+    assert [item["score"] for item in data["results"]] == [0.4, 0.9]
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_skips_rerank_when_model_is_not_a_reranker(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """rerank 开关打开但配置的模型不是 rerank 模型时，退回纯 RRF 且不报错。"""
+    results_by_index = {
+        CHAPTER_INDEX_KEY: [
+            _chapter_chunk(chapter_id="chapter-1", text="章节正文", score=0.9)
+        ],
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(
+                source="character", entity_id="char-1", text="人物：林洛", score=0.4
+            )
+        ],
+    }
+    module, retrieval, tool = await _prepare_session(
+        session, monkeypatch, results_by_index
+    )
+    embedding_setting = await setting_repo.get_by_key(
+        session, "default_embedding_model"
+    )
+    assert embedding_setting is not None
+    await setting_repo.upsert(session, "index_rerank_enabled", "true")
+    await setting_repo.upsert(session, "default_rerank_model", embedding_setting.value)
+    await session.commit()
+
+    data = await _invoke(tool, session, {"query": "北城"})
+
+    assert [item["source"] for item in data["results"]] == ["chapter", "character"]
+    # 降级为纯 RRF 时不暴露任何重排分数。
+    assert [item["rerank_score"] for item in data["results"]] == [None, None]
+    assert len(retrieval.builders) == 2
+    for builder in retrieval.builders:
+        assert all(name != "rerank" for name, _ in builder.calls)

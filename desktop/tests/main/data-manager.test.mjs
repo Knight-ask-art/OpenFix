@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  assertBackupDirOutsideDataDir,
   backupDataDir,
   arePathsEqual,
   doPathsOverlap,
@@ -278,6 +279,28 @@ test("path comparisons resolve aliases and parent-child overlap", async () => {
     assert.equal(await isPathWithin(parent, child), true);
     assert.equal(await doPathsOverlap(parent, child), true);
     assert.equal(await doPathsOverlap(child, parent), true);
+  } finally {
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test("backup target guard rejects an equal, nested or enclosing backup directory", async () => {
+  const base = await mkdtemp(path.join(os.tmpdir(), "openfic-data-"));
+  try {
+    const data = await createDataDir(base, "data");
+    const sibling = path.join(base, "backups");
+    await mkdir(sibling, { recursive: true });
+
+    await assertBackupDirOutsideDataDir(data, sibling);
+    await assertBackupDirOutsideDataDir(data, path.join(base, "not-created-yet"));
+    await assert.rejects(assertBackupDirOutsideDataDir(data, data), /备份目录不能与数据目录相同/);
+    await assert.rejects(assertBackupDirOutsideDataDir(data, path.join(data, "backups")), /备份目录不能与数据目录相同/);
+    await assert.rejects(assertBackupDirOutsideDataDir(data, base), /备份目录不能与数据目录相同/);
+
+    // 拒绝路径不得改动任何数据。
+    assert.equal(await readFile(path.join(data, "openfic.db"), "utf8"), "sqlite");
+    assert.equal(await readFile(path.join(data, ".key"), "utf8"), "secret-key");
+    assert.equal(await readFile(path.join(data, "covers", "cover.png"), "utf8"), "png");
   } finally {
     await rm(base, { recursive: true, force: true });
   }

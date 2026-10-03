@@ -6,6 +6,7 @@ Entries are workspace records, not authoritative runtime decisions.
 | Date | Kind | Path | Title |
 | --- | --- | --- | --- |
 | 2026-10-01 | plan | docs/aegis/plans/2026-10-01-phase5-windows-release-updates.md | Phase 5 Windows Release and Update Slice |
+| 2026-10-04 | plan | docs/aegis/plans/2026-10-04-llm-token-efficiency.md | LLM Token and Context Efficiency |
 | 2026-10-02 | work | docs/aegis/work/2026-10-02-v1-completion/10-intent.md | OpenFix V1.0 完成验收 intent |
 | 2026-10-02 | work | docs/aegis/work/2026-10-02-v1-completion/20-checkpoint.md | OpenFix V1.0 完成验收 checkpoint |
 | 2026-10-02 | work | docs/aegis/work/2026-10-02-v1-completion/90-evidence.md | OpenFix V1.0 完成验收 evidence |
@@ -30,3 +31,19 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-10-03 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json | 2026-10-02-v1-completion evidence v1-markdown-export-20261003 |
 | 2026-10-03 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-consistency-ai-context-20261003.json | 2026-10-02-v1-completion evidence v1-consistency-ai-context-20261003 |
 | 2026-10-03 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json | 2026-10-02-v1-completion evidence v1-bundled-backend-identity-20261003 |
+| 2026-10-04 | work | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/10-intent.md | LLM Token 效率优化与本地交付 intent |
+| 2026-10-04 | work | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/20-checkpoint.md | LLM Token 效率优化与本地交付 checkpoint |
+| 2026-10-04 | work | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/90-evidence.md | LLM Token 效率优化与本地交付 evidence |
+| 2026-10-04 | work | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/99-reflection.md | LLM Token 效率优化与本地交付 reflection |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/task-intent-draft.json | LLM Token 效率优化与本地交付 task intent draft |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/baseline-read-set-hint.json | LLM Token 效率优化与本地交付 baseline read-set hint |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/baseline-usage-draft.json | LLM Token 效率优化与本地交付 baseline usage draft |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/impact-statement-draft.json | LLM Token 效率优化与本地交付 impact statement draft |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/todo-checkpoint-draft.json | LLM Token 效率优化与本地交付 todo checkpoint draft |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/drift-check-draft.json | LLM Token 效率优化与本地交付 drift check draft |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/resume-state-hint.json | 2026-10-04-llm-token-efficiency-delivery resume state hint |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-backend-frontend-desktop-20261004.json | 2026-10-04-llm-token-efficiency-delivery evidence backend-frontend-desktop-20261004 |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-synthetic-benchmark-20261004.json | 2026-10-04-llm-token-efficiency-delivery evidence synthetic-benchmark-20261004 |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-claude-review-attempt-20261004.json | 2026-10-04-llm-token-efficiency-delivery evidence claude-review-attempt-20261004 |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/gate-input-pack.json | 2026-10-04-llm-token-efficiency-delivery gate input pack |
+| 2026-10-04 | work | docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/proof-bundle.md | 2026-10-04-llm-token-efficiency-delivery proof bundle |

@@ -4,6 +4,7 @@ Note Repository - 笔记数据访问层。
 """
 
 from sqlalchemy import case as sa_case
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -105,4 +106,10 @@ async def update_note(session: AsyncSession, note: Note) -> Note:
 
 async def delete(session: AsyncSession, note: Note) -> None:
     await session.delete(note)
+    await session.flush()
+
+
+async def delete_by_project(session: AsyncSession, project_id: str) -> None:
+    """删除项目下的所有笔记。"""
+    await session.execute(sql_delete(Note).where(col(Note.project_id) == project_id))
     await session.flush()

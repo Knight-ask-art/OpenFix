@@ -427,6 +427,12 @@ async function createHarness({ config, devMode = false, devBackendUrl = null } =
       },
       arePathsEqual: () => deny("arePathsEqual"),
       doPathsOverlap: () => deny("doPathsOverlap"),
+      // 本套件保持严格合成边界，不触碰真实文件系统：只确认备份目录准入被调用且拿到两个路径，
+      // 重叠判定本身由 data-manager 与 ipc 套件用真实目录覆盖。
+      assertBackupDirOutsideDataDir: async (dataDir, backupDir) => {
+        assert.equal(typeof dataDir, "string", "The backup target guard needs a data directory");
+        assert.equal(typeof backupDir, "string", "The backup target guard needs a backup directory");
+      },
       inspectDataDir: () => deny("inspectDataDir"),
       isPathWithin: () => deny("isPathWithin"),
       migrateDataDir: () => deny("migrateDataDir"),
@@ -596,8 +602,10 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 const dataProgress = (harness) => harness.host.sends
   .filter(({ channel }) => channel === harness.IpcChannels.dataProgress)
   .map(({ event }) => plain(event));
+// 终态事件只断言操作生命周期；automatic 标记与失败原因由 auto-backup-ipc 的用例覆盖。
 const terminal = (harness) => dataProgress(harness)
-  .filter((event) => event.phase === "done" || event.phase === "error");
+  .filter((event) => event.phase === "done" || event.phase === "error")
+  .map(({ operation, phase, progress }) => ({ operation, phase, progress }));
 const assertClean = (harness) => {
   assert.deepEqual(harness.records.boundaryErrors, [], "Forbidden boundaries must fail the run");
   assert.deepEqual(harness.records.backgroundSubscriptions, [], "Background subscriptions must never run");

@@ -12,3 +12,4 @@ class ContextMessage:
     additional_kwargs: dict | None = None
     metadata: dict | None = None
     attachments: list[dict[str, Any]] | None = None
+    metrics: dict[str, Any] | None = None

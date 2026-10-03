@@ -10,9 +10,15 @@ from langchain_core.tools import BaseTool
 from langchain_core.tools import StructuredTool
 
 from app.agent_runtime.context.compaction.service import CompactionError
+from app.agent_runtime.context.budget import calculate_context_budget
 from app.agent_runtime.context.compaction.window import CompactionNoWindowError
 from app.agent_runtime.context.types import ContextMessage
-from app.agent_runtime.graph.react_agent import _to_history_dict, create_react_agent, maybe_auto_compact
+from app.agent_runtime.tools.schema import count_tool_schema_tokens
+from app.agent_runtime.graph.react_agent import (
+    _to_history_dict,
+    create_react_agent,
+    maybe_auto_compact,
+)
 from app.agent_runtime.persistence.errors import PersistenceLoadError
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 
@@ -38,7 +44,9 @@ def test_llm_call_uses_build_context_when_config_provided() -> None:
 
     fake_parts = [
         ContextMessage(role="system", content="sys", metadata={"part": "system"}),
-        ContextMessage(role="user", content="hi", metadata={"part": "history", "seq": 1}),
+        ContextMessage(
+            role="user", content="hi", metadata={"part": "history", "seq": 1}
+        ),
     ]
     fallback_messages = [SystemMessage(content="sys"), HumanMessage(content="hi")]
     fake_response = AIMessage(content="done")
@@ -215,6 +223,126 @@ async def test_react_agent_snapshots_only_sources_from_final_model_messages() ->
 
 
 @pytest.mark.asyncio
+async def test_react_agent_snapshot_includes_mentions_rules_and_skills_from_final_request() -> (
+    None
+):
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[_NoopTool()],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=1,
+    )
+    fake_parts = [
+        ContextMessage(
+            role="system",
+            content="你是一位长篇小说写作助手。PROMPT-SENTINEL",
+            metadata={"part": "system_prompt"},
+        ),
+        ContextMessage(
+            role="system",
+            content="<rules>\n- RULE-SENTINEL 保持第一人称\n</rules>",
+            metadata={"part": "rules"},
+        ),
+        ContextMessage(
+            role="system",
+            content=(
+                "<available_skills>\n"
+                "<skill>\n  <name>节奏控制</name>\n  <description>说明</description>\n</skill>\n"
+                "</available_skills>"
+            ),
+            metadata={"part": "skills"},
+        ),
+        ContextMessage(
+            role="user",
+            content="请参考 @chapter:第一卷/雨夜 的节奏继续写。",
+            metadata={"part": "history", "seq": 1},
+        ),
+    ]
+    context_snapshot_sink = AsyncMock()
+    agent_event_sink = AsyncMock()
+    model = Mock()
+    model.bind_tools.return_value = model
+    runtime_state: dict[str, object] = {
+        "session_id": "context-snapshot-mentions",
+        "task_id": "task-1",
+        "project_id": "project-1",
+        "model_config": {"max_context_tokens": 8000},
+        "active_agent": "writer",
+        "is_completed": False,
+        "error": None,
+        "retry_count": 0,
+        "message_checkpoints": [],
+        "user_request": "请参考 @chapter:第一卷/雨夜 的节奏继续写。",
+        "installed_skill_ids": [],
+    }
+    graph = create_react_agent(config, model=model)
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent.build_context_parts",
+            new=AsyncMock(return_value=fake_parts),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.maybe_auto_compact",
+            new=AsyncMock(return_value=False),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.invoke_model_with_retry",
+            new=AsyncMock(return_value=AIMessage(content="完成")),
+        ),
+    ):
+        await graph.ainvoke(
+            {
+                "messages": [
+                    HumanMessage(content="请参考 @chapter:第一卷/雨夜 的节奏继续写。")
+                ],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={
+                "configurable": {
+                    "runtime_state": runtime_state,
+                    "db_session": AsyncMock(),
+                    "thread_id": "context-snapshot-mentions",
+                    "context_snapshot_sink": context_snapshot_sink,
+                    "agent_event_sink": agent_event_sink,
+                }
+            },
+        )
+
+    expected_snapshot = {
+        "session_id": "context-snapshot-mentions",
+        "agent_id": "writer",
+        "context_sources": [
+            {
+                "id": "rule:prompt-rules",
+                "category": "rule",
+                "title": "",
+                "sourceTypes": ["agentRules"],
+            },
+            {
+                "id": "skill:title:节奏控制",
+                "category": "skill",
+                "title": "节奏控制",
+                "sourceTypes": ["availableSkill"],
+            },
+            {
+                "id": "chapter:title:第一卷/雨夜",
+                "category": "chapter",
+                "title": "第一卷/雨夜",
+                "sourceTypes": ["mentionReference"],
+            },
+        ],
+    }
+    context_snapshot_sink.assert_awaited_once_with(expected_snapshot)
+    snapshot_call = context_snapshot_sink.await_args
+    assert snapshot_call is not None
+    serialized_snapshot = json.dumps(snapshot_call.args[0], ensure_ascii=False)
+    assert "PROMPT-SENTINEL" not in serialized_snapshot
+    assert "RULE-SENTINEL" not in serialized_snapshot
+
+
+@pytest.mark.asyncio
 async def test_react_agent_executes_tool_calls_in_parallel() -> None:
     started: set[str] = set()
     all_started = asyncio.Event()
@@ -290,15 +418,15 @@ async def test_react_agent_executes_tool_calls_in_parallel() -> None:
         result = await asyncio.wait_for(task, timeout=1)
 
     tool_messages = [
-        message
-        for message in result["messages"]
-        if isinstance(message, ToolMessage)
+        message for message in result["messages"] if isinstance(message, ToolMessage)
     ]
     assert [message.tool_call_id for message in tool_messages] == ["call-1", "call-2"]
 
 
 @pytest.mark.asyncio
-async def test_react_agent_preserves_tool_call_order_when_tools_finish_out_of_order() -> None:
+async def test_react_agent_preserves_tool_call_order_when_tools_finish_out_of_order() -> (
+    None
+):
     async def first_tool() -> str:
         await asyncio.sleep(0.02)
         return "first"
@@ -358,9 +486,7 @@ async def test_react_agent_preserves_tool_call_order_when_tools_finish_out_of_or
         )
 
     tool_messages = [
-        message
-        for message in result["messages"]
-        if isinstance(message, ToolMessage)
+        message for message in result["messages"] if isinstance(message, ToolMessage)
     ]
     assert [message.tool_call_id for message in tool_messages] == ["call-1", "call-2"]
 
@@ -392,8 +518,14 @@ def _auto_compaction_state() -> dict[str, object]:
 def _compaction_parts() -> list[ContextMessage]:
     return [
         ContextMessage(role="system", content="static", metadata={"part": "system"}),
-        ContextMessage(role="user", content="history user", metadata={"part": "history", "seq": 1}),
-        ContextMessage(role="assistant", content="history assistant", metadata={"part": "history", "seq": 2}),
+        ContextMessage(
+            role="user", content="history user", metadata={"part": "history", "seq": 1}
+        ),
+        ContextMessage(
+            role="assistant",
+            content="history assistant",
+            metadata={"part": "history", "seq": 2},
+        ),
     ]
 
 
@@ -557,13 +689,29 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
     consume_sink = AsyncMock(return_value=True)
     first_parts = [
         ContextMessage(role="system", content="static", metadata={"part": "system"}),
-        ContextMessage(role="user", content="history user", metadata={"part": "history", "seq": 1}),
-        ContextMessage(role="assistant", content="history assistant", metadata={"part": "history", "seq": 2}),
-        ContextMessage(role="system", content="old summary", metadata={"part": "compaction_summary"}),
+        ContextMessage(
+            role="user", content="history user", metadata={"part": "history", "seq": 1}
+        ),
+        ContextMessage(
+            role="assistant",
+            content="history assistant",
+            metadata={"part": "history", "seq": 2},
+        ),
+        ContextMessage(
+            role="system",
+            content="old summary",
+            metadata={"part": "compaction_summary"},
+        ),
     ]
     rebuilt_parts = [
-        ContextMessage(role="system", content="static rebuilt", metadata={"part": "system"}),
-        ContextMessage(role="user", content="post-summary history", metadata={"part": "history", "seq": 3}),
+        ContextMessage(
+            role="system", content="static rebuilt", metadata={"part": "system"}
+        ),
+        ContextMessage(
+            role="user",
+            content="post-summary history",
+            metadata={"part": "history", "seq": 3},
+        ),
     ]
     build_calls = deque([first_parts, rebuilt_parts])
     counted_candidates: list[list[str]] = []
@@ -576,15 +724,20 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
     def fake_count_context_tokens(parts):
         contents = [part.content for part in parts]
         counted_candidates.append(contents)
-        has_runtime_messages = (
-            "补充要求" in contents
-            and any("Call the `noop` tool" in content for content in contents)
+        has_runtime_messages = "补充要求" in contents and any(
+            "Call the `noop` tool" in content for content in contents
         )
-        return 9 if has_runtime_messages else 0
+        return 9_000 if has_runtime_messages else 0
 
     def fake_select_compaction_window(history, _compactions, max_context_tokens):
         selected_history.extend(history)
-        assert max_context_tokens == 10
+        assert (
+            max_context_tokens
+            == calculate_context_budget(
+                {"max_context_tokens": 10_000},
+                tool_schema_tokens=count_tool_schema_tokens(config.tools),
+            ).usable_input_tokens
+        )
         return SimpleNamespace(
             start_seq=1,
             end_seq=2,
@@ -665,7 +818,7 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
                             "session_id": "s1",
                             "task_id": "t1",
                             "project_id": "p1",
-                            "model_config": {"max_context_tokens": 10},
+                            "model_config": {"max_context_tokens": 10_000},
                             "active_agent": "writer",
                             "is_completed": False,
                             "error": None,
@@ -685,14 +838,16 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
         )
 
     assert mocked_build_parts.await_count == 2
-    assert counted_candidates == [[
-        "static",
-        "history user",
-        "history assistant",
-        "old summary",
-        "补充要求",
-        "Call the `noop` tool to finish this step. Do not answer in plain text.",
-    ]]
+    assert counted_candidates == [
+        [
+            "static",
+            "history user",
+            "history assistant",
+            "old summary",
+            "补充要求",
+            "Call the `noop` tool to finish this step. Do not answer in plain text.",
+        ]
+    ]
     mocked_select.assert_called_once()
     assert [part.content for part in selected_history] == [
         "history user",
@@ -700,7 +855,11 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
     ]
     mocked_compact.assert_awaited_once()
     consume_sink.assert_awaited_once_with("msg_pending_1")
-    assert [message.content for message in model_messages if isinstance(message, HumanMessage)] == [
+    assert [
+        message.content
+        for message in model_messages
+        if isinstance(message, HumanMessage)
+    ] == [
         "post-summary history",
         "补充要求",
         "Call the `noop` tool to finish this step. Do not answer in plain text.",
@@ -717,7 +876,9 @@ def test_auto_compaction_stays_silent_below_threshold() -> None:
     events: list[tuple[str, dict]] = []
     parts = [
         ContextMessage(role="system", content="static", metadata={"part": "system"}),
-        ContextMessage(role="user", content="short history", metadata={"part": "history", "seq": 1}),
+        ContextMessage(
+            role="user", content="short history", metadata={"part": "history", "seq": 1}
+        ),
     ]
 
     async def event_sink(name: str, payload: dict) -> None:
@@ -953,7 +1114,9 @@ def test_to_history_dict_uses_response_metadata_reasoning_content() -> None:
     assert out["additional_kwargs"] == {"reasoning_content": "从 metadata 来的思考"}
 
 
-def test_to_history_dict_uses_openfic_response_metadata_for_internal_history_fields() -> None:
+def test_to_history_dict_uses_openfic_response_metadata_for_internal_history_fields() -> (
+    None
+):
     from app.agent_runtime.graph.react_agent import _to_history_dict
 
     human = HumanMessage(
@@ -1043,22 +1206,38 @@ def test_tool_success_path_continues_with_pending_follow_up_before_ending() -> N
     config = ReactAgentConfig(
         name="writer",
         tools=[follow_up_tool],
-        termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="submit_result"
+        ),
         max_iterations=4,
     )
 
     consume_sink = AsyncMock(return_value=True)
     observed_human_contents: deque[list[str]] = deque()
-    responses = deque([
-        AIMessage(
-            content="",
-            tool_calls=[{"id": "call_1", "name": "submit_result", "args": {"result": "done"}}],
-        ),
-        AIMessage(
-            content="",
-            tool_calls=[{"id": "call_2", "name": "submit_result", "args": {"result": "follow-up"}}],
-        ),
-    ])
+    responses = deque(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "id": "call_1",
+                        "name": "submit_result",
+                        "args": {"result": "done"},
+                    }
+                ],
+            ),
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "id": "call_2",
+                        "name": "submit_result",
+                        "args": {"result": "follow-up"},
+                    }
+                ],
+            ),
+        ]
+    )
 
     async def _mock_invoke(_model, messages, **_kwargs):
         observed_human_contents.append(

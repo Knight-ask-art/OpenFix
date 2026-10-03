@@ -64,6 +64,29 @@ class LLMAuditLogResponse(BaseModel):
     tokens_output: int = Field(default=0, description="输出token数")
     tokens_total: int = Field(default=0, description="总token数")
     token_cache: int = Field(default=0, description="缓存命中token数")
+    token_cache_write: int = Field(default=0, description="缓存写入token数")
+    tokens_input_uncached: int = Field(default=0, description="未命中缓存的输入token数")
+    tokens_input_total: int = Field(default=0, description="含缓存读写的输入token数")
+    tokens_reasoning: int = Field(default=0, description="推理token数")
+    cache_hit_rate: float = Field(default=0.0, description="输入token缓存命中率")
+
+    context_tokens_estimated: int = Field(default=0, description="估算的上下文token数")
+    tool_schema_tokens_estimated: int = Field(
+        default=0, description="估算的工具定义token数"
+    )
+    context_budget_tokens: int = Field(
+        default=0, description="扣除输出和安全预留后的输入预算"
+    )
+    tokens_pruned: int = Field(default=0, description="软清理节省的token估算值")
+    tokens_compacted: int = Field(default=0, description="压缩替换的token估算值")
+    tool_result_tokens: int = Field(default=0, description="工具结果token估算值")
+    context_fingerprint: str | None = Field(
+        default=None, description="稳定上下文前缀指纹"
+    )
+    context_token_breakdown: dict[str, int] = Field(
+        default_factory=dict,
+        description="按上下文来源划分的token估算；不包含正文内容",
+    )
 
     latency_ms: int | None = Field(default=None, description="API调用耗时（毫秒）")
     first_token_ms: int | None = Field(default=None, description="首Token延迟（毫秒）")

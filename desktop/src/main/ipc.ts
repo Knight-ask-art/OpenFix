@@ -1,8 +1,10 @@
-import { app, dialog, ipcMain, session, shell, webContents, type BrowserWindow } from "electron";
+import { app, dialog, ipcMain, session, shell, webContents, type BrowserWindow, type WebContents } from "electron";
 import path from "node:path";
 import {
+  AUTO_BACKUP_PAUSE_TIMEOUT_MS,
   IpcChannels,
   type AutoBackupNowRequest,
+  type AutoBackupPauseAck,
   type BackupDataRequest,
   type CheckPathOverlapRequest,
   type DataProgressEvent,
@@ -35,6 +37,7 @@ import {
   AUTO_BACKUP_STARTUP_DELAY_MS,
   buildAutoBackupFileName,
   getAutoBackupTarget,
+  resolveAutoBackupInstance,
   rotateAutoBackups,
   shouldRunAutoBackup,
 } from "./auto-backup.js";
@@ -46,6 +49,7 @@ import { INSTANCE_DATA_ENTRIES } from "./runtime/tar-extract.js";
 import { getDefaultDataDir, normalizeDataDir, resolveDataDir } from "./data-location.js";
 import {
   arePathsEqual,
+  assertBackupDirOutsideDataDir,
   backupDataDir,
   doPathsOverlap,
   getDataOperationOptions,
@@ -62,9 +66,9 @@ import { captureException } from "./telemetry.js";
 import type { BackendProcessHandle } from "./process.js";
 import { isDesktopInstanceAppearance, normalizeAutoBackupSettings, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
 
-const PROJECT_HOME_URL = "";
-const BUG_REPORT_URL = "";
-const FEATURE_SUGGESTION_URL = "";
+const PROJECT_HOME_URL = "https://github.com/Knight-ask-art/OpenFix";
+const BUG_REPORT_URL = "https://github.com/Knight-ask-art/OpenFix/issues/new?template=bug-report.yml";
+const FEATURE_SUGGESTION_URL = "https://github.com/Knight-ask-art/OpenFix/issues/new?template=feature-request.yml";
 const MIN_ZOOM_FACTOR = 0.7;
 const MAX_ZOOM_FACTOR = 2.0;
 const DEFAULT_ZOOM_FACTOR = 1.1;
@@ -184,6 +188,34 @@ async function removeInstanceResources(
   if (firstError) throw firstError;
 }
 
+/**
+ * 校验用户新选择或新填写的自动备份目录，返回是否需要清除已记录的自动备份失败。
+ *
+ * 目录与数据目录重叠时会让历史备份被反复收进后续备份，还原时还会连同这些备份覆盖用户数据，
+ * 因此在保存阶段就按既有错误流程拒绝。需要校验的是目标发生变化：目录被更换，或一个此前
+ * 未启用的目标被启用；目标本身未变化时不重复校验，避免阻断其他无关设置的保存。
+ * 目录为空或未启用时没有可执行的备份目标，历史失败不再展示，直接返回 true。
+ */
+async function assertAutoBackupDirUpdateAllowed(
+  previous: DesktopConfig | null,
+  next: DesktopConfig,
+): Promise<boolean> {
+  const nextDir = next.autoBackup?.dir ?? null;
+  if (typeof nextDir !== "string" || nextDir.length === 0) return true;
+  if (next.autoBackup?.enabled !== true) return true;
+  const previousSettings = previous?.autoBackup;
+  if (previousSettings?.enabled === true && nextDir === (previousSettings.dir ?? null)) return false;
+  const instance = resolveAutoBackupInstance(next);
+  if (!instance) return false;
+  try {
+    await assertBackupDirOutsideDataDir(resolveDataDir(instance), nextDir);
+  } catch (error) {
+    appendLog("data", `拒绝自动备份目录：${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
+  return true;
+}
+
 function getNextActiveInstanceId(config: DesktopConfig, remainingInstances: DesktopInstance[]): string | null {
   if (config.activeInstanceId && remainingInstances.some((instance) => instance.id === config.activeInstanceId)) {
     return config.activeInstanceId;
@@ -246,6 +278,37 @@ async function clearInstanceSession(instanceId: string): Promise<void> {
   await targetSession.closeAllConnections();
 }
 
+/** 定时自动备份的暂停确认所对应的失败原因，写作窗口只上报稳定标识。 */
+const WRITING_PAUSE_REASON_LABELS: Record<string, string> = {
+  "editor-unavailable": "编辑器未就绪",
+  "agent-locked": "章节正被 Agent 编辑",
+  "content-limit": "章节内容超出编辑器上限",
+  "save-failed": "章节保存失败",
+  "pause-failed": "写作窗口未能暂停",
+};
+
+function describeWritingPauseFailure(reason: string | null): string {
+  if (!reason) return "写作窗口未确认保存";
+  return `写作窗口未确认保存（${WRITING_PAUSE_REASON_LABELS[reason] ?? reason}）`;
+}
+
+/**
+ * 解析写作窗口的暂停确认。形状不认识就返回 null：调用方据此拒绝该确认，
+ * 绝不把未知响应当成保存成功。
+ */
+function parseWritingPauseAck(payload: unknown): AutoBackupPauseAck | null {
+  if (typeof payload !== "object" || payload === null) return null;
+  const candidate = payload as { requestId?: unknown; ok?: unknown; reason?: unknown };
+  if (typeof candidate.requestId !== "string" || candidate.requestId.length === 0) return null;
+  if (typeof candidate.ok !== "boolean") return null;
+  if (candidate.reason !== undefined && typeof candidate.reason !== "string") return null;
+  return {
+    requestId: candidate.requestId,
+    ok: candidate.ok,
+    ...(typeof candidate.reason === "string" ? { reason: candidate.reason } : {}),
+  };
+}
+
 export function registerIpc(context: IpcContext): void {
   let pendingConfigMutation: Promise<void> = Promise.resolve();
 
@@ -262,13 +325,17 @@ export function registerIpc(context: IpcContext): void {
    * 停止正在运行的后端再执行操作。手动数据操作依赖用户从数据管理页返回时重启，
    * 因此默认不重启；只有自动备份这类无用户返回路径的调用方传入 onSuspended，
    * 在停止成功后拿到私有恢复闭包自行恢复。停止失败时不发布闭包，也不执行操作。
+   *
+   * 定时自动备份已经用写作窗口的保存确认代替了「等 webview 关闭」，因此传
+   * skipWebViewWait 跳过这段等待：原来的等待等不到也照常继续，不能当作保存成功。
    */
   async function withBackendRestart<T>(
     instanceId: string,
     operation: () => Promise<T>,
     onSuspended?: (resume: BackendResume | null) => void,
+    options?: { skipWebViewWait?: boolean },
   ): Promise<T> {
-    await waitForInstanceWebViews(instanceId);
+    if (options?.skipWebViewWait !== true) await waitForInstanceWebViews(instanceId);
     if (context.isBackendRunning()) {
       const resume = await context.stopActiveBackend();
       onSuspended?.(resume);
@@ -278,6 +345,137 @@ export function registerIpc(context: IpcContext): void {
 
   let autoBackupTimer: NodeJS.Timeout | null = null;
   let isAutoBackupRunning = false;
+  /**
+   * 最近一次自动备份失败的原因。
+   *
+   * 定时备份没有用户触发的调用点，只在事件里报告失败会随页面卸载一起丢失，因此失败原因
+   * 留在主进程，由数据管理页通过 getDataInfo 读取；用户修正目录、关闭自动备份或下一次
+   * 成功后立即清除，避免展示已经恢复的失败。
+   */
+  let autoBackupFailure: string | null = null;
+
+  /**
+   * 一次定时自动备份已经确认过保存的写作窗口：备份结束后按它解除暂停。
+   *
+   * 只保留 WebContents 引用与请求 id；确认过程中窗口被销毁时按「没有需要解除的暂停」处理。
+   */
+  interface WritingPauseHandle {
+    requestId: string;
+    targets: WebContents[];
+  }
+
+  interface PendingWritingPause {
+    requestId: string;
+    targets: WebContents[];
+    acknowledged: Set<number>;
+    settled: boolean;
+    timer: NodeJS.Timeout;
+    resolve: (failure: string | null) => void;
+  }
+
+  const pendingWritingPauses = new Map<string, PendingWritingPause>();
+
+  function settleWritingPause(pending: PendingWritingPause, failure: string | null): void {
+    if (pending.settled) return;
+    pending.settled = true;
+    clearTimeout(pending.timer);
+    pendingWritingPauses.delete(pending.requestId);
+    pending.resolve(failure);
+  }
+
+  /** 解除写作暂停。窗口已经销毁时无需解除，也不影响备份结果。 */
+  function releaseWritingPause(pause: WritingPauseHandle | null): void {
+    if (!pause) return;
+    for (const target of pause.targets) {
+      try {
+        if (target.isDestroyed()) continue;
+        target.send(IpcChannels.autoBackupResume, { requestId: pause.requestId });
+      } catch {
+        // 窗口在备份期间被销毁：没有需要解除的暂停。
+      }
+    }
+  }
+
+  /**
+   * 定时自动备份的准入：要求目标实例里每个在线写作窗口确认「当前章节已保存且编辑已暂停」。
+   *
+   * 全部确认后才返回暂停句柄，调用方随后才能停止后端。任何一个窗口保存失败、被 Agent
+   * 锁定、返回无法识别的确认或超时，都抛出错误取消这次尝试：不停后端、不归档、不轮换，
+   * 也不写任何成功状态，由下一个调度周期重试。取消前会给已经确认的窗口补发解除。
+   *
+   * 没有在线窗口时返回 null：没有编辑器就没有待保存的内容，也没有需要解除的暂停。
+   */
+  async function requestWritingPause(instanceId: string): Promise<WritingPauseHandle | null> {
+    const targetSession = session.fromPartition(`persist:openfic-${instanceId}`);
+    const targets = webContents
+      .getAllWebContents()
+      .filter(
+        (contents) =>
+          contents.getType() === "webview" &&
+          !contents.isDestroyed() &&
+          contents.session === targetSession,
+      );
+    if (targets.length === 0) return null;
+
+    const requestId = `auto-backup-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    let settlePause: (failure: string | null) => void = () => undefined;
+    const outcome = new Promise<string | null>((resolve) => {
+      settlePause = resolve;
+    });
+    const pending: PendingWritingPause = {
+      requestId,
+      targets,
+      acknowledged: new Set<number>(),
+      settled: false,
+      timer: setTimeout(
+        () =>
+          settleWritingPause(
+            pending,
+            `写作窗口未在 ${Math.round(AUTO_BACKUP_PAUSE_TIMEOUT_MS / 1000)} 秒内确认保存并暂停`,
+          ),
+        AUTO_BACKUP_PAUSE_TIMEOUT_MS,
+      ),
+      resolve: settlePause,
+    };
+    pendingWritingPauses.set(requestId, pending);
+
+    for (const target of targets) {
+      try {
+        target.send(IpcChannels.autoBackupPause, { requestId });
+      } catch (error) {
+        settleWritingPause(
+          pending,
+          `写作窗口不可用（${error instanceof Error ? error.message : String(error)}）`,
+        );
+        break;
+      }
+    }
+
+    const failure = await outcome;
+    const handle: WritingPauseHandle = { requestId, targets };
+    if (failure !== null) {
+      // 部分窗口可能已经确认并进入暂停：取消这次尝试前必须解除，否则它们会一直停在暂停状态。
+      releaseWritingPause(handle);
+      throw new Error(failure);
+    }
+    return handle;
+  }
+
+  ipcMain.handle(IpcChannels.autoBackupPauseAck, (event, payload: unknown): boolean => {
+    const ack = parseWritingPauseAck(payload);
+    if (!ack) return false;
+    const pending = pendingWritingPauses.get(ack.requestId);
+    if (!pending || pending.settled) return false;
+    // 只接受这次备份真正请求过的窗口，其它来源的确认一律不认。
+    if (!pending.targets.some((target) => target.id === event.sender.id)) return false;
+    if (!ack.ok) {
+      settleWritingPause(pending, describeWritingPauseFailure(ack.reason ?? null));
+      return true;
+    }
+    pending.acknowledged.add(event.sender.id);
+    if (pending.acknowledged.size === pending.targets.length) settleWritingPause(pending, null);
+    return true;
+  });
 
   const executeAutoBackup = async (): Promise<void> => {
     if (isAutoBackupRunning) return;
@@ -289,49 +487,64 @@ export function registerIpc(context: IpcContext): void {
         const config = await readDesktopConfig();
         const target = getAutoBackupTarget(config);
         const backupDir = target?.settings.dir ?? null;
-        if (!target || !backupDir || !(await shouldRunAutoBackup(backupDir))) return null;
+        if (!target || !backupDir) return null;
 
+        // 目标与数据目录重叠时按既有错误流程失败：不停止后端，也不发布会反复收进旧备份的文件。
+        // 复核排在“是否到期”之前：失败原因只留在内存里，应用重启后如果重叠来自数据目录变更，
+        // 而最近一次归档还不到 24 小时，就没有任何备份尝试会去暴露它；每个调度周期都按当前
+        // 配置重新校验已保存的启用目标，启动后的首次检查即可重新报出该错误。
+        await assertBackupDirOutsideDataDir(target.dataDir, backupDir);
+        if (!(await shouldRunAutoBackup(backupDir))) return null;
         const dataOptions = await getDataOperationOptions(target.dataDir, target.runtimeDir);
+        // 写作窗口的保存确认排在停止后端之前：任何一个在线窗口没确认就取消这次尝试，
+        // 既不停后端也不归档，失败的尝试由下一个调度周期重试。
+        const writingPause = await requestWritingPause(target.instanceId);
         const suspended: { resume: BackendResume | null } = { resume: null };
         let operationError: string | null = null;
         let resumeError: string | null = null;
         try {
-          await withBackendRestart(
-            target.instanceId,
-            async () => {
-              const emitProgress = (event: DataProgressEvent) =>
-                context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
-              const fileName = buildAutoBackupFileName(new Date());
-              const targetPath = path.join(backupDir, fileName);
-              appendLog("data", `auto backup: ${target.dataDir} -> ${targetPath}`);
-              await backupDataDir(
-                target.dataDir,
-                targetPath,
-                (message) => appendLog("data", message),
-                (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
-                dataOptions.backup,
-              );
-              await rotateAutoBackups(backupDir, target.settings.keep);
-              appendLog("data", `auto backup done: ${fileName}`);
-            },
-            (resume) => {
-              suspended.resume = resume;
-            },
-          );
-        } catch (error) {
-          operationError = error instanceof Error ? error.message : String(error);
-        }
-        const resume = suspended.resume;
-        if (resume) {
-          // 定时备份没有用户返回数据管理页的重启路径，成功或失败都必须恢复原来的服务。
           try {
-            const result = await resume();
-            if (result.status !== "ready") throw new Error(`服务未就绪（${result.status}）`);
+            await withBackendRestart(
+              target.instanceId,
+              async () => {
+                const emitProgress = (event: DataProgressEvent) =>
+                  context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
+                const fileName = buildAutoBackupFileName(new Date());
+                const targetPath = path.join(backupDir, fileName);
+                appendLog("data", `auto backup: ${target.dataDir} -> ${targetPath}`);
+                await backupDataDir(
+                  target.dataDir,
+                  targetPath,
+                  (message) => appendLog("data", message),
+                  (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
+                  dataOptions.backup,
+                );
+                await rotateAutoBackups(backupDir, target.settings.keep);
+                appendLog("data", `auto backup done: ${fileName}`);
+              },
+              (resume) => {
+                suspended.resume = resume;
+              },
+              { skipWebViewWait: true },
+            );
           } catch (error) {
-            resumeError = error instanceof Error ? error.message : String(error);
+            operationError = error instanceof Error ? error.message : String(error);
           }
+          const resume = suspended.resume;
+          if (resume) {
+            // 定时备份没有用户返回数据管理页的重启路径，成功或失败都必须恢复原来的服务。
+            try {
+              const result = await resume();
+              if (result.status !== "ready") throw new Error(`服务未就绪（${result.status}）`);
+            } catch (error) {
+              resumeError = error instanceof Error ? error.message : String(error);
+            }
+          }
+          return { operationError, resumeError };
+        } finally {
+          // 归档或恢复服务无论成败都要解除写作暂停，否则编辑器会一直停在只读状态。
+          releaseWritingPause(writingPause);
         }
-        return { operationError, resumeError };
       });
       if (outcome === null) return;
       if (outcome.operationError !== null || outcome.resumeError !== null) {
@@ -340,15 +553,18 @@ export function registerIpc(context: IpcContext): void {
         if (outcome.resumeError !== null) failures.push(`恢复服务失败：${outcome.resumeError}`);
         throw new Error(failures.join("；"));
       }
+      autoBackupFailure = null;
       context.shellWindow()?.webContents.send(
         IpcChannels.dataProgress,
-        { operation: "backup", phase: "done", progress: 1 },
+        { operation: "backup", phase: "done", progress: 1, automatic: true },
       );
     } catch (error) {
-      appendLog("data", `自动备份失败：${error instanceof Error ? error.message : String(error)}`);
+      const message = error instanceof Error ? error.message : String(error);
+      appendLog("data", `自动备份失败：${message}`);
+      autoBackupFailure = message;
       context.shellWindow()?.webContents.send(
         IpcChannels.dataProgress,
-        { operation: "backup", phase: "error", progress: 0 },
+        { operation: "backup", phase: "error", progress: 0, automatic: true, message },
       );
     } finally {
       isAutoBackupRunning = false;
@@ -374,6 +590,8 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.saveConfig, (_event, request: SaveConfigRequest) => enqueueConfigMutation(async () => {
     const previousConfig = await readDesktopConfig();
     const nextConfig = { ...request.config, zoomFactor: previousConfig?.zoomFactor };
+    const targetReverified = await assertAutoBackupDirUpdateAllowed(previousConfig, nextConfig);
+    if (targetReverified) autoBackupFailure = null;
     await writeDesktopConfig(nextConfig);
     context.onConfigSaved(nextConfig);
   }));
@@ -609,6 +827,7 @@ export function registerIpc(context: IpcContext): void {
       hasData: inspection.hasData,
       entryCount: inspection.entryCount,
       sizeBytes: inspection.sizeBytes,
+      autoBackupError: autoBackupFailure,
     };
   });
 
@@ -668,6 +887,20 @@ export function registerIpc(context: IpcContext): void {
         }
         await writeDesktopConfig(nextConfig);
         context.onConfigSaved(nextConfig);
+        // 数据目录变化可能让已保存的备份目录落进新的数据目录，定时备份从此会被准入拒绝。
+        // 迁移本身照常完成，但这里立即复核一次并记录原因，让数据管理页在迁移后就能看到
+        // 明确的失败提示，而不是等下一次备份失败（或一直沉默）。
+        const autoBackupTarget = getAutoBackupTarget(nextConfig);
+        const autoBackupDir = autoBackupTarget?.settings.dir;
+        if (autoBackupTarget && autoBackupTarget.instanceId === instance.id && autoBackupDir) {
+          try {
+            await assertBackupDirOutsideDataDir(autoBackupTarget.dataDir, autoBackupDir);
+            autoBackupFailure = null;
+          } catch (error) {
+            autoBackupFailure = error instanceof Error ? error.message : String(error);
+            appendLog("data", `数据目录变更后自动备份目录失效：${autoBackupFailure}`);
+          }
+        }
         return { dataDir: targetDir, migrated, removedOldDir };
       });
       return result;
@@ -680,6 +913,9 @@ export function registerIpc(context: IpcContext): void {
       const instance = config?.instances.find((item) => item.id === request.instanceId);
       if (!instance) throw new Error("实例不存在");
       const dataDir = resolveDataDir(instance);
+      // 一次性手动备份与自动备份共用同一准入：归档文件所在目录与数据目录重叠时，备份会被
+      // 收进后续备份并在还原时覆盖用户数据，因此在停止后端或创建文件之前就拒绝。
+      await assertBackupDirOutsideDataDir(dataDir, path.dirname(path.resolve(request.targetPath)));
       const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir));
       await withBackendRestart(request.instanceId, async () => {
         const emitProgress = (event: DataProgressEvent) =>
@@ -731,23 +967,32 @@ export function registerIpc(context: IpcContext): void {
         const backupDir = settings.dir;
         if (!backupDir) throw new Error("auto backup dir is not configured");
         const dataDir = resolveDataDir(instance);
-        const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir));
-        await withBackendRestart(request.instanceId, async () => {
-          const emitProgress = (event: DataProgressEvent) =>
-            context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
-          const fileName = buildAutoBackupFileName(new Date());
-          const targetPath = path.join(backupDir, fileName);
-          appendLog("data", `manual auto backup: ${dataDir} -> ${targetPath}`);
-          await backupDataDir(
-            dataDir,
-            targetPath,
-            (message) => appendLog("data", message),
-            (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
-            dataOptions.backup,
-          );
-          await rotateAutoBackups(backupDir, settings.keep);
-          appendLog("data", `auto backup done: ${fileName}`);
-        });
+        // 手动触发与定时备份共用同一目标与准入，结果同样写进自动备份状态：
+        // 成功清除历史失败，失败则在页面上留下可恢复的原因。
+        try {
+          await assertBackupDirOutsideDataDir(dataDir, backupDir);
+          const dataOptions = await getDataOperationOptions(dataDir, resolveRuntimeDir(instance.installDir));
+          await withBackendRestart(request.instanceId, async () => {
+            const emitProgress = (event: DataProgressEvent) =>
+              context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
+            const fileName = buildAutoBackupFileName(new Date());
+            const targetPath = path.join(backupDir, fileName);
+            appendLog("data", `manual auto backup: ${dataDir} -> ${targetPath}`);
+            await backupDataDir(
+              dataDir,
+              targetPath,
+              (message) => appendLog("data", message),
+              (phase, progress) => emitProgress({ operation: "backup", phase, progress }),
+              dataOptions.backup,
+            );
+            await rotateAutoBackups(backupDir, settings.keep);
+            appendLog("data", `auto backup done: ${fileName}`);
+          });
+        } catch (error) {
+          autoBackupFailure = error instanceof Error ? error.message : String(error);
+          throw error;
+        }
+        autoBackupFailure = null;
       }),
   );
   ipcMain.handle(

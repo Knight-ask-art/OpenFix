@@ -1,6 +1,6 @@
 import json
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from app.agent_runtime.context.source_snapshot import (
     build_agent_context_sources,
@@ -171,4 +171,264 @@ def test_sanitizer_drops_unapproved_fields_and_invalid_source_types() -> None:
             "chapterOrder": 1,
             "sourceTypes": ["chapterBody"],
         }
+    ]
+
+
+def test_reports_mention_sources_from_the_final_user_message() -> None:
+    messages = [
+        HumanMessage(
+            content=(
+                "请参考 @chapter:第一卷/雨夜 的节奏，"
+                "并核对 @character:林洛 与 @world_info_entry:北城 的设定，"
+                "另外看看 @note:写作笔记，最后用 @skill:节奏控制。"
+            )
+        )
+    ]
+
+    sources = build_agent_context_sources(messages)
+
+    assert sources == [
+        {
+            "id": "chapter:title:第一卷/雨夜",
+            "category": "chapter",
+            "title": "第一卷/雨夜",
+            "sourceTypes": ["mentionReference"],
+        },
+        {
+            "id": "character:title:林洛",
+            "category": "character",
+            "title": "林洛",
+            "sourceTypes": ["mentionReference"],
+        },
+        {
+            "id": "worldEntry:title:北城",
+            "category": "worldEntry",
+            "title": "北城",
+            "sourceTypes": ["mentionReference"],
+        },
+        {
+            "id": "note:title:写作笔记",
+            "category": "note",
+            "title": "写作笔记",
+            "sourceTypes": ["mentionReference"],
+        },
+        {
+            "id": "skill:title:节奏控制",
+            "category": "skill",
+            "title": "节奏控制",
+            "sourceTypes": ["mentionReference"],
+        },
+    ]
+
+
+def test_mention_label_stops_at_chinese_sentence_punctuation() -> None:
+    messages = [
+        HumanMessage(content="@note:写作笔记，最后用 @skill:节奏控制"),
+    ]
+
+    sources = build_agent_context_sources(messages)
+
+    assert sources == [
+        {
+            "id": "note:title:写作笔记",
+            "category": "note",
+            "title": "写作笔记",
+            "sourceTypes": ["mentionReference"],
+        },
+        {
+            "id": "skill:title:节奏控制",
+            "category": "skill",
+            "title": "节奏控制",
+            "sourceTypes": ["mentionReference"],
+        },
+    ]
+    assert "最后用" not in json.dumps(sources, ensure_ascii=False)
+
+
+def test_reports_expanded_mention_excerpt_without_retaining_the_quoted_text() -> None:
+    messages = [
+        HumanMessage(
+            content="@chapter:第一卷/雨夜:12-30\n```\nEXCERPT-SENTINEL 正文摘录\n```\n请接着写。"
+        )
+    ]
+
+    sources = build_agent_context_sources(messages)
+
+    assert sources == [
+        {
+            "id": "chapter:title:第一卷/雨夜",
+            "category": "chapter",
+            "title": "第一卷/雨夜",
+            "sourceTypes": ["mentionExcerpt"],
+        }
+    ]
+    assert "EXCERPT-SENTINEL" not in json.dumps(sources, ensure_ascii=False)
+
+
+def test_reports_injected_rules_and_available_skills_without_their_text() -> None:
+    messages = [
+        SystemMessage(content="你是一位长篇小说写作助手。"),
+        SystemMessage(content="<rules>\n- RULE-SENTINEL 保持第一人称\n</rules>"),
+        SystemMessage(
+            content=(
+                "<available_skills>\n"
+                "The following skills provide specialized instructions for specific tasks.\n"
+                "<skill>\n"
+                "  <name>节奏控制</name>\n"
+                "  <description>SKILL-DESC-SENTINEL</description>\n"
+                "</skill>\n"
+                "</available_skills>"
+            )
+        ),
+    ]
+
+    sources = build_agent_context_sources(messages)
+
+    assert sources == [
+        {
+            "id": "rule:prompt-rules",
+            "category": "rule",
+            "title": "",
+            "sourceTypes": ["agentRules"],
+        },
+        {
+            "id": "skill:title:节奏控制",
+            "category": "skill",
+            "title": "节奏控制",
+            "sourceTypes": ["availableSkill"],
+        },
+    ]
+    serialized = json.dumps(sources, ensure_ascii=False)
+    assert "RULE-SENTINEL" not in serialized
+    assert "SKILL-DESC-SENTINEL" not in serialized
+
+
+def test_reports_rules_and_skills_when_system_prompts_are_merged() -> None:
+    merged = (
+        "你是一位长篇小说写作助手。\n\n"
+        "<rules>\n- 保持第一人称\n</rules>\n\n"
+        "<available_skills>\n"
+        "<skill>\n  <name>节奏控制</name>\n  <description>说明</description>\n</skill>\n"
+        "</available_skills>"
+    )
+
+    sources = build_agent_context_sources([SystemMessage(content=merged)])
+
+    assert [source["id"] for source in sources] == [
+        "rule:prompt-rules",
+        "skill:title:节奏控制",
+    ]
+
+
+def test_reports_activated_skill_name_without_its_instructions() -> None:
+    messages = [
+        AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "id": "call-1",
+                    "name": "activate_skill",
+                    "args": {"skill_name": "节奏控制"},
+                }
+            ],
+        ),
+        ToolMessage(
+            content='<skill_content name="节奏控制">\nBODY-SENTINEL 完整技能说明\n</skill_content>',
+            tool_call_id="call-1",
+        ),
+    ]
+
+    sources = build_agent_context_sources(messages)
+
+    assert sources == [
+        {
+            "id": "skill:title:节奏控制",
+            "category": "skill",
+            "title": "节奏控制",
+            "sourceTypes": ["activatedSkill"],
+        }
+    ]
+    assert "BODY-SENTINEL" not in json.dumps(sources, ensure_ascii=False)
+
+
+def test_ignores_sources_that_are_absent_from_the_final_request() -> None:
+    messages = [
+        HumanMessage(
+            content=(
+                "<compaction-summary>\n"
+                "用户之前引用了 @chapter:第一卷/雨夜，并读取了 @character:林洛。\n"
+                "</compaction-summary>"
+            )
+        ),
+        HumanMessage(content="[世界设定已对 AI 隐藏] 继续写下一段。"),
+        HumanMessage(content="@volume:第一卷 @note_category:资料 仅供参考。"),
+    ]
+
+    sources = build_agent_context_sources(messages)
+
+    assert sources == [
+        {
+            "id": "conversation:compaction-summary",
+            "category": "conversation",
+            "title": "压缩后的对话摘要",
+            "sourceTypes": ["compactionSummary"],
+        }
+    ]
+
+
+def test_sanitizer_keeps_mention_rule_and_skill_sources() -> None:
+    sources = sanitize_agent_context_sources(
+        [
+            {
+                "id": "chapter:title:第一卷/雨夜",
+                "category": "chapter",
+                "title": "第一卷/雨夜",
+                "sourceTypes": ["mentionExcerpt"],
+            },
+            {
+                "id": "rule:prompt-rules",
+                "category": "rule",
+                "title": "",
+                "sourceTypes": ["agentRules"],
+            },
+            {
+                "id": "skill:title:节奏控制",
+                "category": "skill",
+                "title": "节奏控制",
+                "sourceTypes": ["availableSkill", "mentionReference"],
+            },
+            {
+                "id": "skill:title:越权",
+                "category": "skill",
+                "title": "越权",
+                "sourceTypes": ["chapterBody"],
+            },
+            {
+                "id": "chapter:title:越权",
+                "category": "chapter",
+                "title": "越权",
+                "sourceTypes": ["availableSkill"],
+            },
+        ]
+    )
+
+    assert sources == [
+        {
+            "id": "chapter:title:第一卷/雨夜",
+            "category": "chapter",
+            "title": "第一卷/雨夜",
+            "sourceTypes": ["mentionExcerpt"],
+        },
+        {
+            "id": "rule:prompt-rules",
+            "category": "rule",
+            "title": "",
+            "sourceTypes": ["agentRules"],
+        },
+        {
+            "id": "skill:title:节奏控制",
+            "category": "skill",
+            "title": "节奏控制",
+            "sourceTypes": ["availableSkill", "mentionReference"],
+        },
     ]

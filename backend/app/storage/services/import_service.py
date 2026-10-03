@@ -9,7 +9,7 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.editor_content_limits import validate_editor_content
-from app.core.storage import save_cover_file
+from app.core.storage import delete_cover_file, save_cover_file
 from app.core.txt_parser import ParsedVolume
 from app.storage.models.chapter import Chapter
 from app.storage.models.project import Project
@@ -56,67 +56,76 @@ async def confirm_import(
     chapters = [chapter for volume in volumes for chapter in volume.chapters]
     total_word_count = sum(chapter.word_count for chapter in chapters)
 
-    # 创建项目
-    project = Project(
-        title=title,
-        description=description,
-        word_count=total_word_count,
-        chapter_count=len(chapters),
-    )
-    project = await project_repo.create(session, project)
-
-    volume_objects = [
-        Volume(
-            project_id=project.id,
-            title=parsed_volume.title,
-            description=None,
-            order=order,
-            chapter_count=len(parsed_volume.chapters),
+    project: Project | None = None
+    try:
+        # 创建项目
+        project = Project(
+            title=title,
+            description=description,
+            word_count=total_word_count,
+            chapter_count=len(chapters),
         )
-        for order, parsed_volume in enumerate(volumes, start=1)
-    ]
-    session.add_all(volume_objects)
-    await session.flush()
+        project = await project_repo.create(session, project)
 
-    # 如果提供了封面文件，保存封面
-    if cover_file:
-        cover_path = await save_cover_file(project.id, cover_file)
-        project.cover_path = cover_path
-        project = await project_repo.update(session, project)
+        volume_objects = [
+            Volume(
+                project_id=project.id,
+                title=parsed_volume.title,
+                description=None,
+                order=order,
+                chapter_count=len(parsed_volume.chapters),
+            )
+            for order, parsed_volume in enumerate(volumes, start=1)
+        ]
+        session.add_all(volume_objects)
+        await session.flush()
 
-    # 批量创建章节对象
-    chapter_objects = [
-        Chapter(
+        # 如果提供了封面文件，保存封面
+        if cover_file:
+            cover_path = await save_cover_file(project.id, cover_file)
+            project.cover_path = cover_path
+            project = await project_repo.update(session, project)
+
+        # 批量创建章节对象
+        chapter_objects = [
+            Chapter(
+                project_id=project.id,
+                volume_id=volume.id,
+                title=parsed_chapter.title,
+                content=parsed_chapter.content,
+                word_count=parsed_chapter.word_count,
+                order=chapter_order,
+            )
+            for volume, parsed_volume in zip(volume_objects, volumes, strict=True)
+            for chapter_order, parsed_chapter in enumerate(parsed_volume.chapters, start=1)
+        ]
+
+        # 批量插入所有章节
+        session.add_all(chapter_objects)
+        await session.flush()
+
+        for chapter in chapter_objects:
+            await writing_activity_service.record_activity(
+                session,
+                project_id=project.id,
+                chapter_id=chapter.id,
+                chapter_title=chapter.title,
+                source="import",
+                operation="import",
+                old_word_count=0,
+                new_word_count=chapter.word_count,
+            )
+
+        return ImportResult(
             project_id=project.id,
-            volume_id=volume.id,
-            title=parsed_chapter.title,
-            content=parsed_chapter.content,
-            word_count=parsed_chapter.word_count,
-            order=chapter_order,
+            title=project.title,
+            chapter_count=len(chapters),
+            total_word_count=total_word_count,
         )
-        for volume, parsed_volume in zip(volume_objects, volumes, strict=True)
-        for chapter_order, parsed_chapter in enumerate(parsed_volume.chapters, start=1)
-    ]
-
-    # 批量插入所有章节
-    session.add_all(chapter_objects)
-    await session.flush()
-
-    for chapter in chapter_objects:
-        await writing_activity_service.record_activity(
-            session,
-            project_id=project.id,
-            chapter_id=chapter.id,
-            chapter_title=chapter.title,
-            source="import",
-            operation="import",
-            old_word_count=0,
-            new_word_count=chapter.word_count,
-        )
-
-    return ImportResult(
-        project_id=project.id,
-        title=project.title,
-        chapter_count=len(chapters),
-        total_word_count=total_word_count,
-    )
+    except Exception:
+        # 失败时丢弃本次导入的全部写入；封面文件名由本次新建的项目 ID 决定，
+        # 因此只可能删除本次导入自己写入的文件。
+        if cover_file is not None and project is not None:
+            delete_cover_file(project.id)
+        await session.rollback()
+        raise

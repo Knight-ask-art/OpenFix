@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "affectedLayers": [
+    "backend/context, backend/audit, backend/retrieval, backend/storage, frontend, desktop, docs"
+  ],
+  "owners": [
+    "当前协调者；仅本地 OpenFix 仓库。"
+  ],
+  "invariants": [
+    "有效小说事实与上下文连续性优先；不改写远端基线；AI 创作行为仍由用户选择确认。"
+  ],
+  "compatBoundary": "仅提交推送到 origin/feature/branding；保留 OpenFic upstream 为只读参照；保留当前 127.0.0.1:9000 前端开发服务器；本地源码交付不等于 V1.0 发布验收。",
+  "nonGoals": [
+    "不新增通用 Context/RAG/Memory 架构，不做实时供应商账单/质量评估，不做签名、发布或远端 Release。"
+  ]
+}

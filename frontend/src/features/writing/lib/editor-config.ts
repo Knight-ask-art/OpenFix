@@ -154,6 +154,42 @@ const TabIndent = Extension.create({
   },
 });
 
+/**
+ * 整章全选（Ctrl+A）。
+ *
+ * ProseMirror 默认的 selectAll 产生元素级 AllSelection：它覆盖整个文档，但方向键收不起它。
+ * 用户按下 Ctrl+A 后再按方向键、然后输入时，这一次输入会把整章正文直接替换成输入内容
+ * （数据丢失）；只有先点击正文重新落一个普通文本光标才能避免。
+ *
+ * 这里改用覆盖整章正文的 TextSelection：选中的文本与 AllSelection 完全一致，但它和普通
+ * 文本选区一样能被方向键收起到选区两端，随后的输入只改变插入点。没有正文可选（空章节等）
+ * 时返回 false，交回默认的 selectAll。
+ */
+const SelectAllText = Extension.create({
+  name: "selectAllText",
+
+  addKeyboardShortcuts() {
+    return {
+      "Mod-a": ({ editor }) => {
+        const { doc } = editor.state;
+        const end = doc.content.size - 1;
+        // 退化文档没有正文可选，交回默认的 selectAll。
+        if (end < 1) return false;
+
+        // 顶层块的正文从位置 1 开始，最后一个块的正文在文档闭合标记之前结束，
+        // 因此这个范围覆盖的文本与 AllSelection 一致，只少了块级边界。
+        const from = doc.resolve(1);
+        const to = doc.resolve(end);
+        if (!from.parent.inlineContent || !to.parent.inlineContent) return false;
+        if (from.pos >= to.pos) return false;
+
+        editor.view.dispatch(editor.state.tr.setSelection(new TextSelection(from, to)));
+        return true;
+      },
+    };
+  },
+});
+
 function createParagraphAutoIndent(shouldAutoIndent: () => boolean) {
   return Extension.create({
     name: "paragraphAutoIndent",
@@ -357,6 +393,7 @@ export interface EditorExtensionsOptions {
  * - Placeholder: 占位符文本
  * - CharacterCount: 字符计数（实时更新）
  * - TabIndent: Tab 键缩进（2em）
+ * - SelectAllText: Ctrl+A 产生可被方向键收起的整章文本选区
  * - SearchAndReplace: 查找和替换
  * - EditorShortcuts: 编辑器快捷键（Mod-f, Mod-h, Mod-s）
  */
@@ -379,6 +416,7 @@ export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
     }),
     CharacterCount,
     TabIndent,
+    SelectAllText,
     PlainTextClipboard,
     SearchAndReplace,
   ];

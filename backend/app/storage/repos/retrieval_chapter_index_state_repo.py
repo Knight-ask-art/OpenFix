@@ -138,6 +138,16 @@ async def delete_by_chapter_id(session: AsyncSession, chapter_id: str) -> None:
     await session.flush()
 
 
+async def delete_by_project(session: AsyncSession, project_id: str) -> None:
+    """删除项目内全部章节索引状态。"""
+    await session.execute(
+        delete(RetrievalChapterIndexState).where(
+            col(RetrievalChapterIndexState.project_id) == project_id
+        )
+    )
+    await session.flush()
+
+
 async def mark_all_needs_rebuild(session: AsyncSession) -> None:
     await session.execute(
         update(RetrievalChapterIndexState).values(

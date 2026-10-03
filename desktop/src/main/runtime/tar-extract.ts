@@ -151,15 +151,33 @@ export async function measureTreeSize(entryPath: string): Promise<number> {
   return info.size;
 }
 
+export interface CopyTreeOptions {
+  /**
+   * 备份路径必须开启：被占用的文件一旦按跳过处理，随后生成的清单就会把缺少用户数据的
+   * 目录树认证为完整备份。还原路径保持既有的跳过语义，由还原校验与回滚负责一致性。
+   */
+  failOnLockedFile?: boolean;
+  /**
+   * 备份路径必须开启：符号链接与 Windows 目录联接一旦按跳过处理，清单同样会把缺少链接
+   * 目标的目录树认证为完整备份。还原路径不启用该选项，继续跳过并记录这些链接。
+   */
+  failOnSymlink?: boolean;
+}
+
 export async function copyTree(
   sourcePath: string,
   targetPath: string,
   onLog?: (message: string) => void,
   onBytesCopied?: (bytes: number) => void,
   preserveSymlinks: boolean = false,
+  options: CopyTreeOptions = {},
 ): Promise<void> {
   const sourceStat = await lstat(sourcePath);
   if (sourceStat.isSymbolicLink()) {
+    if (options.failOnSymlink) {
+      // Windows 目录联接与符号链接一样被 lstat 判定为符号链接，两者都在这里拒绝。
+      throw new Error(`备份失败：检测到符号链接或目录联接，无法生成完整备份 ${sourcePath}`);
+    }
     if (!preserveSymlinks) {
       onLog?.(`跳过符号链接：${sourcePath}`);
       return;
@@ -178,7 +196,7 @@ export async function copyTree(
     const entries = await readdir(sourcePath, { withFileTypes: true });
     for (const entry of entries) {
       if (isExcludedRuntimeEntry(entry.name)) continue;
-      await copyTree(path.join(sourcePath, entry.name), path.join(targetPath, entry.name), onLog, onBytesCopied, preserveSymlinks);
+      await copyTree(path.join(sourcePath, entry.name), path.join(targetPath, entry.name), onLog, onBytesCopied, preserveSymlinks, options);
     }
     return;
   }
@@ -186,7 +204,11 @@ export async function copyTree(
     await cp(sourcePath, targetPath);
   } catch (error) {
     if (isLockError(error)) {
-      onLog?.(`跳过被占用的文件：${targetPath}（${(error as NodeJS.ErrnoException).code}）`);
+      const code = (error as NodeJS.ErrnoException).code;
+      if (options.failOnLockedFile) {
+        throw new Error(`备份失败：文件被占用，无法复制 ${sourcePath}（${code}）`);
+      }
+      onLog?.(`跳过被占用的文件：${targetPath}（${code}）`);
       return;
     }
     throw error;
@@ -227,15 +249,38 @@ function logProcessOutput(stream: NodeJS.ReadableStream, onLog?: (message: strin
   });
 }
 
+/**
+ * Windows 盘符路径的反斜杠会被 tar 当作转义字符：`C:\Users` 解析成 `C:Users`，
+ * 目标目录因此打不开（GNU tar 报 `Cannot open: No such file or directory`）。
+ * 改用正斜杠后 GNU tar 与 Windows 自带 tar 都能解析该路径。其余平台不做转换，
+ * 避免改动同名反斜杠的合法路径。
+ */
+function toTarDestinationPath(outputDir: string): string {
+  return process.platform === "win32" ? outputDir.replace(/\\/g, "/") : outputDir;
+}
+
 async function extractWithSystemTar(archivePath: string, outputDir: string, onLog?: (message: string) => void): Promise<void> {
+  // Windows 盘符归档路径（如 C:\...）会被 tar 当成远程归档说明符（host:path）而拒绝解压，
+  // 因此 Windows 改为经 stdin 传入归档文件；其余平台保持原有的命令行形式不变。
+  const viaStdin = process.platform === "win32";
+  const destinationDir = toTarDestinationPath(outputDir);
+  const args = viaStdin ? ["-xzf", "-", "-C", destinationDir] : ["-xzf", archivePath, "-C", destinationDir];
   await new Promise<void>((resolve, reject) => {
-    onLog?.(`执行解压命令：tar -xzf ${archivePath} -C ${outputDir}`);
-    const child = spawn("tar", ["-xzf", archivePath, "-C", outputDir], {
+    onLog?.(`执行解压命令：tar ${args.join(" ")}`);
+    const child = spawn("tar", args, {
       windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: viaStdin ? ["pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"],
     });
-    logProcessOutput(child.stdout, onLog);
-    logProcessOutput(child.stderr, onLog);
+    // stdio 是条件表达式，spawn 的元组重载不适用，三个流在类型上均为可空，因此逐个收窄后再使用。
+    const { stderr, stdin, stdout } = child;
+    if (stdout) logProcessOutput(stdout, onLog);
+    if (stderr) logProcessOutput(stderr, onLog);
+    if (viaStdin && stdin) {
+      // spawn 失败或 tar 提前退出时管道写入会中断；启动与退出失败由下面的事件统一上报。
+      void pipeline(createReadStream(archivePath), stdin).catch((error: unknown) => {
+        onLog?.(`归档数据写入中断：${error instanceof Error ? error.message : String(error)}`);
+      });
+    }
     child.once("error", (error) => {
       onLog?.(`解压命令启动失败：${error.message}`);
       reject(error);

@@ -6,7 +6,9 @@ export type AgentContextCategory =
   | "character"
   | "worldEntry"
   | "outline"
-  | "note";
+  | "note"
+  | "rule"
+  | "skill";
 
 export type AgentContextSourceType =
   | "chapterBody"
@@ -21,7 +23,12 @@ export type AgentContextSourceType =
   | "noteList"
   | "noteContent"
   | "storyMemorySearch"
-  | "compactionSummary";
+  | "compactionSummary"
+  | "mentionReference"
+  | "mentionExcerpt"
+  | "availableSkill"
+  | "activatedSkill"
+  | "agentRules";
 
 export interface AgentContextSource {
   id: string;
@@ -42,11 +49,25 @@ const SOURCE_TYPES_BY_CATEGORY: Record<AgentContextCategory, Set<AgentContextSou
     "chapterSummary",
     "rangeSummary",
     "storyMemorySearch",
+    "mentionReference",
+    "mentionExcerpt",
   ]),
-  character: new Set(["characterList", "characterProfile", "storyMemorySearch"]),
-  worldEntry: new Set(["worldEntryList", "worldEntryContent", "storyMemorySearch"]),
+  character: new Set([
+    "characterList",
+    "characterProfile",
+    "storyMemorySearch",
+    "mentionReference",
+  ]),
+  worldEntry: new Set([
+    "worldEntryList",
+    "worldEntryContent",
+    "storyMemorySearch",
+    "mentionReference",
+  ]),
   outline: new Set(["storyMemorySearch"]),
-  note: new Set(["noteList", "noteContent", "storyMemorySearch"]),
+  note: new Set(["noteList", "noteContent", "storyMemorySearch", "mentionReference"]),
+  rule: new Set(["agentRules"]),
+  skill: new Set(["availableSkill", "activatedSkill", "mentionReference"]),
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -56,12 +77,10 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function asCategory(value: unknown): AgentContextCategory | null {
-  return value === "chapter" ||
-    value === "character" ||
-    value === "worldEntry" ||
-    value === "outline" ||
-    value === "note"
-    ? value
+  // Own keys only: inherited names such as "toString" or "__proto__" are not
+  // categories, and their map entries are not Sets.
+  return typeof value === "string" && Object.hasOwn(SOURCE_TYPES_BY_CATEGORY, value)
+    ? (value as AgentContextCategory)
     : null;
 }
 

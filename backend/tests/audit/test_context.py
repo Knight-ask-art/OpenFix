@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.audit.context import AuditContext
 from app.audit.queue import AuditQueue, persist_audit_details
+from app.agent_runtime.context.compaction.tokens import count_text_tokens
 from app.storage.models.llm_audit_log import LLMAuditLog
 
 
@@ -87,6 +88,69 @@ async def test_audit_context_defaults_category_to_agent(
         pass
 
     assert enqueued[0].category == "agent"
+
+
+@pytest.mark.asyncio
+async def test_audit_context_persists_token_efficiency_metrics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    enqueued: list[Any] = []
+
+    async def fake_enqueue(audit_log: Any) -> None:
+        enqueued.append(audit_log)
+
+    monkeypatch.setattr("app.audit.context.enqueue_audit_log", fake_enqueue)
+    context = AuditContext(project_id="project-1")
+    metrics = {
+        "context_tokens_estimated": 250,
+        "tool_schema_tokens_estimated": 75,
+        "context_budget_tokens": 800,
+        "tokens_pruned": 120,
+        "tokens_compacted": 400,
+        "tool_result_tokens": 300,
+        "context_fingerprint": "abcdef0123456789",
+        "context_token_breakdown": {"history": 150, "skills": 100},
+    }
+
+    async with context.llm_call(
+        operation="writer",
+        model_id="gpt-test",
+        context_metrics=metrics,
+    ) as audit:
+        audit.record_response(
+            usage={
+                "input_tokens": 1_000,
+                "output_tokens": 200,
+                "cache_read_input_tokens": 300,
+                "cache_creation_input_tokens": 100,
+                "reasoning_tokens": 25,
+            }
+        )
+        audit.record_tool_call(
+            "read_note",
+            {},
+            tool_result_content="note title and relevant facts",
+        )
+
+    audit_log = enqueued[0]
+    assert audit_log.token_cache == 300
+    assert audit_log.token_cache_write == 100
+    assert audit_log.tokens_input_total == 1_400
+    assert audit_log.tokens_input_uncached == 1_000
+    assert audit_log.tokens_reasoning == 25
+    assert audit_log.cache_hit_rate == pytest.approx(300 / 1_400)
+    assert audit_log.context_tokens_estimated == 250
+    assert audit_log.tool_schema_tokens_estimated == 75
+    assert audit_log.context_budget_tokens == 800
+    assert audit_log.tokens_pruned == 120
+    assert audit_log.tokens_compacted == 400
+    assert audit_log.tool_result_tokens == count_text_tokens(
+        "note title and relevant facts"
+    )
+    assert json.loads(audit_log.context_token_breakdown) == {
+        "history": 150,
+        "skills": 100,
+    }
 
 
 @pytest.mark.asyncio

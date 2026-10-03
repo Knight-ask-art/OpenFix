@@ -11,7 +11,7 @@ import path from "node:path";
 import { appendLog } from "./logging.js";
 import { resolveDataDir } from "./data-location.js";
 import { resolveRuntimeDir } from "./runtime/python.js";
-import type { AutoBackupSettings, DesktopConfig } from "../shared/config.js";
+import type { AutoBackupSettings, DesktopConfig, DesktopInstance } from "../shared/config.js";
 
 export const AUTO_BACKUP_PREFIX = "OpenFix-backup-";
 export const AUTO_BACKUP_SUFFIX = ".tar.gz";
@@ -36,12 +36,23 @@ export function buildAutoBackupFileName(now: Date): string {
   );
 }
 
+/**
+ * 自动备份作用的本地实例：优先当前激活实例，否则回退到第一个本地实例。
+ *
+ * 与是否启用、目录是否配置无关，供“校验即将保存的备份目录”这类准入检查复用，
+ * 保证准入判断与实际备份目标始终是同一个实例。
+ */
+export function resolveAutoBackupInstance(config: DesktopConfig | null): DesktopInstance | null {
+  if (!config) return null;
+  return config.instances.find(
+    (item) => item.mode === "local" && item.id === (config.activeInstanceId ?? ""),
+  ) ?? config.instances.find((item) => item.mode === "local") ?? null;
+}
+
 export function getAutoBackupTarget(config: DesktopConfig | null): AutoBackupTarget | null {
   const settings = config?.autoBackup;
   if (!settings || !settings.enabled || !settings.dir) return null;
-  const instance = config.instances.find(
-    (item) => item.mode === "local" && item.id === (config.activeInstanceId ?? ""),
-  ) ?? config.instances.find((item) => item.mode === "local");
+  const instance = resolveAutoBackupInstance(config);
   if (!instance) return null;
   return {
     instanceId: instance.id,

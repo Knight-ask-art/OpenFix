@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "candidateDocs": [
+    "feature/branding HEAD b2b2a8f687d3fa51b4c3a6e42db11f6dd40d71e5; origin/feature/branding 在 HEAD 后 25 提交；73 个已跟踪改动、22 个未跟踪路径；OPENFIX.md 与 2026-10-04-llm-token-efficiency.md。"
+  ],
+  "whyRelevant": "确定 OpenFix 真实代码和唯一允许推送的仓库分支，并锁定提交前工作树范围。",
+  "missingAuthority": []
+}

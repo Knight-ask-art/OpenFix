@@ -245,7 +245,10 @@
       "keep": "保留份数",
       "runNow": "立即备份",
       "running": "正在执行自动备份",
-      "done": "自动备份完成"
+      "done": "自动备份完成",
+      "saveFailed": "自动备份设置保存失败：{{message}}",
+      "failed": "上次自动备份失败：{{message}}",
+      "failedNoDetail": "上次自动备份失败，请在日志中查看详情"
     }
   }
 }

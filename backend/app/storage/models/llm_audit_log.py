@@ -22,7 +22,9 @@ class LLMAuditLog(SQLModel, table=True):
     child_run_id: str | None = Field(default=None, index=True)
     project_id: str = Field(index=True, foreign_key="projects.id")
     chapter_id: str | None = Field(default=None, index=True, foreign_key="chapters.id")
-    revision_id: str | None = Field(default=None, index=True, foreign_key="revisions.id")
+    revision_id: str | None = Field(
+        default=None, index=True, foreign_key="revisions.id"
+    )
 
     category: str = Field(default="agent", max_length=50, index=True)
     operation: str = Field(max_length=50, index=True)
@@ -42,6 +44,20 @@ class LLMAuditLog(SQLModel, table=True):
     tokens_output: int = Field(default=0)
     tokens_total: int = Field(default=0)
     token_cache: int = Field(default=0)
+    token_cache_write: int = Field(default=0)
+    tokens_input_uncached: int = Field(default=0)
+    tokens_input_total: int = Field(default=0)
+    tokens_reasoning: int = Field(default=0)
+    cache_hit_rate: float = Field(default=0.0)
+
+    context_tokens_estimated: int = Field(default=0)
+    tool_schema_tokens_estimated: int = Field(default=0)
+    context_budget_tokens: int = Field(default=0)
+    tokens_pruned: int = Field(default=0)
+    tokens_compacted: int = Field(default=0)
+    tool_result_tokens: int = Field(default=0)
+    context_fingerprint: str | None = Field(default=None, max_length=64)
+    context_token_breakdown: str = Field(default="{}")
 
     latency_ms: int | None = Field(default=None)
     first_token_ms: int | None = Field(default=None)

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """AgentRule Repository - 规则数据访问层。"""
 
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -103,4 +104,15 @@ async def update(session: AsyncSession, rule: AgentRule) -> AgentRule:
 
 async def delete(session: AsyncSession, rule: AgentRule) -> None:
     await session.delete(rule)
+    await session.flush()
+
+
+async def delete_by_project(session: AsyncSession, project_id: str) -> None:
+    """删除项目作用域的规则；全局规则不受影响。"""
+    await session.execute(
+        sql_delete(AgentRule).where(
+            col(AgentRule.scope) == "project",
+            col(AgentRule.project_id) == project_id,
+        )
+    )
     await session.flush()

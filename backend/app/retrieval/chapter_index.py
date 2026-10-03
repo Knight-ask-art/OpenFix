@@ -968,6 +968,32 @@ class ChapterIndexIntegrationService:
                 chapter_id=chapter.id,
             ).warning(f"delete retrieval chapter document failed: {exc}")
 
+    async def delete_project_index_documents(
+        self,
+        session: AsyncSession,
+        *,
+        project_id: str,
+        chapter_ids: list[str],
+    ) -> None:
+        """批量删除项目章节在检索索引中的向量文档。
+
+        在章节行删除前调用，避免章节行消失后遗留无法定位的孤儿向量。
+        仅作用于该项目的 index_key，不影响其它项目的向量。
+        索引未注册或底层删除失败时只记录告警，保持 best-effort 语义。
+        """
+        if not chapter_ids:
+            return
+        try:
+            await self.retrieval_service.delete_documents(
+                session,
+                chapter_index_key(project_id),
+                [chapter_document_id(chapter_id) for chapter_id in chapter_ids],
+            )
+        except Exception as exc:
+            logger.bind(project_id=project_id).warning(
+                f"delete retrieval chapter documents failed: {exc}"
+            )
+
     async def index_chapter(
         self,
         session: AsyncSession,

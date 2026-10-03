@@ -16,6 +16,7 @@ import {
   extractTarGz,
   isExcludedRuntimeEntry,
   measureTreeSize,
+  type CopyTreeOptions,
   type DataPhaseReporter,
   type TopLevelEntryMatcher,
 } from "./runtime/tar-extract.js";
@@ -174,6 +175,8 @@ export async function backupDataDir(
       onLog,
       onPhase,
       createTopLevelEntryMatcher(options.excludedTopLevelEntries ?? []),
+      // 备份必须整树成功：被占用的文件或符号链接一旦跳过，随后生成的清单就会把缺少用户数据的目录树认证为完整备份。
+      { failOnLockedFile: true, failOnSymlink: true },
     );
     await writeFile(path.join(stagingDir, BACKUP_MANIFEST_NAME), JSON.stringify(await computeBackupManifest(stagingDir), null, 2));
     onPhase?.("pack");
@@ -196,6 +199,7 @@ async function copyDirectoryWithRetry(
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
   excludedTopLevelEntries: TopLevelEntryMatcher = createTopLevelEntryMatcher(),
+  options: CopyTreeOptions = {},
 ): Promise<void> {
   let entries: Dirent[];
   try {
@@ -237,7 +241,7 @@ async function copyDirectoryWithRetry(
       await copyTree(sourcePath, targetPath, onLog, (bytes) => {
         copied += bytes;
         report();
-      });
+      }, false, options);
     }
   }
   report();
@@ -327,6 +331,19 @@ export async function doPathsOverlap(left: string, right: string): Promise<boole
   const resolvedLeft = await resolveForCompare(left);
   const resolvedRight = await resolveForCompare(right);
   return pathEquals(resolvedLeft, resolvedRight) || pathContains(resolvedLeft, resolvedRight) || pathContains(resolvedRight, resolvedLeft);
+}
+
+/**
+ * 备份目标目录必须完全位于数据目录之外。
+ *
+ * 目标与数据目录相同、位于其内部或包住数据目录时，已经存在的历史备份会在后续备份中
+ * 被反复收进新备份，还原时也会连同这些备份覆盖用户数据；因此在执行备份前直接拒绝，
+ * 不做任何删除或改动。
+ */
+export async function assertBackupDirOutsideDataDir(dataDir: string, backupDir: string): Promise<void> {
+  if (await doPathsOverlap(dataDir, backupDir)) {
+    throw new Error("备份目录不能与数据目录相同、位于数据目录内部或包含数据目录，请选择数据目录之外的目录");
+  }
 }
 
 export async function removeDataDir(dataDir: string): Promise<void> {

@@ -245,7 +245,10 @@
       "keep": "Keep",
       "runNow": "Back up now",
       "running": "Running automatic backup",
-      "done": "Automatic backup finished"
+      "done": "Automatic backup finished",
+      "saveFailed": "Failed to save automatic backup settings: {{message}}",
+      "failed": "The last automatic backup failed: {{message}}",
+      "failedNoDetail": "The last automatic backup failed. See the logs for details."
     }
   }
 }

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "baselineRefs": [
+    "feature/branding at b2b2a8f687d3fa51b4c3a6e42db11f6dd40d71e5; origin remote verified as Knight-ask-art/OpenFix"
+  ],
+  "impactStatement": "docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/impact-statement-draft.json",
+  "compatPlan": "仅提交推送到 origin/feature/branding；保留 OpenFic upstream 为只读参照；保留当前 127.0.0.1:9000 前端开发服务器；本地源码交付不等于 V1.0 发布验收。",
+  "retirementPlan": "No legacy path was retired; deferred context optimization features remain explicitly documented.",
+  "evidenceBundle": [
+    "docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-backend-frontend-desktop-20261004.json",
+    "docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-claude-review-attempt-20261004.json",
+    "docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-synthetic-benchmark-20261004.json"
+  ]
+}

@@ -17,6 +17,7 @@ from app.background.runtime.context import JobContext
 from app.retrieval.story_memory import (
     build_story_memory_documents,
     compute_story_memory_status,
+    delete_project_story_memory_documents,
     fingerprint_story_memory_documents,
     story_document_id,
     story_memory_index_is_fresh,
@@ -593,3 +594,133 @@ async def test_story_memory_rebuild_reports_stale_when_source_changes_during_bui
 
     status = await compute_story_memory_status(session, project_id=project_id)
     assert status.index_status == "stale"
+
+
+# ============================================
+# 项目删除：Story Memory 向量文档清理
+# ============================================
+
+
+class _RecordingRetrievalService:
+    """批量删除替身：只记录调用，不接触真实向量库。"""
+
+    def __init__(self, *, error: str | None = None) -> None:
+        self.error = error
+        self.calls: list[tuple[str, list[str]]] = []
+
+    async def delete_documents(
+        self, session, index_key: str, document_ids: list[str]
+    ) -> None:
+        _ = session
+        self.calls.append((index_key, list(document_ids)))
+        if self.error is not None:
+            raise RuntimeError(self.error)
+
+
+def _add_story_memory_index(session, project_id: str) -> None:
+    """写入 Story Memory 索引行，使清理路径认为该项目已建立索引。"""
+    session.add(
+        RetrievalIndex(
+            index_key=story_memory_index_key(project_id),
+            table_name=f"story_memory_{project_id}",
+            status="ready",
+            embedding_model_ref_id=MODEL_REF_ID,
+            embedding_model_id_snapshot="embed-1",
+            embedding_dimensions_snapshot=3,
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_delete_project_story_memory_documents_uses_project_index_only(
+    client: AsyncClient, session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """清理只作用于该项目的 index_key，且覆盖源文档构建出的全部文档 ID。"""
+    project_id = await _create_project_with_entities(client)
+    other_project_id = await _create_project_with_entities(client)
+    _add_story_memory_index(session, project_id)
+    _add_story_memory_index(session, other_project_id)
+    await session.flush()
+
+    expected_document_ids = [
+        document.document_id
+        for document in await build_story_memory_documents(session, project_id)
+    ]
+    assert expected_document_ids
+
+    service = _RecordingRetrievalService()
+    monkeypatch.setattr(
+        "app.retrieval.story_memory.OpenFicRetrievalService", lambda: service
+    )
+
+    await delete_project_story_memory_documents(session, project_id=project_id)
+
+    assert service.calls == [
+        (story_memory_index_key(project_id), expected_document_ids)
+    ]
+    assert all(
+        index_key != story_memory_index_key(other_project_id)
+        for index_key, _ in service.calls
+    )
+
+
+@pytest.mark.asyncio
+async def test_delete_project_story_memory_documents_skips_missing_index(
+    client: AsyncClient, session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """项目未建立 Story Memory 索引时静默跳过，不实例化检索服务。"""
+    project_id = await _create_project_with_entities(client)
+
+    service = _RecordingRetrievalService()
+    created: list[_RecordingRetrievalService] = []
+
+    def _factory() -> _RecordingRetrievalService:
+        created.append(service)
+        return service
+
+    monkeypatch.setattr("app.retrieval.story_memory.OpenFicRetrievalService", _factory)
+
+    await delete_project_story_memory_documents(session, project_id=project_id)
+
+    assert created == []
+    assert service.calls == []
+
+
+@pytest.mark.asyncio
+async def test_delete_project_story_memory_documents_skips_without_documents(
+    client: AsyncClient, session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """索引存在但项目没有任何源文档时不调用批量删除。"""
+    project_id = (
+        await client.post("/api/v1/projects", data={"title": "空故事记忆项目"})
+    ).json()["id"]
+    _add_story_memory_index(session, project_id)
+    await session.flush()
+
+    service = _RecordingRetrievalService()
+    monkeypatch.setattr(
+        "app.retrieval.story_memory.OpenFicRetrievalService", lambda: service
+    )
+
+    await delete_project_story_memory_documents(session, project_id=project_id)
+
+    assert service.calls == []
+
+
+@pytest.mark.asyncio
+async def test_delete_project_story_memory_documents_is_best_effort(
+    client: AsyncClient, session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """向量库删除失败时只记录告警，不向调用方抛出异常。"""
+    project_id = await _create_project_with_entities(client)
+    _add_story_memory_index(session, project_id)
+    await session.flush()
+
+    service = _RecordingRetrievalService(error="vector store unavailable")
+    monkeypatch.setattr(
+        "app.retrieval.story_memory.OpenFicRetrievalService", lambda: service
+    )
+
+    await delete_project_story_memory_documents(session, project_id=project_id)
+
+    assert len(service.calls) == 1

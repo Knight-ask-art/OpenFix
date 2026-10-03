@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.tools.base import AgentTool
+from app.agent_runtime.context.budget import retrieval_token_budget
+from app.agent_runtime.context.compaction.tokens import count_text_tokens
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.core.encryption import EncryptionService
@@ -100,7 +102,9 @@ async def _build_embedding_client(session: AsyncSession, model_ref_id: str):
     if provider is None:
         raise ToolExecutionError("default_embedding_model 关联的 provider 不存在")
     try:
-        provider_service = ModelProviderService(EncryptionService(settings.encryption_key))
+        provider_service = ModelProviderService(
+            EncryptionService(settings.encryption_key)
+        )
         api_key = provider_service.get_decrypted_api_key(provider) or ""
         custom_headers = provider_service.get_decrypted_custom_headers(provider)
         return EmbeddingClient(
@@ -130,7 +134,9 @@ async def _build_rerank_client(
     if provider is None:
         return None
     try:
-        provider_service = ModelProviderService(EncryptionService(settings.encryption_key))
+        provider_service = ModelProviderService(
+            EncryptionService(settings.encryption_key)
+        )
         api_key = provider_service.get_decrypted_api_key(provider) or ""
         custom_headers = provider_service.get_decrypted_custom_headers(provider)
         return RerankClient(
@@ -230,7 +236,9 @@ def _not_latest_text(
         "或先更新索引以获得完整结果。"
     )
     if auto_strategy == INDEX_AUTO_STRATEGY_AGENT_DECIDED:
-        text += "\n当前自动索引策略为“由 Agent 决定”，建议调用 update_index 工具更新索引。"
+        text += (
+            "\n当前自动索引策略为“由 Agent 决定”，建议调用 update_index 工具更新索引。"
+        )
     return text
 
 
@@ -240,6 +248,7 @@ def _group_results(
     results: list[ChunkSearchResult],
     chapters_by_id: dict[str, Any],
     volumes_by_id: dict[str, Any],
+    token_budget: int,
 ) -> str:
     grouped: OrderedDict[str, list[ChunkSearchResult]] = OrderedDict()
     fallback_volume_ids: dict[str, str | None] = {}
@@ -255,7 +264,11 @@ def _group_results(
     items: list[SearchChaptersChapterOutput] = []
     for chapter_id, chapter_results in grouped.items():
         chapter = chapters_by_id.get(chapter_id)
-        vid = chapter.volume_id if chapter is not None else fallback_volume_ids.get(chapter_id)
+        vid = (
+            chapter.volume_id
+            if chapter is not None
+            else fallback_volume_ids.get(chapter_id)
+        )
         volume = volumes_by_id.get(vid) if vid else None
         items.append(
             SearchChaptersChapterOutput(
@@ -273,7 +286,50 @@ def _group_results(
             )
         )
 
-    return SearchChaptersOutput(query=query, results=items).model_dump_json()
+    response_query = query
+
+    def render(chapters: list[SearchChaptersChapterOutput]) -> str:
+        return SearchChaptersOutput(
+            query=response_query,
+            results=chapters,
+        ).model_dump_json()
+
+    if count_text_tokens(render([])) > token_budget:
+        response_query = query[:160]
+        if len(query) > 160:
+            response_query += "…"
+
+    while items and count_text_tokens(render(items)) > token_budget:
+        last_group = items[-1]
+        if len(last_group.chunks) > 1:
+            last_group.chunks.pop()
+            continue
+        if len(items) > 1:
+            items.pop()
+            continue
+
+        first_chunk = last_group.chunks[0]
+        low, high = 0, len(first_chunk.text)
+        best_text: str | None = None
+        while low <= high:
+            middle = (low + high) // 2
+            candidate_chunk = first_chunk.model_copy(
+                update={"text": first_chunk.text[:middle]}
+            )
+            candidate_group = last_group.model_copy(
+                update={"chunks": [candidate_chunk]}
+            )
+            if count_text_tokens(render([candidate_group])) <= token_budget:
+                best_text = candidate_chunk.text
+                low = middle + 1
+            else:
+                high = middle - 1
+        if best_text is None:
+            break
+        last_group.chunks[0] = first_chunk.model_copy(update={"text": best_text})
+        break
+
+    return render(items)
 
 
 @ToolRegistry.register
@@ -284,6 +340,10 @@ class SearchChaptersTool(AgentTool):
     args_schema: type[BaseModel] = SearchChaptersInput
 
     async def _execute(self, query: str, force: bool = False) -> str:
+        result_token_budget = retrieval_token_budget(
+            self.runtime_state.get("model_config"),
+            tool_schema_tokens=self.context_tool_schema_tokens,
+        )
         async with _tool_session(self) as session:
             setting = await setting_repo.get_by_key(
                 session,
@@ -294,9 +354,13 @@ class SearchChaptersTool(AgentTool):
                 raise ToolExecutionError("未配置 default_embedding_model，无法检索章节")
             model = await model_repo.get_by_id(session, model_ref_id)
             if model is None or model.task_type != "embedding":
-                raise ToolExecutionError("default_embedding_model 不存在或不是 embedding 模型")
+                raise ToolExecutionError(
+                    "default_embedding_model 不存在或不是 embedding 模型"
+                )
             if model.dimensions is None:
-                raise ToolExecutionError("default_embedding_model 缺少 embedding dimensions")
+                raise ToolExecutionError(
+                    "default_embedding_model 缺少 embedding dimensions"
+                )
 
             index_config = await get_index_settings(session)
             freshness = await _compute_index_freshness(
@@ -320,7 +384,10 @@ class SearchChaptersTool(AgentTool):
 
             try:
                 embedding_client = await _build_embedding_client(session, model_ref_id)
-                logger.info("章节检索: embedding client 初始化完成 project_id={}", self.project_id)
+                logger.info(
+                    "章节检索: embedding client 初始化完成 project_id={}",
+                    self.project_id,
+                )
                 rerank_client: RerankClient | None = None
                 if index_config.rerank_enabled and index_config.rerank_model_ref_id:
                     rerank_client = await _build_rerank_client(
@@ -345,7 +412,9 @@ class SearchChaptersTool(AgentTool):
                     query_builder = query_builder.rerank(
                         rerank_client, top_n=SEARCH_CHAPTERS_CHUNK_LIMIT
                     )
-                logger.info("章节检索: 开始执行 LanceDB 查询 project_id={}", self.project_id)
+                logger.info(
+                    "章节检索: 开始执行 LanceDB 查询 project_id={}", self.project_id
+                )
                 results = await query_builder.limit(final_limit).run()
                 logger.info("章节检索: 查询完成 result_count={}", len(results))
             except IndexNotReadyError as exc:
@@ -384,9 +453,11 @@ class SearchChaptersTool(AgentTool):
                 for chapter in candidate_chapters
                 if chapter.project_id == self.project_id
             ]
-            volume_ids = list(dict.fromkeys(
-                chapter.volume_id for chapter in chapters if chapter.volume_id
-            ))
+            volume_ids = list(
+                dict.fromkeys(
+                    chapter.volume_id for chapter in chapters if chapter.volume_id
+                )
+            )
             volumes_by_id: dict[str, Any] = {}
             if volume_ids:
                 volumes = await volume_repo.list_by_project(session, self.project_id)
@@ -396,4 +467,5 @@ class SearchChaptersTool(AgentTool):
                 results=results,
                 chapters_by_id={chapter.id: chapter for chapter in chapters},
                 volumes_by_id=volumes_by_id,
+                token_budget=result_token_budget,
             )

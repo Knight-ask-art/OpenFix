@@ -49,6 +49,15 @@ export const IpcChannels = {
   backupData: "data:backup",
   restoreData: "data:restore",
   autoBackupNow: "data:auto-backup-now",
+  /**
+   * 定时自动备份的写作暂停协议（主进程 <-> 实例内的写作窗口）。
+   *
+   * 与 data:* 手动操作不同，这三个通道只服务定时自动备份：主进程在停止后端前必须收到
+   * 每个在线写作窗口的确认，备份结束后无论成败都要解除暂停。
+   */
+  autoBackupPause: "openfic:auto-backup-pause",
+  autoBackupPauseAck: "openfic:auto-backup-pause-ack",
+  autoBackupResume: "openfic:auto-backup-resume",
   dataProgress: "data:progress",
   selectSaveFile: "dialog:select-save-file",
   selectOpenFile: "dialog:select-open-file",
@@ -223,6 +232,13 @@ export interface DataInfo {
   hasData: boolean;
   entryCount: number;
   sizeBytes: number;
+  /**
+   * 最近一次定时自动备份的失败原因；没有未恢复的失败时为 null。
+   *
+   * 定时备份没有用户触发的调用点，只靠 dataProgress 事件会随页面卸载一起丢失，
+   * 因此失败原因由主进程保留，并在每次读取数据信息时一并返回。
+   */
+  autoBackupError: string | null;
 }
 
 export interface InspectDataDirResult {
@@ -271,6 +287,32 @@ export interface AutoBackupNowRequest {
   instanceId: string;
 }
 
+/**
+ * 定时自动备份要求写作窗口确认「当前章节已保存且编辑已暂停」的等待上限。
+ *
+ * 超时即取消本次尝试：既不停后端也不归档，避免后端在编辑器还有未保存章节时被停掉。
+ * 失败的尝试不写任何成功状态，由下一个调度周期重试。
+ */
+export const AUTO_BACKUP_PAUSE_TIMEOUT_MS = 20_000;
+
+/** 定时自动备份开始前，主进程发给实例内每个在线写作窗口的暂停请求。 */
+export interface AutoBackupPauseRequest {
+  requestId: string;
+}
+
+/** 写作窗口对暂停请求的确认；只有 ok 为 true 时主进程才会停止后端。 */
+export interface AutoBackupPauseAck {
+  requestId: string;
+  ok: boolean;
+  /** 未能确认的稳定原因标识（写作窗口侧），仅 ok 为 false 时出现。 */
+  reason?: string;
+}
+
+/** 自动备份结束后解除写作暂停；归档失败或恢复服务失败时同样发送。 */
+export interface AutoBackupResumeRequest {
+  requestId: string;
+}
+
 export interface RestoreDataRequest {
   instanceId: string;
   sourcePath: string;
@@ -278,9 +320,16 @@ export interface RestoreDataRequest {
 
 export type DataOperationPhase = "extract" | "verify" | "rollback" | "copy" | "cleanup" | "pack" | "delete-old";
 
+/** 数据操作阶段：done 与 error 是终态，只有定时自动备份会发出。 */
+export type DataProgressPhase = DataOperationPhase | "done" | "error";
+
 export interface DataProgressEvent {
   operation: "backup" | "restore" | "migrate";
-  phase: DataOperationPhase;
+  phase: DataProgressPhase;
   /** Overall progress of the current phase as a 0..1 fraction when available. */
   progress?: number;
+  /** 事件来自定时自动备份，而不是用户手动触发的操作。 */
+  automatic?: boolean;
+  /** 自动备份失败原因；只随 automatic 的 error 终态出现。 */
+  message?: string;
 }

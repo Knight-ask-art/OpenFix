@@ -4,108 +4,34 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Any
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.tools import BaseTool
 from loguru import logger
-from pydantic import BaseModel
 
 from app.audit.queue import enqueue_audit_log, next_call_sequence
+from app.audit.usage import normalize_usage_tokens
+from app.agent_runtime.tools.schema import (
+    count_tool_schema_tokens,
+    serialize_tool_definitions,
+)
 from app.core.ids import generate_id
+from app.core.utils.tiktoken import get_encoding
 from app.storage.models.llm_audit_log import LLMAuditLog
 
 
 def _pretty_json(data: Any) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2)
-
-
-def _to_int(value: Any) -> int:
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, (int, float)):
-        return int(value)
-    if isinstance(value, str) and value.isdigit():
-        return int(value)
-    return 0
-
-
-def _usage_int(
-    usage: dict[str, Any],
-    *keys: str,
-    path: tuple[str, str] | None = None,
-    fallback_path: tuple[str, str] | None = None,
-) -> int:
-    for key in keys:
-        value = _to_int(usage.get(key))
-        if value:
-            return value
-    for nested_path in (path, fallback_path):
-        if nested_path is None:
-            continue
-        parent = usage.get(nested_path[0])
-        if isinstance(parent, dict):
-            value = _to_int(parent.get(nested_path[1]))
-            if value:
-                return value
-    return 0
-
-
-def normalize_usage_tokens(usage: dict[str, Any] | None) -> dict[str, int]:
-    """Normalize provider usage payloads into OpenFic token counters."""
-    if not usage:
-        return {"token_input": 0, "token_output": 0, "tokens_total": 0, "token_cache": 0}
-
-    token_input = _usage_int(usage, "input_tokens", "prompt_tokens")
-    token_output = _usage_int(usage, "output_tokens", "completion_tokens")
-    return {
-        "token_input": token_input,
-        "token_output": token_output,
-        "tokens_total": _usage_int(usage, "total_tokens") or token_input + token_output,
-        "token_cache": _usage_int(
-            usage,
-            "cached_tokens",
-            "cache_read_input_tokens",
-            path=("input_token_details", "cache_read"),
-            fallback_path=("prompt_tokens_details", "cached_tokens"),
-        ),
-    }
-
-
-def _inline_local_schema_references(
-    schema: Any,
-    definitions: dict[str, Any],
-    resolving: frozenset[str] = frozenset(),
-) -> Any:
-    if isinstance(schema, list):
-        return [_inline_local_schema_references(item, definitions, resolving) for item in schema]
-    if not isinstance(schema, dict):
-        return schema
-
-    reference = schema.get("$ref")
-    if isinstance(reference, str) and reference.startswith("#/$defs/"):
-        definition_name = reference.removeprefix("#/$defs/")
-        definition = definitions.get(definition_name)
-        if isinstance(definition, dict) and definition_name not in resolving:
-            resolved_definition = _inline_local_schema_references(
-                definition,
-                definitions,
-                resolving | {definition_name},
-            )
-            sibling_fields = {
-                key: _inline_local_schema_references(value, definitions, resolving)
-                for key, value in schema.items()
-                if key != "$ref"
-            }
-            return {**resolved_definition, **sibling_fields}
-
-    return {
-        key: _inline_local_schema_references(value, definitions, resolving)
-        for key, value in schema.items()
-        if key != "$defs"
-    }
 
 
 @dataclass
@@ -143,6 +69,19 @@ class LLMCallRecord:
     tokens_output: int = 0
     tokens_total: int = 0
     token_cache: int = 0
+    token_cache_write: int = 0
+    token_input_uncached: int = 0
+    token_input_total: int = 0
+    token_reasoning: int = 0
+    cache_hit_rate: float = 0.0
+    context_tokens_estimated: int = 0
+    tool_schema_tokens_estimated: int = 0
+    context_budget_tokens: int = 0
+    tokens_pruned: int = 0
+    tokens_compacted: int = 0
+    tool_result_tokens: int = 0
+    context_fingerprint: str | None = None
+    context_token_breakdown: dict[str, int] = field(default_factory=dict)
     latency_ms: int = 0
     first_token_ms: int | None = None
     start_time: float = 0.0
@@ -179,6 +118,7 @@ class AuditContext:
         model_name: str | None = None,
         request_messages: list[BaseMessage] | list[dict[str, Any]] | None = None,
         tools: list[BaseTool] | None = None,
+        context_metrics: Mapping[str, Any] | None = None,
     ) -> LLMCallAudit:
         return LLMCallAudit(
             context=self,
@@ -188,6 +128,7 @@ class AuditContext:
             model_name=model_name,
             request_messages=request_messages,
             tools=tools,
+            context_metrics=context_metrics,
         )
 
     def set_revision_id(self, revision_id: str) -> None:
@@ -218,6 +159,7 @@ class LLMCallAudit:
         model_name: str | None,
         request_messages: list[BaseMessage] | list[dict[str, Any]] | None,
         tools: list[BaseTool] | None,
+        context_metrics: Mapping[str, Any] | None,
     ) -> None:
         self.context = context
         self.operation = operation
@@ -226,6 +168,7 @@ class LLMCallAudit:
         self.model_name = model_name
         self.request_messages = request_messages
         self.tools = tools
+        self.context_metrics = context_metrics or {}
         self.record: LLMCallRecord | None = None
         self._finished = False
 
@@ -247,6 +190,24 @@ class LLMCallAudit:
             model_name=self.model_name,
             request_messages=self._serialize_messages(self.request_messages),
             tool_references=self._serialize_tools(self.tools),
+            tool_schema_tokens_estimated=(
+                _metric_int(self.context_metrics, "tool_schema_tokens_estimated")
+                or count_tool_schema_tokens(self.tools)
+            ),
+            context_tokens_estimated=_metric_int(
+                self.context_metrics, "context_tokens_estimated"
+            ),
+            context_budget_tokens=_metric_int(
+                self.context_metrics, "context_budget_tokens"
+            ),
+            tokens_pruned=_metric_int(self.context_metrics, "tokens_pruned"),
+            tokens_compacted=_metric_int(self.context_metrics, "tokens_compacted"),
+            context_fingerprint=_metric_text(
+                self.context_metrics, "context_fingerprint"
+            ),
+            context_token_breakdown=_metric_breakdown(
+                self.context_metrics.get("context_token_breakdown")
+            ),
             start_time=time.time(),
         )
         return self
@@ -301,29 +262,7 @@ class LLMCallAudit:
 
     @staticmethod
     def _serialize_tools(tools: list[BaseTool] | None) -> list[dict[str, Any]]:
-        def get_tool_parameters(tool: BaseTool) -> dict[str, Any]:
-            args_schema = tool.args_schema
-            if not (isinstance(args_schema, type) and issubclass(args_schema, BaseModel)):
-                return tool.args
-
-            schema = args_schema.model_json_schema()
-            properties = schema.get("properties")
-            if not isinstance(properties, dict):
-                return tool.args
-            definitions = schema.get("$defs")
-            return _inline_local_schema_references(
-                properties,
-                definitions if isinstance(definitions, dict) else {},
-            )
-
-        return [
-            {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": get_tool_parameters(tool),
-            }
-            for tool in tools or []
-        ]
+        return serialize_tool_definitions(tools)
 
     def record_response(
         self,
@@ -343,6 +282,11 @@ class LLMCallAudit:
         self.record.tokens_output = normalized_usage["token_output"]
         self.record.tokens_total = normalized_usage["tokens_total"]
         self.record.token_cache = normalized_usage["token_cache"]
+        self.record.token_cache_write = normalized_usage["token_cache_write"]
+        self.record.token_input_uncached = normalized_usage["token_input_uncached"]
+        self.record.token_input_total = normalized_usage["token_input_total"]
+        self.record.token_reasoning = normalized_usage["token_reasoning"]
+        self.record.cache_hit_rate = normalized_usage["cache_hit_rate"]
 
     def record_tool_call(
         self,
@@ -352,6 +296,7 @@ class LLMCallAudit:
         success: bool = True,
         latency_ms: int = 0,
         metadata: dict[str, Any] | None = None,
+        tool_result_content: str | None = None,
     ) -> None:
         if self.record is None:
             logger.warning("no active audit record")
@@ -366,6 +311,10 @@ class LLMCallAudit:
                 metadata=metadata or {},
             )
         )
+        if isinstance(tool_result_content, str) and tool_result_content:
+            self.record.tool_result_tokens += len(
+                get_encoding("o200k_base").encode(tool_result_content)
+            )
         self.record.tool_calls_count += 1
         if success:
             self.record.tool_calls_success_count += 1
@@ -424,15 +373,41 @@ class LLMCallAudit:
             model_id=record.model_id,
             model_provider=record.model_provider,
             model_name=record.model_name,
-            request_messages=_pretty_json(record.request_messages) if record.request_messages else None,
-            tool_references=_pretty_json(record.tool_references) if record.tool_references else None,
+            request_messages=_pretty_json(record.request_messages)
+            if record.request_messages
+            else None,
+            tool_references=_pretty_json(record.tool_references)
+            if record.tool_references
+            else None,
             response_content=record.response_content or None,
-            response_tool_calls=_pretty_json(record.response_tool_calls) if record.response_tool_calls else None,
-            tool_call_results=_pretty_json(tool_call_results) if tool_call_results else None,
+            response_tool_calls=_pretty_json(record.response_tool_calls)
+            if record.response_tool_calls
+            else None,
+            tool_call_results=_pretty_json(tool_call_results)
+            if tool_call_results
+            else None,
             tokens_input=record.tokens_input,
             tokens_output=record.tokens_output,
             tokens_total=record.tokens_total,
             token_cache=record.token_cache,
+            token_cache_write=record.token_cache_write,
+            tokens_input_uncached=record.token_input_uncached,
+            tokens_input_total=record.token_input_total,
+            tokens_reasoning=record.token_reasoning,
+            cache_hit_rate=record.cache_hit_rate,
+            context_tokens_estimated=record.context_tokens_estimated,
+            tool_schema_tokens_estimated=record.tool_schema_tokens_estimated,
+            context_budget_tokens=record.context_budget_tokens,
+            tokens_pruned=record.tokens_pruned,
+            tokens_compacted=record.tokens_compacted,
+            tool_result_tokens=record.tool_result_tokens,
+            context_fingerprint=record.context_fingerprint,
+            context_token_breakdown=json.dumps(
+                record.context_token_breakdown,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ),
             latency_ms=record.latency_ms,
             first_token_ms=record.first_token_ms,
             status=record.status,
@@ -442,8 +417,39 @@ class LLMCallAudit:
             tool_calls_count=record.tool_calls_count,
             tool_calls_success_count=record.tool_calls_success_count,
             tool_calls_failed_count=record.tool_calls_failed_count,
-            extra_data=_pretty_json(self.context.metadata) if self.context.metadata else None,
+            extra_data=_pretty_json(self.context.metadata)
+            if self.context.metadata
+            else None,
         )
         await enqueue_audit_log(audit_log)
         self.context._records.append(audit_log)
         return audit_log
+
+
+def _metric_int(metrics: Mapping[str, Any], key: str) -> int:
+    value = metrics.get(key)
+    if isinstance(value, bool):
+        return 0
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def _metric_text(metrics: Mapping[str, Any], key: str) -> str | None:
+    value = metrics.get(key)
+    return value[:64] if isinstance(value, str) and value else None
+
+
+def _metric_breakdown(value: Any) -> dict[str, int]:
+    if not isinstance(value, Mapping):
+        return {}
+    return {
+        key: max(tokens, 0)
+        for key, tokens in value.items()
+        if isinstance(key, str)
+        and key
+        and not key.startswith("_")
+        and isinstance(tokens, int)
+        and not isinstance(tokens, bool)
+    }

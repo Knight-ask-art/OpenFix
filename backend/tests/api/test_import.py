@@ -6,10 +6,14 @@ Import API 测试。
 import io
 import json
 import zipfile
+from pathlib import Path
 
 import pytest
 from docx import Document
 from httpx import AsyncClient
+from PIL import Image
+
+from app.storage.services import writing_activity_service
 
 
 @pytest.mark.asyncio
@@ -604,6 +608,68 @@ async def _read_stored_chapters(
             assert detail["volume_id"] == volume["id"]
             chapters.append((volume["title"], detail["title"], detail["content"]))
     return chapters
+
+
+def _cover_bytes() -> bytes:
+    """生成测试用封面图片。"""
+    buffer = io.BytesIO()
+    Image.new("RGB", (30, 45), color="blue").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_confirm_import_stream_failure_after_project_creation_rolls_back(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """项目与封面写入后失败的流式导入不得提交半成品项目或残留封面文件。"""
+    import app.core.storage as storage
+
+    covers_dir = tmp_path / "covers"
+    covers_dir.mkdir()
+    unrelated_cover = covers_dir / "unrelated-project.jpg"
+    unrelated_cover.write_bytes(b"existing cover")
+    monkeypatch.setattr(storage.settings, "covers_dir", covers_dir)
+
+    created_project_ids: list[str] = []
+
+    async def _fail_record_activity(session, **kwargs):
+        created_project_ids.append(kwargs["project_id"])
+        raise RuntimeError("导入写入失败")
+
+    monkeypatch.setattr(writing_activity_service, "record_activity", _fail_record_activity)
+
+    projects_before = (await client.get("/api/v1/projects")).json()["total"]
+    response = await client.post(
+        "/api/v1/import/confirm-stream",
+        files={
+            "file": (
+                "novel.txt",
+                "段落一\n\n段落二\n\n段落三".encode("utf-8"),
+                "text/plain",
+            ),
+            "cover": ("cover.png", _cover_bytes(), "image/png"),
+        },
+        data={"title": "失败导入", "split_mode": "manual", "chunk_size": "10"},
+    )
+
+    assert response.status_code == 200
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    assert any(event["type"] == "error" for event in events)
+    assert not any(event["type"] == "complete" for event in events)
+
+    assert created_project_ids
+    failed_project_id = created_project_ids[0]
+    assert (await client.get(f"/api/v1/projects/{failed_project_id}")).status_code == 404
+    assert (await client.get("/api/v1/projects")).json()["total"] == projects_before
+
+    assert not (covers_dir / f"{failed_project_id}.jpg").exists()
+    assert unrelated_cover.read_bytes() == b"existing cover"
 
 
 @pytest.mark.asyncio

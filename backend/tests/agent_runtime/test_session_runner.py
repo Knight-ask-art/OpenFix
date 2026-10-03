@@ -1293,7 +1293,7 @@ async def test_manual_compact_builds_window_and_returns_metrics_without_revision
     assert node_messages == [node_message]
     assert db_session is fake_session
     list_by_session.assert_awaited_once_with(fake_session, "sess_manual_compact_001")
-    select_compaction_window.assert_called_once_with([history_part], [], 8000)
+    select_compaction_window.assert_called_once_with([history_part], [], 5280)
     compact_window.assert_awaited_once()
     assert compact_window.await_args.args == (fake_session,)
     assert compact_window.await_args.kwargs["state"] is state

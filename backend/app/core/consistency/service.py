@@ -212,6 +212,14 @@ async def _story_memory_context(
     )
 
     embedding_client = await _build_embedding_client(session, model.id)
+    rerank_client = None
+    if config.rerank_enabled and config.rerank_model_ref_id:
+        # 复用章节检索的 rerank 构造逻辑；模型不可用时返回 None，降级为纯 RRF。
+        from app.agent_runtime.tools.impls.chapter.search_chapters import (
+            _build_rerank_client,
+        )
+
+        rerank_client = await _build_rerank_client(session, config.rerank_model_ref_id)
     try:
         builder = await OpenFicRetrievalService().query(
             session,
@@ -219,15 +227,18 @@ async def _story_memory_context(
             query_text,
             embedding_client,
         )
-        results = (
-            await builder.hybrid()
+        context_limit = 8
+        query_builder = (
+            builder.hybrid()
             .vector_top_k(10)
             .bm25_top_k(10)
             .ef(200)
             .filter_eq("project_id", project_id)
-            .limit(8)
-            .run()
         )
+        # 与章节检索一致：先按配置重排候选，再套用进入上下文的最终条数上限。
+        if rerank_client is not None:
+            query_builder = query_builder.rerank(rerank_client, top_n=context_limit)
+        results = await query_builder.limit(context_limit).run()
     except IndexNotReadyError:
         return None
     if not results:

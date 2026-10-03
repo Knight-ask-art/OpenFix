@@ -21,6 +21,8 @@ from app.agent_runtime.persistence.compaction_types import (
     PersistedCompaction,
 )
 from app.agent_runtime.persistence.errors import PersistenceWriteError
+from app.audit.usage import normalize_usage_tokens
+from app.background.llm.resolver import resolve_background_llm
 from app.models.clients.model_factory import ModelConfig, create_chat_model
 from app.storage.services import prompt_chain_service
 
@@ -142,8 +144,11 @@ async def compact_window(
         effective_model_config = (
             dict(model_config) if model_config is not None else _model_config(state)
         )
-        model = create_chat_model(ModelConfig(**to_client_model_config(effective_model_config)))
-        response = await model.ainvoke(messages)
+        response = await _invoke_compaction_model(
+            db_session,
+            messages,
+            effective_model_config,
+        )
     except Exception as exc:
         logger.opt(exception=True).error("Compaction LLM request failed")
         error = CompactionError("llm_error", "压缩失败，当前请求已中止")
@@ -334,6 +339,41 @@ def _model_config(state: AgentRuntimeState | dict[str, Any]) -> dict[str, Any]:
     return dict(model_config)
 
 
+async def _invoke_compaction_model(
+    db_session: AsyncSession,
+    messages: list[BaseMessage],
+    active_model_config: Mapping[str, Any],
+) -> Any:
+    """Use the configured light model for compaction, falling back to the active model."""
+    try:
+        resolved = await resolve_background_llm(
+            db_session,
+            model_policy="light_model",
+        )
+    except Exception as exc:
+        logger.info(
+            "Configured light model unavailable for compaction; falling back to active model ({})",
+            type(exc).__name__,
+        )
+        model = create_chat_model(
+            ModelConfig(**to_client_model_config(active_model_config))
+        )
+        return await model.ainvoke(messages)
+
+    client_messages = [
+        {
+            "role": "system"
+            if isinstance(message, SystemMessage)
+            else ("assistant" if isinstance(message, AIMessage) else "user"),
+            "content": message.content
+            if isinstance(message.content, str)
+            else str(message.content),
+        }
+        for message in messages
+    ]
+    return await resolved.client.generate(client_messages)
+
+
 def _summary_from_response(response: Any) -> str:
     content = getattr(response, "content", "")
     summary = _sanitize_surrogates(_content_to_text(content).strip()).strip()
@@ -353,6 +393,13 @@ def _sanitize_surrogates(value: str) -> str:
 
 
 def _extract_usage(message: Any) -> dict[str, Any] | None:
+    usage = getattr(message, "usage", None)
+    if isinstance(usage, dict) and usage:
+        return dict(usage)
+    if usage is not None and hasattr(usage, "items"):
+        usage_dict = dict(usage)
+        if usage_dict:
+            return usage_dict
     usage = getattr(message, "usage_metadata", None)
     if isinstance(usage, dict) and usage:
         return dict(usage)
@@ -376,24 +423,12 @@ def _extract_usage(message: Any) -> dict[str, Any] | None:
 
 
 def _token_counts(usage: dict[str, Any] | None) -> tuple[int, int, int]:
-    if not usage:
-        return 0, 0, 0
-
-    token_input = _first_int(usage, ("input_tokens", "prompt_tokens", "token_input"))
-    token_output = _first_int(
-        usage,
-        ("output_tokens", "completion_tokens", "token_output"),
+    normalized = normalize_usage_tokens(usage)
+    return (
+        int(normalized["token_input"]),
+        int(normalized["token_output"]),
+        int(normalized["token_cache"]),
     )
-    token_cache = _first_int(usage, ("cache_read_tokens", "token_cache"))
-
-    input_details = usage.get("input_token_details")
-    if token_cache == 0 and isinstance(input_details, Mapping):
-        token_cache = _first_int(
-            input_details,
-            ("cache_read", "cached_tokens", "token_cache"),
-        )
-
-    return token_input, token_output, token_cache
 
 
 def _usage_payload(
@@ -410,6 +445,7 @@ def _usage_payload(
     usage_dict.setdefault("input_tokens", token_input)
     usage_dict.setdefault("output_tokens", token_output)
     usage_dict.setdefault("cache_read_tokens", token_cache)
+    normalized = normalize_usage_tokens(usage_dict)
     return {
         "usage_kind": "compaction",
         "session_id": session_id,
@@ -419,6 +455,11 @@ def _usage_payload(
         "token_input": token_input,
         "token_output": token_output,
         "token_cache": token_cache,
+        "token_cache_write": int(normalized["token_cache_write"]),
+        "token_input_uncached": int(normalized["token_input_uncached"]),
+        "token_input_total": int(normalized["token_input_total"]),
+        "token_reasoning": int(normalized["token_reasoning"]),
+        "cache_hit_rate": float(normalized["cache_hit_rate"]),
     }
 
 

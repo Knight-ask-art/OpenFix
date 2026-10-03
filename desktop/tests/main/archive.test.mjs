@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { gzipSync } from "node:zlib";
-import { mkdir, mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -47,6 +47,23 @@ function createPythonArchiveWithSymlink() {
   ]);
 }
 
+// Windows 未提升权限时默认拒绝创建文件符号链接，与解压逻辑无关，这里只探测宿主机是否具备该能力；
+// 其他错误照常抛出，避免把真实回归掩盖成跳过。
+async function canCreateFileSymlink() {
+  const probeDir = await mkdtemp(path.join(os.tmpdir(), "openfic-symlink-probe-"));
+  try {
+    await writeFile(path.join(probeDir, "target.txt"), "target", "utf8");
+    await symlink("target.txt", path.join(probeDir, "link.txt"));
+    return true;
+  } catch (error) {
+    const code = error?.code;
+    if (code === "EPERM" || code === "EACCES") return false;
+    throw error;
+  } finally {
+    await rm(probeDir, { recursive: true, force: true });
+  }
+}
+
 test("falls back to the built-in extractor when tar is unavailable", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "openfic-archive-"));
   const archivePath = path.join(directory, "python.tar.gz");
@@ -66,7 +83,11 @@ test("falls back to the built-in extractor when tar is unavailable", async () =>
   }
 });
 
-test("preserves relative symbolic links when falling back to the built-in extractor", async () => {
+test("preserves relative symbolic links when falling back to the built-in extractor", async (t) => {
+  if (!(await canCreateFileSymlink())) {
+    t.skip("当前宿主机缺少创建文件符号链接的权限（EPERM/EACCES）");
+    return;
+  }
   const directory = await mkdtemp(path.join(os.tmpdir(), "openfic-archive-"));
   const archivePath = path.join(directory, "python.tar.gz");
   const outputDir = path.join(directory, "output");

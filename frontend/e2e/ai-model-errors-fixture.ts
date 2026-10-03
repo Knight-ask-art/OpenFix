@@ -430,6 +430,18 @@ export async function installAiErrorApp(
         });
       }
       if (path === `/projects/${PROJECT_ID}`) return json(PROJECT);
+      // 首页每日目标卡片读取项目产品属性；合成项目没有设置每日目标。
+      if (path === `/projects/${PROJECT_ID}/profile`) {
+        return json({
+          project_id: PROJECT_ID,
+          genre: "",
+          synopsis: "",
+          target_word_count: 0,
+          daily_word_goal: 0,
+          status: "drafting",
+          updated_at: TIMESTAMP,
+        });
+      }
       if (path === `/projects/${PROJECT_ID}/chapters`) return json(chapterTree());
       if (path === `/projects/${PROJECT_ID}/notes`) {
         return json({ categories: [], root_notes: [], total_notes: 0 });

@@ -15,18 +15,23 @@ from pydantic import BaseModel, Field
 
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
+from app.agent_runtime.context.budget import retrieval_token_budget
+from app.agent_runtime.context.compaction.tokens import count_text_tokens
 from app.agent_runtime.tools.impls.chapter.search_chapters import (
+    _build_rerank_client,
     _compute_index_freshness,
 )
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.background.jobs.definitions.retrieval_chapter_index_batch import (
     _build_embedding_client,
 )
+from app.models.clients.rerank_client import RerankClient
 from app.models.repos import model_repo
 from app.retrieval.chapter_index import (
     INDEX_STATUS_FRESH,
     SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
     chapter_index_key,
+    get_index_settings,
 )
 from app.retrieval.service import IndexNotReadyError, OpenFicRetrievalService
 from app.retrieval.story_memory import (
@@ -34,6 +39,7 @@ from app.retrieval.story_memory import (
     story_memory_index_key,
 )
 from app.retrieval.types import ChunkSearchResult
+from app.retrieval.token_budget import fit_ranked_text_results
 from app.storage.database import create_session
 from app.storage.repos import (
     chapter_repo,
@@ -49,7 +55,13 @@ from app.storage.services import world_entry_meta_service
 
 StoryMemorySource = Literal["chapter", "character", "world_entry", "outline", "note"]
 
-ALL_SOURCES: tuple[str, ...] = ("chapter", "character", "world_entry", "outline", "note")
+ALL_SOURCES: tuple[str, ...] = (
+    "chapter",
+    "character",
+    "world_entry",
+    "outline",
+    "note",
+)
 
 # Story Memory 索引里除章节外的数据源。
 STORY_MEMORY_SOURCES: tuple[str, ...] = ("character", "world_entry", "outline", "note")
@@ -67,6 +79,7 @@ CANDIDATE_TOP_K = 20
 DEFAULT_RESULT_LIMIT = 8
 MAX_RESULT_LIMIT = 20
 MAX_RESULT_TEXT_CHARS = 1_200
+MAX_ECHOED_QUERY_CHARS = 160
 
 
 class SearchStoryMemoryInput(BaseModel):
@@ -88,7 +101,19 @@ class StoryMemoryResultItem(BaseModel):
     source_label: str
     title: str
     text: str
-    score: float
+    score: float = Field(
+        description=(
+            "检索置信度：hybrid 融合后的归一化 RRF 分数（0~1）。"
+            "未启用重排时即为排序依据；启用重排时排序以 rerank_score 为准"
+        ),
+    )
+    rerank_score: float | None = Field(
+        default=None,
+        description=(
+            "重排模型给出的相关度（0~1），未启用重排时为 null。"
+            "启用重排时结果顺序由该值决定，与 score 量纲不同，两者不可直接比较"
+        ),
+    )
     entity_id: str | None = None
     chapter_order: int | None = None
     volume_id: str | None = None
@@ -104,6 +129,17 @@ class SearchStoryMemoryOutput(BaseModel):
 def _metadata_str(result: ChunkSearchResult, key: str) -> str | None:
     value = result.metadata.get(key)
     return value if isinstance(value, str) and value else None
+
+
+def _candidate_sort_key(item: tuple[str, ChunkSearchResult]) -> tuple[int, float]:
+    """候选排序键：启用 rerank 时以重排相关度为准，否则沿用 RRF 置信度。
+
+    重排过的候选一律排在未重排候选之前，避免两种分数量纲混排。
+    """
+    result = item[1]
+    if result.rerank_score is not None:
+        return (1, result.rerank_score)
+    return (0, result.score)
 
 
 async def _resolve_story_entity(
@@ -148,20 +184,23 @@ async def _query_index(
     project_id: str,
     query: str,
     embedding_client,
+    rerank_client: RerankClient | None = None,
 ) -> list[ChunkSearchResult]:
     try:
         builder = await OpenFicRetrievalService().query(
             session, index_key, query, embedding_client
         )
-        return (
-            await builder.hybrid()
+        query_builder = (
+            builder.hybrid()
             .vector_top_k(CANDIDATE_TOP_K)
             .bm25_top_k(CANDIDATE_TOP_K)
             .ef(200)
             .filter_eq("project_id", project_id)
-            .limit(CANDIDATE_TOP_K)
-            .run()
         )
+        # 与章节检索一致：配置了 rerank 时先重排候选池，再套用取回上限。
+        if rerank_client is not None:
+            query_builder = query_builder.rerank(rerank_client, top_n=CANDIDATE_TOP_K)
+        return await query_builder.limit(CANDIDATE_TOP_K).run()
     except IndexNotReadyError:
         return []
     except Exception as exc:  # noqa: BLE001
@@ -213,20 +252,34 @@ class SearchStoryMemoryTool(AgentTool):
             )
             model_ref_id = setting.value.strip() if setting is not None else ""
             if not model_ref_id:
-                raise ToolExecutionError("未配置 default_embedding_model，无法检索故事记忆")
+                raise ToolExecutionError(
+                    "未配置 default_embedding_model，无法检索故事记忆"
+                )
             model = await model_repo.get_by_id(session, model_ref_id)
             if model is None or model.task_type != "embedding":
                 raise ToolExecutionError(
                     "default_embedding_model 不存在或不是 embedding 模型"
                 )
             if model.dimensions is None:
-                raise ToolExecutionError("default_embedding_model 缺少 embedding dimensions")
+                raise ToolExecutionError(
+                    "default_embedding_model 缺少 embedding dimensions"
+                )
             try:
                 embedding_client = await _build_embedding_client(session, model_ref_id)
             except Exception as exc:  # noqa: BLE001
                 if isinstance(exc, ToolExecutionError):
                     raise
-                raise ToolExecutionError("故事记忆检索 embedding client 初始化失败") from exc
+                raise ToolExecutionError(
+                    "故事记忆检索 embedding client 初始化失败"
+                ) from exc
+
+            index_config = await get_index_settings(session)
+            rerank_client: RerankClient | None = None
+            if index_config.rerank_enabled and index_config.rerank_model_ref_id:
+                # 未配置可用的 rerank 模型时返回 None，降级为纯 RRF 排序。
+                rerank_client = await _build_rerank_client(
+                    session, index_config.rerank_model_ref_id
+                )
 
             candidates: list[tuple[str, ChunkSearchResult]] = []
             searched: list[str] = []
@@ -247,6 +300,7 @@ class SearchStoryMemoryTool(AgentTool):
                             project_id=self.project_id,
                             query=effective_query,
                             embedding_client=embedding_client,
+                            rerank_client=rerank_client,
                         )
                         candidates.extend(("chapter", row) for row in rows)
                         searched.append("chapter")
@@ -255,7 +309,9 @@ class SearchStoryMemoryTool(AgentTool):
                 else:
                     skipped.append("chapter")
 
-            memory_sources = [source for source in requested if source in STORY_MEMORY_SOURCES]
+            memory_sources = [
+                source for source in requested if source in STORY_MEMORY_SOURCES
+            ]
             if memory_sources:
                 index_key = story_memory_index_key(self.project_id)
                 if await story_memory_index_is_fresh(
@@ -268,6 +324,7 @@ class SearchStoryMemoryTool(AgentTool):
                         project_id=self.project_id,
                         query=effective_query,
                         embedding_client=embedding_client,
+                        rerank_client=rerank_client,
                     )
                     for row in rows:
                         source = _metadata_str(row, "source")
@@ -277,7 +334,7 @@ class SearchStoryMemoryTool(AgentTool):
                 else:
                     skipped.extend(memory_sources)
 
-            candidates.sort(key=lambda item: item[1].score, reverse=True)
+            candidates.sort(key=_candidate_sort_key, reverse=True)
 
             # 章节结果以数据库当前状态为准，并过滤掉不属于本项目的分块。
             chapter_ids = list(
@@ -314,6 +371,7 @@ class SearchStoryMemoryTool(AgentTool):
                             title=(chapter.title or "").strip(),
                             text=text[:MAX_RESULT_TEXT_CHARS],
                             score=row.score,
+                            rerank_score=row.rerank_score,
                             entity_id=chapter.id,
                             chapter_order=chapter.order,
                             volume_id=chapter.volume_id,
@@ -338,6 +396,7 @@ class SearchStoryMemoryTool(AgentTool):
                         title=label,
                         text=text[:MAX_RESULT_TEXT_CHARS],
                         score=row.score,
+                        rerank_score=row.rerank_score,
                         entity_id=entity_id,
                     ),
                 )
@@ -354,17 +413,40 @@ class SearchStoryMemoryTool(AgentTool):
                     for key, item in results.items()
                     if item.source == "chapter"
                 )
-                searched = [source for source in searched if source not in memory_sources]
+                searched = [
+                    source for source in searched if source not in memory_sources
+                ]
                 skipped.extend(
                     source for source in memory_sources if source not in skipped
                 )
 
-            return SearchStoryMemoryOutput(
-                query=effective_query,
-                searched_sources=searched,
-                skipped_sources=skipped,
-                results=list(results.values()),
-            ).model_dump_json()
+            response_query = effective_query
+
+            def render_results(
+                items: list[StoryMemoryResultItem],
+            ) -> str:
+                return SearchStoryMemoryOutput(
+                    query=response_query,
+                    searched_sources=searched,
+                    skipped_sources=skipped,
+                    results=items,
+                ).model_dump_json()
+
+            max_tokens = retrieval_token_budget(
+                self.runtime_state.get("model_config"),
+                tool_schema_tokens=self.context_tool_schema_tokens,
+            )
+            empty_result_output = render_results([])
+            if count_text_tokens(empty_result_output) > max_tokens:
+                response_query = effective_query[:MAX_ECHOED_QUERY_CHARS]
+                if len(effective_query) > MAX_ECHOED_QUERY_CHARS:
+                    response_query += "…"
+            bounded_results = fit_ranked_text_results(
+                list(results.values()),
+                token_budget=max_tokens,
+                render=render_results,
+            )
+            return render_results(bounded_results)
         finally:
             if owns_session:
                 await session.close()

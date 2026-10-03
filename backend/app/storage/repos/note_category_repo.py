@@ -4,6 +4,7 @@ Note Category Repository - 笔记分类数据访问层。
 """
 
 from sqlalchemy import case as sa_case
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -61,6 +62,14 @@ async def update_category(
 
 async def delete(session: AsyncSession, category: NoteCategory) -> None:
     await session.delete(category)
+    await session.flush()
+
+
+async def delete_by_project(session: AsyncSession, project_id: str) -> None:
+    """删除项目下的所有笔记分类。调用前需先删除引用分类的笔记。"""
+    await session.execute(
+        sql_delete(NoteCategory).where(col(NoteCategory.project_id) == project_id)
+    )
     await session.flush()
 
 

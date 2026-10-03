@@ -43,6 +43,13 @@ def serialize_audit_log(log) -> LLMAuditLogResponse:
         except json.JSONDecodeError:
             response_tool_calls = None
 
+    try:
+        context_token_breakdown = json.loads(log.context_token_breakdown or "{}")
+        if not isinstance(context_token_breakdown, dict):
+            context_token_breakdown = {}
+    except json.JSONDecodeError:
+        context_token_breakdown = {}
+
     tool_call_results = None
     if log.tool_call_results:
         try:
@@ -77,6 +84,19 @@ def serialize_audit_log(log) -> LLMAuditLogResponse:
         tokens_output=log.tokens_output,
         tokens_total=log.tokens_total,
         token_cache=log.token_cache,
+        token_cache_write=log.token_cache_write,
+        tokens_input_uncached=log.tokens_input_uncached,
+        tokens_input_total=log.tokens_input_total,
+        tokens_reasoning=log.tokens_reasoning,
+        cache_hit_rate=log.cache_hit_rate,
+        context_tokens_estimated=log.context_tokens_estimated,
+        tool_schema_tokens_estimated=log.tool_schema_tokens_estimated,
+        context_budget_tokens=log.context_budget_tokens,
+        tokens_pruned=log.tokens_pruned,
+        tokens_compacted=log.tokens_compacted,
+        tool_result_tokens=log.tool_result_tokens,
+        context_fingerprint=log.context_fingerprint,
+        context_token_breakdown=context_token_breakdown,
         latency_ms=log.latency_ms,
         first_token_ms=log.first_token_ms,
         status=log.status,
@@ -127,9 +147,7 @@ async def get_task_audit_aggregation(
     )
 
 
-@router.get(
-    "/audit-logs/session/{session_id}", response_model=LLMAuditLogListResponse
-)
+@router.get("/audit-logs/session/{session_id}", response_model=LLMAuditLogListResponse)
 async def list_session_audit_logs(
     session_id: str,
     db_session: AsyncSession = Depends(get_session),

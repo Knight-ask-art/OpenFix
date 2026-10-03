@@ -19,6 +19,8 @@ const CATEGORY_ORDER: AgentContextCategory[] = [
   "worldEntry",
   "outline",
   "note",
+  "rule",
+  "skill",
 ];
 
 const CATEGORY_LABELS: Record<AgentContextCategory, string> = {
@@ -28,6 +30,8 @@ const CATEGORY_LABELS: Record<AgentContextCategory, string> = {
   worldEntry: "assistant.contextSources.categories.worldEntries",
   outline: "assistant.contextSources.categories.outlines",
   note: "assistant.contextSources.categories.notes",
+  rule: "assistant.contextSources.categories.rules",
+  skill: "assistant.contextSources.categories.skills",
 };
 
 const SOURCE_LABELS: Record<AgentContextSourceType, string> = {
@@ -44,12 +48,21 @@ const SOURCE_LABELS: Record<AgentContextSourceType, string> = {
   noteList: "assistant.contextSources.sources.noteList",
   noteContent: "assistant.contextSources.sources.noteContent",
   storyMemorySearch: "assistant.contextSources.sources.storyMemorySearch",
+  mentionReference: "assistant.contextSources.sources.mentionReference",
+  mentionExcerpt: "assistant.contextSources.sources.mentionExcerpt",
+  availableSkill: "assistant.contextSources.sources.availableSkill",
+  activatedSkill: "assistant.contextSources.sources.activatedSkill",
+  agentRules: "assistant.contextSources.sources.agentRules",
 };
 
 function getSourceTitle(
   source: AgentContextSource,
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {
+  if (source.category === "rule") {
+    return source.title || t("assistant.contextSources.ruleSourceTitle");
+  }
+
   if (source.category !== "chapter") return source.title;
 
   if (source.chapterStartOrder !== undefined && source.chapterEndOrder !== undefined) {

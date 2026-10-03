@@ -43,6 +43,7 @@ from app.agent_runtime.context.helpers import (
     extract_referenced_skill_ids,
 )
 from app.agent_runtime.context.compaction.config import AUTO_TRIGGER_RATIO
+from app.agent_runtime.context.budget import calculate_context_budget
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
 from app.agent_runtime.context.compaction.tokens import count_context_tokens
 from app.agent_runtime.context.compaction.window import (
@@ -50,6 +51,7 @@ from app.agent_runtime.context.compaction.window import (
     select_compaction_window,
 )
 from app.agent_runtime.context.processors.to_langchain import to_langchain_messages
+from app.agent_runtime.context.metrics import measure_context_parts
 from app.agent_runtime.context.source_snapshot import build_agent_context_sources
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.llm_invoke import (
@@ -61,6 +63,7 @@ from app.agent_runtime.graph.llm_invoke import (
 )
 from app.agent_runtime.persistence import compaction_repo
 from app.agent_runtime.tools.base import AgentTool
+from app.agent_runtime.tools.schema import count_tool_schema_tokens
 from app.agent_runtime.tools.errors import (
     ToolFailure,
     ToolResult,
@@ -314,18 +317,31 @@ async def maybe_auto_compact(
     event_sink: Callable[[str, dict[str, Any]], Awaitable[None] | None] | None,
     usage_sink: Callable[[dict[str, Any]], Awaitable[None] | None] | None,
     model_config: Mapping[str, Any] | None = None,
+    tools: Iterable[BaseTool] | None = None,
+    tool_schema_tokens: int | None = None,
 ) -> bool:
     del agent_name
     persisted_model_config = state.get("model_config")
-    max_context_tokens = 0
-    if isinstance(persisted_model_config, Mapping):
-        raw_max_context_tokens = persisted_model_config.get("max_context_tokens")
-        if isinstance(raw_max_context_tokens, int):
-            max_context_tokens = raw_max_context_tokens
-    if max_context_tokens <= 0:
+    effective_model_config = (
+        model_config
+        if isinstance(model_config, Mapping)
+        else persisted_model_config
+        if isinstance(persisted_model_config, Mapping)
+        else None
+    )
+    schema_tokens = (
+        count_tool_schema_tokens(tools)
+        if tool_schema_tokens is None
+        else max(int(tool_schema_tokens), 0)
+    )
+    budget = calculate_context_budget(
+        effective_model_config,
+        tool_schema_tokens=schema_tokens,
+    )
+    if budget.max_context_tokens <= 0 or budget.usable_input_tokens <= 0:
         return False
 
-    threshold = int(max_context_tokens * AUTO_TRIGGER_RATIO)
+    threshold = int(budget.usable_input_tokens * AUTO_TRIGGER_RATIO)
     if count_context_tokens(parts) < threshold:
         return False
 
@@ -365,7 +381,7 @@ async def maybe_auto_compact(
         window = select_compaction_window(
             history,
             compactions,
-            max_context_tokens,
+            budget.usable_input_tokens,
         )
     except CompactionNoWindowError:
         return False
@@ -576,6 +592,14 @@ def _runtime_skill_ids(runtime_state: Mapping[str, Any]) -> tuple[str, ...]:
     return _merge_skill_ids(values)
 
 
+def _tool_result_text(outcome: Mapping[str, Any]) -> str:
+    message = outcome.get("message")
+    content = getattr(message, "content", "")
+    if isinstance(content, str):
+        return content
+    return extract_text_content(content)
+
+
 def _merge_skill_ids(*groups: object) -> tuple[str, ...]:
     merged: list[str] = []
     for group in groups:
@@ -615,6 +639,10 @@ def create_react_agent(
     react_config = config  # 重命名以避免与 LangGraph node 的 config 参数冲突
     tools = react_config.tools
     tool_map: dict[str, BaseTool] = {t.name: t for t in tools}
+    tool_schema_tokens = count_tool_schema_tokens(tools)
+    for tool in tools:
+        if isinstance(tool, AgentTool):
+            tool.set_context_tool_schema_tokens(tool_schema_tokens)
     termination = react_config.termination
     max_iterations = react_config.max_iterations
 
@@ -640,6 +668,7 @@ def create_react_agent(
     async def _start_audit(
         configurable: dict[str, Any],
         messages: list[BaseMessage],
+        context_metrics: Mapping[str, Any] | None = None,
     ) -> LLMCallAudit | None:
         audit_context = configurable.get("audit_context")
         if audit_context is None:
@@ -658,6 +687,7 @@ def create_react_agent(
             model_name=model_cfg.get("model_id"),
             request_messages=messages,
             tools=tools,
+            context_metrics=context_metrics,
         )
         await audit.__aenter__()
         return audit
@@ -780,10 +810,7 @@ def create_react_agent(
                             consumed = await consumed
                         should_inject = consumed is not False
                     if should_inject:
-                        if (
-                            isinstance(content, str)
-                            and "<of-skill" in content
-                        ):
+                        if isinstance(content, str) and "<of-skill" in content:
                             injected_user_contents.append(content)
                         compiled_content = content
                         if (
@@ -797,10 +824,13 @@ def create_react_agent(
                         drained_injected_user_message = True
                         attachment_metadata = (
                             inject_message_attachments(message_id)
-                            if isinstance(message_id, str) and inject_message_attachments is not None
+                            if isinstance(message_id, str)
+                            and inject_message_attachments is not None
                             else []
                         )
-                        attachments = await build_image_content_blocks(attachment_metadata)
+                        attachments = await build_image_content_blocks(
+                            attachment_metadata
+                        )
                         transient_parts.append(
                             ContextMessage(
                                 role="user",
@@ -877,6 +907,8 @@ def create_react_agent(
                 event_sink=agent_event_sink,
                 usage_sink=compaction_usage_sink,
                 model_config=runtime_model_config,
+                tools=tools,
+                tool_schema_tokens=tool_schema_tokens,
             ):
                 context_parts = await build_context_parts(
                     state=cast("AgentRuntimeState", effective_runtime_state),
@@ -886,8 +918,20 @@ def create_react_agent(
                 )
                 candidate_parts = [*context_parts, *transient_parts]
             messages = to_langchain_messages(candidate_parts)
+            model_cfg = effective_runtime_state.get("model_config")
+            budget = calculate_context_budget(
+                model_cfg if isinstance(model_cfg, Mapping) else None,
+                tool_schema_tokens=tool_schema_tokens,
+            )
+            context_metrics = measure_context_parts(
+                candidate_parts,
+                tools=tools,
+                tool_schema_tokens=tool_schema_tokens,
+                usable_input_tokens=budget.usable_input_tokens,
+            )
         else:
             messages.extend(transient_messages)
+            context_metrics = None
 
         context_sources = build_agent_context_sources(messages)
         context_session_id = configurable.get("thread_id")
@@ -908,7 +952,7 @@ def create_react_agent(
             if agent_event_sink is not None:
                 await agent_event_sink("agent:context_snapshot", snapshot_payload)
 
-        audit = await _start_audit(configurable, messages)
+        audit = await _start_audit(configurable, messages, context_metrics)
         active_audit = audit
         try:
             session_id = (
@@ -983,9 +1027,7 @@ def create_react_agent(
         started_at = time.perf_counter()
         phase = state.get("tool_phase") or "execute"
         source_outcomes = (
-            state.get("tool_prepared_outcomes", [])
-            if phase == "execute"
-            else []
+            state.get("tool_prepared_outcomes", []) if phase == "execute" else []
         )
         prepared_outcome = next(
             (
@@ -1029,18 +1071,18 @@ def create_react_agent(
             result = serialize_tool_failure(failure)
             return outcome_update(
                 {
-                        "index": tool_index,
-                        "tool_call_id": tool_id,
-                        "tool_name": tool_name,
-                        "tool_args": tool_args,
-                        "message": ToolMessage(
-                            content=result,
-                            tool_call_id=tool_id,
-                            name=tool_name,
-                        ),
-                        "payload": payload,
-                        "success": False,
-                        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                    "index": tool_index,
+                    "tool_call_id": tool_id,
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "message": ToolMessage(
+                        content=result,
+                        tool_call_id=tool_id,
+                        name=tool_name,
+                    ),
+                    "payload": payload,
+                    "success": False,
+                    "latency_ms": int((time.perf_counter() - started_at) * 1000),
                 }
             )
 
@@ -1056,18 +1098,18 @@ def create_react_agent(
             result = serialize_tool_failure(failure)
             return outcome_update(
                 {
-                        "index": tool_index,
-                        "tool_call_id": tool_id,
-                        "tool_name": tool_name,
-                        "tool_args": tool_args,
-                        "message": ToolMessage(
-                            content=result,
-                            tool_call_id=tool_id,
-                            name=tool_name,
-                        ),
-                        "payload": payload,
-                        "success": False,
-                        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                    "index": tool_index,
+                    "tool_call_id": tool_id,
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "message": ToolMessage(
+                        content=result,
+                        tool_call_id=tool_id,
+                        name=tool_name,
+                    ),
+                    "payload": payload,
+                    "success": False,
+                    "latency_ms": int((time.perf_counter() - started_at) * 1000),
                 }
             )
 
@@ -1083,18 +1125,18 @@ def create_react_agent(
             result = serialize_tool_failure(failure)
             return outcome_update(
                 {
-                        "index": tool_index,
-                        "tool_call_id": tool_id,
-                        "tool_name": tool_name,
-                        "tool_args": tool_args,
-                        "message": ToolMessage(
-                            content=result,
-                            tool_call_id=tool_id,
-                            name=tool_name,
-                        ),
-                        "payload": payload,
-                        "success": False,
-                        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                    "index": tool_index,
+                    "tool_call_id": tool_id,
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "message": ToolMessage(
+                        content=result,
+                        tool_call_id=tool_id,
+                        name=tool_name,
+                    ),
+                    "payload": payload,
+                    "success": False,
+                    "latency_ms": int((time.perf_counter() - started_at) * 1000),
                 }
             )
 
@@ -1135,7 +1177,9 @@ def create_react_agent(
                     await _maybe_await(
                         tool_result_sink(
                             {
-                                "session_id": _get_configurable(config).get("session_id"),
+                                "session_id": _get_configurable(config).get(
+                                    "session_id"
+                                ),
                                 "tool_call_id": tool_id,
                                 "tool_name": tool_name,
                                 "input": tool_args,
@@ -1212,7 +1256,9 @@ def create_react_agent(
                     await _maybe_await(
                         tool_result_sink(
                             {
-                                "session_id": _get_configurable(config).get("session_id"),
+                                "session_id": _get_configurable(config).get(
+                                    "session_id"
+                                ),
                                 "tool_call_id": tool_id,
                                 "tool_name": tool_name,
                                 "input": tool_args,
@@ -1240,19 +1286,19 @@ def create_react_agent(
             payload = prepared_payload
             result = prepared_result
         outcome = {
-                    "index": tool_index,
-                    "tool_call_id": tool_id,
-                    "tool_name": tool_name,
-                    "tool_args": tool_args,
-                    "message": ToolMessage(
-                        content=str(result),
-                        tool_call_id=tool_id,
-                        name=tool_name,
-                    ),
-                    "payload": payload,
-                    "success": success,
-                    "latency_ms": int((time.perf_counter() - started_at) * 1000),
-                }
+            "index": tool_index,
+            "tool_call_id": tool_id,
+            "tool_name": tool_name,
+            "tool_args": tool_args,
+            "message": ToolMessage(
+                content=str(result),
+                tool_call_id=tool_id,
+                name=tool_name,
+            ),
+            "payload": payload,
+            "success": success,
+            "latency_ms": int((time.perf_counter() - started_at) * 1000),
+        }
         if phase == "prepare" and not success:
             return outcome_update(outcome)
         return outcome_update(outcome)
@@ -1283,7 +1329,11 @@ def create_react_agent(
             ):
                 is_done = True
                 final_output = outcome["tool_args"]
-            if not is_done and tool_name == "ask_user" and outcome["payload"].get("status") == "user_skipped":
+            if (
+                not is_done
+                and tool_name == "ask_user"
+                and outcome["payload"].get("status") == "user_skipped"
+            ):
                 is_done = True
                 final_output = outcome["payload"]
             if active_audit is not None:
@@ -1293,6 +1343,7 @@ def create_react_agent(
                     tool_result=outcome["payload"],
                     success=success,
                     latency_ms=outcome["latency_ms"],
+                    tool_result_content=_tool_result_text(outcome),
                 )
 
         await _finish_active_audit()
@@ -1316,8 +1367,7 @@ def create_react_agent(
     ) -> dict:
         excess_outcomes: list[dict[str, Any]] = []
         error_message = (
-            f"Agent 单轮最多调用 {TOOL_BATCH_SIZE} 个工具，"
-            "超出上限的工具调用未执行"
+            f"Agent 单轮最多调用 {TOOL_BATCH_SIZE} 个工具，超出上限的工具调用未执行"
         )
         failure = ToolFailure(
             code="limit_exceeded",
@@ -1516,6 +1566,7 @@ def create_react_agent(
                         tool_result=outcome["payload"],
                         success=bool(outcome["success"]),
                         latency_ms=outcome["latency_ms"],
+                        tool_result_content=_tool_result_text(outcome),
                     )
                 await _finish_active_audit()
             return result

@@ -8,7 +8,7 @@ from typing import Any, Awaitable, Callable, TypeAlias, cast
 from langchain_core.runnables.config import var_child_runnable_config
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.tools.errors import (
@@ -116,6 +116,7 @@ class AgentTool(BaseTool):
     )
     _config: RunnableConfig | None = None
     _tool_call_id: str | None = None
+    _context_tool_schema_tokens: int = PrivateAttr(default=0)
     execute_during_prepare: bool = False
     emit_prepare_events: bool = False
 
@@ -156,6 +157,13 @@ class AgentTool(BaseTool):
             return None
         return cast(AsyncSession | None, configurable.get("db_session"))
 
+    @property
+    def context_tool_schema_tokens(self) -> int:
+        return self._context_tool_schema_tokens
+
+    def set_context_tool_schema_tokens(self, token_count: int) -> None:
+        self._context_tool_schema_tokens = max(int(token_count), 0)
+
     async def build_interrupt_preview(
         self,
         args: dict[str, Any],
@@ -194,9 +202,13 @@ class AgentTool(BaseTool):
         runtime_config = config
         if runtime_config is None:
             context_config = var_child_runnable_config.get()
-            runtime_config = context_config if isinstance(context_config, dict) else None
+            runtime_config = (
+                context_config if isinstance(context_config, dict) else None
+            )
         validated_args = dict(kwargs)
-        metadata = runtime_config.get("metadata") if isinstance(runtime_config, dict) else None
+        metadata = (
+            runtime_config.get("metadata") if isinstance(runtime_config, dict) else None
+        )
         metadata_dict = metadata if isinstance(metadata, dict) else {}
         phase = metadata_dict.get("openfic_phase")
         skip_pre_hooks = metadata_dict.get("openfic_skip_pre_hooks") is True
@@ -259,7 +271,9 @@ class AgentTool(BaseTool):
             execute = getattr(self, "_execute", None)
             if not callable(execute):
                 raise NotImplementedError("AgentTool subclasses must define _execute")
-            output = await cast(Callable[..., Awaitable[str]], execute)(**validated_args)
+            output = await cast(Callable[..., Awaitable[str]], execute)(
+                **validated_args
+            )
         except ToolExecutionError as e:
             failure = tool_failure_from_exception(e, source="tool_execution")
             log_tool_failure(

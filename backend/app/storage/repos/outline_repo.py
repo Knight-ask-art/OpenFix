@@ -90,6 +90,14 @@ async def delete(session: AsyncSession, outline: Outline) -> None:
     await session.flush()
 
 
+async def delete_by_project(session: AsyncSession, project_id: str) -> None:
+    """删除项目内全部大纲节点。"""
+    await session.execute(
+        sql_delete(Outline).where(col(Outline.project_id) == project_id)
+    )
+    await session.flush()
+
+
 async def delete_subtree(session: AsyncSession, project_id: str, outline_id: str) -> int:
     """删除节点及其全部子孙，返回删除的节点数。"""
     result = await session.execute(

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "synthetic-benchmark-20261004",
+  "type": "benchmark",
+  "source": "backend/scripts/token_efficiency_benchmark.py",
+  "summary": "Synthetic o200k_base estimates only; live_provider_calls=0. Short writing 22 to 22; ten-message continuity 141 to 141; chapter-50 retrieval 21758 to 1200; repeated reads 6000 to 3018; duplicate skill outputs 9000 to 3036; RAG-heavy 21758 to 900. Top-ranked result preserved in both capped retrieval cases. No live billing, cache-hit, or prose-quality claim.",
+  "verifier": "Codex local benchmark rerun",
+  "sliceId": "synthetic-benchmark-20261004",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-04"
+}

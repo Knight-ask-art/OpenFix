@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import case, func, literal, select, union_all
+from sqlalchemy import case, delete, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 from sqlmodel import col
@@ -71,6 +71,16 @@ async def create(
     await session.flush()
     await session.refresh(event)
     return event
+
+
+async def delete_by_project(session: AsyncSession, project_id: str) -> None:
+    """删除项目内全部写作活动事件。"""
+    await session.execute(
+        delete(WritingActivityEvent).where(
+            col(WritingActivityEvent.project_id) == project_id
+        )
+    )
+    await session.flush()
 
 
 async def get_aggregates(

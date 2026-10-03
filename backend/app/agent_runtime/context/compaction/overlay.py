@@ -1,4 +1,5 @@
 from app.agent_runtime.context.types import ContextMessage
+from app.agent_runtime.context.compaction.tokens import count_text_tokens
 from app.agent_runtime.persistence.compaction_types import PersistedCompaction
 
 
@@ -10,10 +11,16 @@ def _seq(message: ContextMessage) -> int | None:
 
 
 def _summary_message(compaction: PersistedCompaction) -> ContextMessage:
+    content = f"<compaction-summary>\n{compaction.summary}\n</compaction-summary>"
+    compacted_tokens = max(
+        int(compaction.source_input_tokens or 0) - count_text_tokens(content),
+        0,
+    )
     return ContextMessage(
         role="user",
-        content=f"<compaction-summary>\n{compaction.summary}\n</compaction-summary>",
+        content=content,
         metadata={"part": "history", "compaction_id": compaction.id},
+        metrics={"tokens_compacted": compacted_tokens},
     )
 
 

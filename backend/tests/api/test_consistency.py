@@ -133,7 +133,7 @@ async def test_story_memory_context_drops_results_when_index_goes_stale(
         return len(freshness_calls) == 1
 
     async def _fake_index_settings(_session):
-        return SimpleNamespace()
+        return SimpleNamespace(rerank_enabled=False, rerank_model_ref_id="")
 
     async def _fake_resolve_index_model(_session, _config):
         return SimpleNamespace(id="model-1")
@@ -171,6 +171,168 @@ async def test_story_memory_context_drops_results_when_index_goes_stale(
     # 检索前后各检查一次 freshness，且两次都携带同一个 ready 索引行
     assert len(freshness_calls) == 2
     assert leaked not in (context or "")
+
+
+class _RecordingStoryMemoryBuilder:
+    """记录检索链调用的 builder 替身。"""
+
+    def __init__(self, results: list[Any]) -> None:
+        self.results = results
+        self.calls: list[tuple[str, Any]] = []
+
+    def hybrid(self) -> "_RecordingStoryMemoryBuilder":
+        self.calls.append(("hybrid", None))
+        return self
+
+    def vector_top_k(self, count: int) -> "_RecordingStoryMemoryBuilder":
+        self.calls.append(("vector_top_k", count))
+        return self
+
+    def bm25_top_k(self, count: int) -> "_RecordingStoryMemoryBuilder":
+        self.calls.append(("bm25_top_k", count))
+        return self
+
+    def ef(self, ef: int) -> "_RecordingStoryMemoryBuilder":
+        self.calls.append(("ef", ef))
+        return self
+
+    def filter_eq(self, field: str, value: Any) -> "_RecordingStoryMemoryBuilder":
+        self.calls.append(("filter_eq", (field, value)))
+        return self
+
+    def rerank(
+        self, rerank_client: Any, *, top_n: int | None = None
+    ) -> "_RecordingStoryMemoryBuilder":
+        self.calls.append(("rerank", (rerank_client, top_n)))
+        return self
+
+    def limit(self, count: int) -> "_RecordingStoryMemoryBuilder":
+        self.calls.append(("limit", count))
+        return self
+
+    async def run(self) -> list[Any]:
+        self.calls.append(("run", None))
+        return self.results
+
+
+async def _patched_story_memory_context(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    rerank_enabled: bool,
+    rerank_model_ref_id: str = "",
+    rerank_client: Any = None,
+) -> tuple[Any, _RecordingStoryMemoryBuilder, list[str]]:
+    """隔离 story memory 检索依赖，返回（上下文、builder、rerank 构造入参）。"""
+    import app.agent_runtime.tools.impls.chapter.search_chapters as search_chapters
+    import app.background.jobs.definitions.retrieval_chapter_index_batch as batch_module
+    from app.core.consistency import service as consistency_service
+
+    builder = _RecordingStoryMemoryBuilder([SimpleNamespace(text="检索片段")])
+    built_for: list[str] = []
+
+    async def _fake_index_settings(_session):
+        return SimpleNamespace(
+            rerank_enabled=rerank_enabled,
+            rerank_model_ref_id=rerank_model_ref_id,
+        )
+
+    async def _fake_resolve_index_model(_session, _config):
+        return SimpleNamespace(id="model-1")
+
+    async def _fake_get_by_index_key(_session, _key):
+        return SimpleNamespace(status="ready")
+
+    async def _fake_is_fresh(session, *, project_id, index_row=None, documents=None):
+        return True
+
+    async def _fake_build_embedding_client(_session, _model_id):
+        return SimpleNamespace()
+
+    async def _fake_build_rerank_client(_session, model_ref_id):
+        built_for.append(model_ref_id)
+        return rerank_client
+
+    class _FakeRetrievalService:
+        async def query(self, *_args: Any, **_kwargs: Any):
+            return builder
+
+    monkeypatch.setattr(
+        consistency_service, "get_index_settings", _fake_index_settings
+    )
+    monkeypatch.setattr(
+        consistency_service, "resolve_index_embedding_model", _fake_resolve_index_model
+    )
+    monkeypatch.setattr(
+        consistency_service.retrieval_index_repo,
+        "get_by_index_key",
+        _fake_get_by_index_key,
+    )
+    monkeypatch.setattr(
+        consistency_service, "story_memory_index_is_fresh", _fake_is_fresh
+    )
+    monkeypatch.setattr(
+        consistency_service, "OpenFicRetrievalService", _FakeRetrievalService
+    )
+    monkeypatch.setattr(
+        batch_module, "_build_embedding_client", _fake_build_embedding_client
+    )
+    monkeypatch.setattr(
+        search_chapters, "_build_rerank_client", _fake_build_rerank_client
+    )
+
+    context = await consistency_service._story_memory_context(None, "project-1", "查询")
+    return context, builder, built_for
+
+
+@pytest.mark.asyncio
+async def test_story_memory_context_reranks_before_context_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """启用 rerank 时，与章节检索一致：先重排候选，再套用上下文条数上限。"""
+    rerank_client = SimpleNamespace(name="fake-reranker")
+
+    context, builder, built_for = await _patched_story_memory_context(
+        monkeypatch,
+        rerank_enabled=True,
+        rerank_model_ref_id="rerank-model-1",
+        rerank_client=rerank_client,
+    )
+
+    assert context is not None
+    assert built_for == ["rerank-model-1"]
+    names = [name for name, _ in builder.calls]
+    assert ("rerank", (rerank_client, 8)) in builder.calls
+    assert names.index("rerank") < names.index("limit") < names.index("run")
+
+
+@pytest.mark.asyncio
+async def test_story_memory_context_skips_rerank_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未启用 rerank 时不构造 rerank client，检索链与结果保持不变。"""
+    context, builder, built_for = await _patched_story_memory_context(
+        monkeypatch, rerank_enabled=False
+    )
+
+    assert context == "- 检索片段"
+    assert built_for == []
+    assert all(name != "rerank" for name, _ in builder.calls)
+    assert ("limit", 8) in builder.calls
+
+
+@pytest.mark.asyncio
+async def test_story_memory_context_skips_rerank_without_configured_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """rerank 开关打开但没有配置模型时，退回纯 RRF 检索。"""
+    context, builder, built_for = await _patched_story_memory_context(
+        monkeypatch, rerank_enabled=True, rerank_model_ref_id=""
+    )
+
+    assert context == "- 检索片段"
+    assert built_for == []
+    assert all(name != "rerank" for name, _ in builder.calls)
+    assert ("limit", 8) in builder.calls
 
 
 @pytest.mark.asyncio

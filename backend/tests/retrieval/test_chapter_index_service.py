@@ -31,10 +31,19 @@ class RecordingRetrievalService:
     def __init__(self, *, fail_delete: bool = False) -> None:
         self.fail_delete = fail_delete
         self.deleted: list[tuple[str, str]] = []
+        self.deleted_batches: list[tuple[str, list[str]]] = []
 
     async def delete_document(self, session, index_key: str, document_id: str) -> None:
         _ = session
         self.deleted.append((index_key, document_id))
+        if self.fail_delete:
+            raise RuntimeError("delete failed")
+
+    async def delete_documents(
+        self, session, index_key: str, document_ids: list[str]
+    ) -> None:
+        _ = session
+        self.deleted_batches.append((index_key, list(document_ids)))
         if self.fail_delete:
             raise RuntimeError("delete failed")
 
@@ -247,6 +256,62 @@ async def test_delete_chapter_index_removes_state_and_best_effort_deletes_docume
     assert state is None
     assert retrieval_service.deleted == [
         (chapter_index_key(chapter.project_id), chapter_document_id(chapter.id))
+    ]
+
+
+@pytest.mark.asyncio
+async def test_delete_project_index_documents_deletes_all_chapter_documents(
+    session: AsyncSession,
+) -> None:
+    retrieval_service = RecordingRetrievalService()
+
+    await ChapterIndexIntegrationService(
+        retrieval_service=retrieval_service
+    ).delete_project_index_documents(
+        session,
+        project_id="project-1",
+        chapter_ids=["chapter-1", "chapter-2"],
+    )
+
+    assert retrieval_service.deleted_batches == [
+        ("chapters:project-1", ["chapter:chapter-1", "chapter:chapter-2"])
+    ]
+
+
+@pytest.mark.asyncio
+async def test_delete_project_index_documents_skips_project_without_chapters(
+    session: AsyncSession,
+) -> None:
+    retrieval_service = RecordingRetrievalService()
+
+    await ChapterIndexIntegrationService(
+        retrieval_service=retrieval_service
+    ).delete_project_index_documents(
+        session,
+        project_id="project-1",
+        chapter_ids=[],
+    )
+
+    assert retrieval_service.deleted_batches == []
+
+
+@pytest.mark.asyncio
+async def test_delete_project_index_documents_swallows_delete_failure(
+    session: AsyncSession,
+) -> None:
+    retrieval_service = RecordingRetrievalService(fail_delete=True)
+
+    # best-effort：底层删除失败不应向上抛出，避免阻断项目删除。
+    await ChapterIndexIntegrationService(
+        retrieval_service=retrieval_service
+    ).delete_project_index_documents(
+        session,
+        project_id="project-1",
+        chapter_ids=["chapter-1"],
+    )
+
+    assert retrieval_service.deleted_batches == [
+        ("chapters:project-1", ["chapter:chapter-1"])
     ]
 
 

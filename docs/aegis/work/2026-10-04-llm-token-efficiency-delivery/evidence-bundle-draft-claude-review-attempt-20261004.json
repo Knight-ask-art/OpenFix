@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "claude-review-attempt-20261004",
+  "type": "review-attempt",
+  "source": "Claude Code CLI 2.1.288",
+  "summary": "Read-only review invocation returned Not logged in; no independent Claude findings were produced. Authentication settings were not changed.",
+  "verifier": "Codex local CLI output",
+  "sliceId": "claude-review-attempt-20261004",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-04"
+}
