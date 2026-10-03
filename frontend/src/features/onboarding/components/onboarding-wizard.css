@@ -6,7 +6,7 @@
   padding: 8px 0;
 }
 
-.onboarding-badge {
+.onboarding-dialog .onboarding-badge {
   display: flex;
   align-items: center;
   justify-content: center;
