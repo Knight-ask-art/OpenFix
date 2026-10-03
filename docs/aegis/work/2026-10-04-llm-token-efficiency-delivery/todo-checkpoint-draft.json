@@ -1,11 +1,12 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-10-04-llm-token-efficiency-delivery",
-  "currentTodo": "Finish reviewed all-authorized-changes delivery: commit the worktree, then fetch origin and push only feature/branding if fast-forward remains safe.",
+  "currentTodo": "Delivery complete: commit bc56eea was pushed to origin/feature/branding; a post-push fetch confirmed the remote tip matches local HEAD.",
   "completedTodos": [
     "Implemented context budgeting, aggregate source metrics, provider usage normalization, conservative duplicate-result soft GC, retrieval limits, light-model compaction fallback, and offline benchmarks.",
     "Fresh checks: backend 2073 passed; frontend lint, type-check, build passed; desktop lint, type-check, build passed; desktop Node tests 134 passed and 2 skipped.",
-    "Reran synthetic benchmark and confirmed no live provider calls; cleaned exactly three failed agent-context-sources E2E artifact directories."
+    "Reran synthetic benchmark and confirmed no live provider calls; cleaned exactly three failed agent-context-sources E2E artifact directories.",
+    "Reviewed and committed all 112 authorized paths; CRLF-aware staged diff check and common credential-marker scan passed; fast-forward push completed and the final worktree is clean."
   ],
   "activeSlice": "llm-token-efficiency-delivery",
   "evidenceRefs": [
@@ -13,6 +14,6 @@
     "backend/scripts/token_efficiency_benchmark.py"
   ],
   "blockedOn": "Three agent-context-sources E2E cases could not reach assertions because the API at 127.0.0.1:8000 was unavailable; Claude Code review was blocked by the local CLI returning Not logged in.",
-  "nextStep": "Review final diff, stage the explicitly reviewed current worktree paths, run staged diff checks, commit all authorized changes, fetch origin, verify the remote branch is an ancestor, and push only origin/feature/branding.",
+  "nextStep": "No remaining work in this delivery. The blocked E2E and Claude review can be revisited separately; this delivery does not establish V1.0 release readiness.",
   "updatedAt": "2026-10-04"
 }

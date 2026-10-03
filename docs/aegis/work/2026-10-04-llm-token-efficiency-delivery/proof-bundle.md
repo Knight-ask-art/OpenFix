@@ -20,16 +20,19 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-backend-frontend-desktop-20261004.json
 - docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-claude-review-attempt-20261004.json
 - docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-synthetic-benchmark-20261004.json
+- docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/90-evidence.md#git-delivery-20261004
 
 ## Formal Evidence
 
 - docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-backend-frontend-desktop-20261004.json
 - docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-claude-review-attempt-20261004.json
 - docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/evidence-bundle-draft-synthetic-benchmark-20261004.json
+- docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/90-evidence.md#git-delivery-20261004
 
 ## Terminal Non-Passed Evidence
 
-- none
+- Three `agent-context-sources` browser E2E cases could not reach assertions because the configured API at `127.0.0.1:8000` was unavailable.
+- The read-only Claude Code review could not start because the installed CLI was not logged in; no independent review findings are claimed.
 
 ## Legacy Unclassified Evidence
 
@@ -44,4 +47,4 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - Scope status: Within the authorized OpenFix working tree; all current user-authorized modifications are included.
 - Compatibility status: Migration 1029 is additive; missing provider cache/reasoning usage falls back to zero metrics; active-model fallback remains available.
 - Retirement status: No legacy path was retired; deferred context optimization features remain explicitly documented.
-- Advisory decision: continue
+- Advisory decision: done for the requested local commit and `origin/feature/branding` push; V1.0 release readiness remains outside this slice.

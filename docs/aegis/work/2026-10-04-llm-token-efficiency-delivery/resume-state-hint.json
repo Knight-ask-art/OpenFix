@@ -2,11 +2,12 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-10-04-llm-token-efficiency-delivery",
   "lastCheckpointRef": "docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/todo-checkpoint-draft.json",
-  "resumeInstruction": "If origin diverges or push is refused, preserve the local commit and inspect the new remote state; never force-push, switch to upstream, reset, or clean.",
+  "resumeInstruction": "This delivery completed on 2026-10-04 with commit bc56eea pushed to origin/feature/branding. If revisiting it, read the current checkpoint and do not infer V1.0 readiness from this push.",
   "knownPartialWork": [
     "Implemented context budgeting, aggregate source metrics, provider usage normalization, conservative duplicate-result soft GC, retrieval limits, light-model compaction fallback, and offline benchmarks.",
     "Fresh checks: backend 2073 passed; frontend lint, type-check, build passed; desktop lint, type-check, build passed; desktop Node tests 134 passed and 2 skipped.",
-    "Reran synthetic benchmark and confirmed no live provider calls; cleaned exactly three failed agent-context-sources E2E artifact directories."
+    "Reran synthetic benchmark and confirmed no live provider calls; cleaned exactly three failed agent-context-sources E2E artifact directories.",
+    "Committed all 112 authorized paths as bc56eea and pushed origin/feature/branding; post-push fetch matched local HEAD and the worktree was clean."
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-10-04-llm-token-efficiency-delivery/10-intent.md",

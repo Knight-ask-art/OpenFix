@@ -30,3 +30,13 @@
 - Summary: Read-only review invocation returned Not logged in; no independent Claude findings were produced. Authentication settings were not changed.
 - Verifier: Codex local CLI output
 - Evidence status: evidence-finalized
+
+## EvidenceBundleDraft: git-delivery-20261004
+
+- Artifact key: git-delivery-20261004
+- Slice ID: llm-token-efficiency-delivery
+- Type: git-delivery
+- Source: Local Git readback and successful push to origin
+- Summary: 112 reviewed paths committed as bc56eea; origin/feature/branding advanced from a020a2c to bc56eea by a normal fast-forward. Post-push fetch matched local HEAD; branch/worktree status was clean and one worktree remained. CRLF-aware staged diff check and common credential-marker scan passed.
+- Verifier: Codex local Git readback
+- Evidence status: evidence-finalized
