@@ -23,6 +23,7 @@ import {
   UNAVAILABLE_MESSAGE,
   expectNoUnexpected,
   expectRequestShape,
+  seedLastChapterMemory,
   type Language,
 } from "./ai-model-errors-fixture";
 
@@ -76,18 +77,10 @@ async function expectOrdinaryToast(page: Page) {
   await expect(toastWithText(page, ORDINARY_DETAIL).first()).toBeVisible();
 }
 
-/** 通过应用自身的 local-db 预置“最后访问章节”，让写作页自动打开编辑器。 */
+/** 通过共享夹具的原生 IndexedDB 接缝预置“最后访问章节”，让写作页自动打开编辑器。 */
 async function openWritingWithChapter(page: Page) {
   await page.goto("/");
-  await page.evaluate(
-    async ({ modulePath, projectId, chapterId }) => {
-      const module = (await import(modulePath)) as {
-        setLastChapterId: (projectId: string, chapterId: string) => Promise<void>;
-      };
-      await module.setLastChapterId(projectId, chapterId);
-    },
-    { modulePath: "/src/lib/local-db.ts", projectId: PROJECT_ID, chapterId: CHAPTER_ID },
-  );
+  await seedLastChapterMemory(page, PROJECT_ID, CHAPTER_ID);
   await page.goto(`/projects/${PROJECT_ID}`);
   await expect(page.locator(".tiptap-editor .ProseMirror")).toBeVisible();
 }
