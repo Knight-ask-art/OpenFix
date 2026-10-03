@@ -19,6 +19,7 @@ import { ImportDialog } from "@/features/projects/components/import-dialog";
 import { ProjectFormDialog } from "@/features/projects/components/project-form-dialog";
 import { PROJECT_GENRES } from "@/features/projects/lib/project-genres";
 import { useCreateProject, useProjects } from "@/features/projects";
+import { isBackgroundModelUnavailableError, readHttpErrorDetail } from "@/lib/ai-error";
 import {
   apiClient,
   createCharacter,
@@ -102,18 +103,6 @@ interface StorySetupSelection {
   protagonist: StorySetupProtagonistDraft;
   coreConflict: string;
   initialOutline: string;
-}
-
-function readErrorDetail(error: unknown): string {
-  if (typeof error === "object" && error !== null) {
-    const response = (error as { response?: { data?: { detail?: unknown } } }).response;
-    if (typeof response?.data?.detail === "string") return response.data.detail;
-  }
-  return "";
-}
-
-function isModelUnavailableDetail(detail: string): boolean {
-  return detail.includes("模型");
 }
 
 async function generateStorySetupDraft(inspiration: string): Promise<StorySetupDraft> {
@@ -362,12 +351,11 @@ function StorySetupPanel({ onBack, onUseBlankCreate, onOpenProject }: StorySetup
       if (next.genre && PROJECT_GENRES.includes(next.genre)) setGenre(next.genre);
       setPhase("review");
     } catch (error) {
-      const detail = readErrorDetail(error);
       setGenerateError(
-        isModelUnavailableDetail(detail)
+        isBackgroundModelUnavailableError(error)
           ? t("onboarding.storySetup.modelMissing")
           : t("onboarding.storySetup.generateFailed", {
-              reason: detail || t("onboarding.storySetup.unknownError"),
+              reason: readHttpErrorDetail(error) ?? t("onboarding.storySetup.unknownError"),
             }),
       );
     } finally {

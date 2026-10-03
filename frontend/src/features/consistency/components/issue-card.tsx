@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { toast } from "@/components";
+import { resolveAiErrorMessage } from "@/lib/ai-error";
 
 import type { ConsistencyIssue } from "../lib/consistency-api";
 import { analyzeConsistencyIssue, type ConsistencyScope } from "../lib/consistency-api";
@@ -16,12 +17,6 @@ interface IssueCardProps {
   scope: ConsistencyScope;
   chapterId: string | null;
   volumeId: string | null;
-}
-
-function errorDetail(error: unknown): string | null {
-  if (!error || typeof error !== "object" || !("response" in error)) return null;
-  const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
-  return typeof detail === "string" ? detail : null;
 }
 
 export function IssueCard({ issue, projectId, scope, chapterId, volumeId }: IssueCardProps) {
@@ -87,7 +82,7 @@ export function IssueCard({ issue, projectId, scope, chapterId, volumeId }: Issu
       setAnalysisModel(result.model);
     } catch (error) {
       if (!isCurrentRequest()) return;
-      toast.error(errorDetail(error) ?? t("consistency.analysisFailed"));
+      toast.error(resolveAiErrorMessage(error, t, t("consistency.analysisFailed")));
       setAnalysisOpen(false);
     } finally {
       if (isCurrentRequest()) setIsAnalyzing(false);

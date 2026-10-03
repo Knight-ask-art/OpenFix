@@ -119,6 +119,9 @@
     "promptChainsShortcut": "提示词链",
     "aiUsageShortcut": "AI 使用情况"
   },
+  "aiErrors": {
+    "modelUnavailable": "尚未配置可用的轻量模型，AI 功能暂时无法使用。请在「设置」→「模型」中创建并选择一个可用的轻量模型后重试。"
+  },
   "inlineAi": {
     "trigger": "AI 改写",
     "close": "关闭",
@@ -1453,7 +1456,7 @@
     "defaultModel": "默认模型",
     "defaultModelDesc": "Agent默认使用的模型",
     "lightModel": "轻量模型",
-    "lightModelDesc": "用于标题生成、摘要生成等轻量任务的模型",
+    "lightModelDesc": "用于故事搭建、内联 AI、大纲 AI、一致性检查，以及标题与摘要生成等轻量任务的模型",
     "defaultEmbeddingModel": "默认嵌入模型",
     "defaultEmbeddingModelDesc": "用于检索索引和向量化章节内容的嵌入模型",
     "defaultEmbeddingModelChangeTitle": "更改默认嵌入模型？",
@@ -2702,7 +2705,7 @@
     "connectAI": "先了解如何连接 AI",
     "aiTitle": "连接 AI",
     "aiRecommend": "推荐使用 OpenAI、Claude、DeepSeek 或 Gemini 等兼容服务。",
-    "aiPath": "入口：主界面右上角「设置」→「提供商」，填入 API Key 即可。",
+    "aiPath": "入口：主界面右上角「设置」。先在「提供商」中填入 API Key，再到「模型」中创建一个可用的对话模型，并在「默认模型」中选择它供 Agent 使用、在「轻量模型」中选择它用于故事搭建、内联 AI、大纲 AI、一致性检查与标题、摘要等写作任务。",
     "aiAlreadyConfigured": "检测到你已配置模型，可以直接开始写作。",
     "aiOptional": "不连接 AI 也能正常写作，所有编辑功能都可用。",
     "gotIt": "我知道了",
@@ -2717,7 +2720,7 @@
       "generate": "生成草案",
       "regenerate": "重新生成",
       "generateFailed": "生成失败：{{reason}}",
-      "modelMissing": "尚未配置可用的写作模型。你可以先创建普通项目，稍后在设置中连接 AI。",
+      "modelMissing": "尚未配置可用的轻量模型，暂时无法使用 AI 生成草案。你仍可以用普通方式创建项目并继续写作；稍后在「设置」→「模型」中创建并选择一个可用的轻量模型即可。",
       "unknownError": "请稍后重试。",
       "backToCreate": "改用普通创建",
       "reviewTitle": "确认要保存的内容",

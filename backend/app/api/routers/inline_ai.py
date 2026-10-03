@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.ai_errors import AiModelUnavailableDetail
 from app.api.schemas.inline_ai import (
     InlineAiTransformRequest,
     InlineAiTransformResponse,
@@ -41,7 +42,7 @@ async def inline_ai_transform(
     except BackgroundModelUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=AiModelUnavailableDetail(message=str(exc)).model_dump(),
         ) from exc
     except ValidationError as exc:
         await session.rollback()

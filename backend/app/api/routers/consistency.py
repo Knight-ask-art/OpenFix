@@ -6,6 +6,7 @@ from typing import Annotated, Literal, cast
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.ai_errors import AiModelUnavailableDetail
 from app.api.schemas.consistency import (
     ConsistencyCheckRequest,
     ConsistencyCheckResponse,
@@ -45,7 +46,7 @@ async def check_consistency(
     except BackgroundModelUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=AiModelUnavailableDetail(message=str(exc)).model_dump(),
         ) from exc
     except NotFoundError as exc:
         raise HTTPException(
@@ -117,7 +118,7 @@ async def analyze_consistency_issue(
     except BackgroundModelUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=AiModelUnavailableDetail(message=str(exc)).model_dump(),
         ) from exc
     except NotFoundError as exc:
         raise HTTPException(

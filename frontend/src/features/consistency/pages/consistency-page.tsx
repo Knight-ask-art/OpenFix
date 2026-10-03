@@ -9,6 +9,7 @@ import { toast } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import { useProjectSelection } from "@/features/projects/hooks/use-project-selection";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
+import { resolveAiErrorMessage } from "@/lib/ai-error";
 import { fetchChapters } from "@/lib/api-client";
 import { getRecentProjects } from "@/lib/local-db";
 
@@ -198,13 +199,7 @@ export function ConsistencyPage() {
       if (isCurrentRequest()) setResult(checked);
     } catch (error) {
       if (!isCurrentRequest()) return;
-      const detail =
-        error && typeof error === "object" && "response" in error
-          ? (
-              (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-            )
-          : null;
-      toast.error(typeof detail === "string" ? detail : t("consistency.checkFailed"));
+      toast.error(resolveAiErrorMessage(error, t, t("consistency.checkFailed")));
     } finally {
       if (isCurrentRequest()) setIsChecking(false);
     }

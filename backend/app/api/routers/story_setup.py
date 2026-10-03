@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.ai_errors import AiModelUnavailableDetail
 from app.api.schemas.story_setup import (
     StorySetupDraftOutlineItem,
     StorySetupDraftProtagonist,
@@ -39,7 +40,7 @@ async def story_setup_draft(
     except BackgroundModelUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+            detail=AiModelUnavailableDetail(message=str(exc)).model_dump(),
         ) from exc
     except ProviderError as exc:
         # 统一映射为 502：既不向客户端透传服务商原始错误内容，

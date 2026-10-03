@@ -111,7 +111,9 @@ async def test_transform_without_model_returns_400(client: AsyncClient) -> None:
     payload = _payload(project_id, chapter_id)
     response = await client.post("/api/v1/inline-ai/transform", json=payload)
     assert response.status_code == 400
-    assert "模型" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["code"] == "background_model_unavailable"
+    assert "模型" in detail["message"]
 
 
 @pytest.mark.asyncio

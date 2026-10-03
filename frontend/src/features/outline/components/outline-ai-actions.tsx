@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { readHttpErrorDetail, resolveAiErrorMessage } from "@/lib/ai-error";
 import type { ChapterListItem } from "@/lib/chapter.types";
 
 import {
@@ -50,14 +51,6 @@ const SEVERITY_COLORS: Record<string, "gray" | "orange" | "red"> = {
   warning: "orange",
   high: "red",
 };
-
-function readErrorDetail(error: unknown): string {
-  if (typeof error === "object" && error !== null) {
-    const response = (error as { response?: { data?: { detail?: unknown } } }).response;
-    if (typeof response?.data?.detail === "string") return response.data.detail;
-  }
-  return "";
-}
 
 function readCompletedSplitCount(error: unknown): number {
   if (typeof error !== "object" || error === null || !("completedCount" in error)) {
@@ -137,8 +130,7 @@ export function OutlineAiActions({
         });
       }
     } catch (caught) {
-      const detail = readErrorDetail(caught);
-      setError(detail || t("outline.ai.failed"));
+      setError(resolveAiErrorMessage(caught, t, t("outline.ai.failed")));
     } finally {
       setIsLoading(false);
     }
@@ -153,7 +145,7 @@ export function OutlineAiActions({
       setResult(null);
       setAction(null);
     } catch (caught) {
-      setError(readErrorDetail(caught) || t("outline.ai.applyFailed"));
+      setError(readHttpErrorDetail(caught) || t("outline.ai.applyFailed"));
     }
   };
 
@@ -186,7 +178,7 @@ export function OutlineAiActions({
       setError(
         completedCount > 0
           ? t("outline.ai.applySplitPartial", { count: completedCount })
-          : readErrorDetail(caught) || t("outline.ai.applySplitFailed"),
+          : readHttpErrorDetail(caught) || t("outline.ai.applySplitFailed"),
       );
     }
   };

@@ -6,6 +6,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { toast } from "@/components";
+import {
+  isBackgroundModelUnavailableError,
+  MODEL_UNAVAILABLE_I18N_KEY,
+  readHttpErrorDetail,
+} from "@/lib/ai-error";
 import { newlinesToHtml } from "@/lib/html-utils";
 
 import { InlineAiResult } from "./inline-ai-result";
@@ -44,14 +49,9 @@ interface InlineAiMenuProps {
 }
 
 function getErrorDetail(error: unknown): string | null {
-  if (axios.isAxiosError(error)) {
-    const data: unknown = error.response?.data;
-    if (data && typeof data === "object" && "detail" in data) {
-      const detail = (data as { detail: unknown }).detail;
-      if (typeof detail === "string") return detail;
-    }
-    return error.message;
-  }
+  const detail = readHttpErrorDetail(error);
+  if (detail) return detail;
+  if (axios.isAxiosError(error)) return error.message;
   if (error instanceof Error) return error.message;
   return null;
 }
@@ -168,8 +168,12 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
         setResponse(result);
         setPhase("result");
       } catch (error) {
-        const detail = getErrorDetail(error);
-        toast.error(detail ? `${t("inlineAi.failed")}: ${detail}` : t("inlineAi.failed"));
+        if (isBackgroundModelUnavailableError(error)) {
+          toast.error(`${t("inlineAi.failed")}: ${t(MODEL_UNAVAILABLE_I18N_KEY)}`);
+        } else {
+          const detail = getErrorDetail(error);
+          toast.error(detail ? `${t("inlineAi.failed")}: ${detail}` : t("inlineAi.failed"));
+        }
         setPhase("menu");
       }
     },

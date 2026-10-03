@@ -10,6 +10,7 @@ from typing import Annotated, NoReturn
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas.ai_errors import AiModelUnavailableDetail
 from app.api.schemas.outline_ai import (
     OutlineAiDraftRequest,
     OutlineAiDraftResponse,
@@ -35,7 +36,8 @@ def _raise_http_error(exc: Exception) -> NoReturn:
     """把领域异常映射为 HTTP 状态；服务商错误不透传原始内容。"""
     if isinstance(exc, BackgroundModelUnavailableError):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=AiModelUnavailableDetail(message=str(exc)).model_dump(),
         ) from exc
     if isinstance(exc, NotFoundError):
         raise HTTPException(

@@ -119,6 +119,9 @@
     "promptChainsShortcut": "Prompt chains",
     "aiUsageShortcut": "AI usage"
   },
+  "aiErrors": {
+    "modelUnavailable": "No usable Light model is configured, so AI features are unavailable. Create and select a usable Light model in Settings > Models, then try again."
+  },
   "inlineAi": {
     "trigger": "AI rewrite",
     "close": "Close",
@@ -1453,7 +1456,7 @@
     "defaultModel": "Default Model",
     "defaultModelDesc": "Default model for Agent. Overrides the last selected model when set",
     "lightModel": "Light Model",
-    "lightModelDesc": "Model for lightweight tasks",
+    "lightModelDesc": "Model for story setup, inline AI, outline AI, consistency checks and lightweight tasks such as title and summary generation",
     "defaultEmbeddingModel": "Default Embedding Model",
     "defaultEmbeddingModelDesc": "Embedding model used for retrieval indexing and chapter vectorization",
     "defaultEmbeddingModelChangeTitle": "Change default embedding model?",
@@ -2703,7 +2706,7 @@
     "connectAI": "Learn how to connect AI",
     "aiTitle": "Connect AI",
     "aiRecommend": "OpenAI, Claude, DeepSeek and Gemini-compatible services are recommended.",
-    "aiPath": "Settings live under the top-right Settings button > Providers, where you paste an API key.",
+    "aiPath": "Open Settings from the top-right corner. Add an API key under Providers, then create a usable chat model under Models and select it as the Default model for the Agent and as the Light model for story setup, inline AI, outline AI, consistency checks and lightweight title and summary tasks.",
     "aiAlreadyConfigured": "You already have models configured and can start writing right away.",
     "aiOptional": "AI is optional: every editing feature works without it.",
     "gotIt": "Got it",
@@ -2718,7 +2721,7 @@
       "generate": "Generate drafts",
       "regenerate": "Generate again",
       "generateFailed": "Generation failed: {{reason}}",
-      "modelMissing": "No writing model is configured yet. You can create a normal project now and connect AI later in Settings.",
+      "modelMissing": "No usable Light model is configured, so AI drafts are unavailable right now. You can still create a project and keep writing without AI; create and select a usable Light model in Settings > Models when you want to use these features.",
       "unknownError": "Please try again later.",
       "backToCreate": "Use normal creation",
       "reviewTitle": "Confirm what to save",

@@ -100,7 +100,9 @@ async def test_draft_without_model_returns_400(client: AsyncClient) -> None:
         "/api/v1/story-setup/draft", json={"inspiration": "近未来悬疑小说"}
     )
     assert response.status_code == 400
-    assert "模型" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["code"] == "background_model_unavailable"
+    assert "模型" in detail["message"]
 
 
 @pytest.mark.asyncio

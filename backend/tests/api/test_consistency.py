@@ -182,7 +182,9 @@ async def test_consistency_check_without_model_returns_400(client: AsyncClient) 
         json={"chapter_id": chapter_id},
     )
     assert response.status_code == 400
-    assert "模型" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["code"] == "background_model_unavailable"
+    assert "模型" in detail["message"]
 
 
 @pytest.mark.asyncio
