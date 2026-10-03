@@ -184,7 +184,8 @@ export function WritingPage() {
   }, [activeTabId, closeAllTabs, isMobile, isTabsLoaded, openSingleTab, tabs]);
 
   useEffect(() => {
-    if (!projectId || !isTabsLoaded || hasInitialized.current) return;
+    if (!projectId || !isTabsLoaded || isChaptersLoading || !chaptersData || hasInitialized.current)
+      return;
 
     const loadLastChapter = async () => {
       if (tabs.length > 0) {
@@ -195,7 +196,11 @@ export function WritingPage() {
         return;
       }
 
-      const lastChapterId = await getLastChapterId(projectId);
+      const storedChapterId = await getLastChapterId(projectId);
+      // 旧版本持久化过带 "chapter:" 前缀的标签页 id，读取时最多剥离一次该前缀。
+      const lastChapterId = storedChapterId?.startsWith("chapter:")
+        ? storedChapterId.slice("chapter:".length)
+        : storedChapterId;
       if (lastChapterId) {
         const chapter = allChapters.find((c) => c.id === lastChapterId);
         if (chapter) {
@@ -224,6 +229,8 @@ export function WritingPage() {
   }, [
     activeTabId,
     allChapters,
+    chaptersData,
+    isChaptersLoading,
     isMobile,
     isTabsLoaded,
     openSingleTab,
@@ -233,10 +240,11 @@ export function WritingPage() {
   ]);
 
   useEffect(() => {
-    if (projectId && activeTabId) {
-      setLastChapterId(projectId, activeTabId);
+    // 只记录真实的活动章节：笔记/空标签页/无活动标签页都必须保留已记住的章节。
+    if (projectId && currentChapterId) {
+      setLastChapterId(projectId, currentChapterId);
     }
-  }, [projectId, activeTabId]);
+  }, [projectId, currentChapterId]);
 
   useEffect(() => {
     setCurrentChapter(currentChapterId);
