@@ -482,3 +482,15 @@ OpenFix 自有标识首轮设计已落地：以打开的书页和校订符号组
 * 当前源代码切片信心 B。真实 worker 超时/取消抢占、Windows 文件占用、并发 rename/cleanup、生产会话重启持久化未由本次内存 SQLite/钩子测试证明；前端与安装包未在本次后端改动后重新运行验收。
 * 后续仓库内工作：PRD §25 和源码清单 §31 要求的 Markdown 导出仍缺失；Consistency / AI 项目选择及迟到结果、条件性同版本 bundled-wheel 覆盖升级仍需另切任务复现。真实供应商用户链路、干净 Windows 11 旧版覆盖升级/数据保留、native ARM64 首启、远端双架构 Actions/Release、签名身份/证书链及最新安装包 runtime 仍待验收。完整 V1.0 保持 **`needs-verification`**。
 
+**V1.0 Markdown 导出（2026-10-03；用户授权本地提交）**：
+
+* 写作页既有导出弹窗增加 Markdown；全书、当前卷和选择/排除章节沿用原导出计划与后台任务。API 格式 `markdown`、成品 `.md`、下载 MIME `text/markdown; charset=utf-8` 贯通实际前端 mapper，en/zh-CN 按钮统一为「导出 / Export」。
+* 卷模式使用 H1 卷/H2 章，章节模式使用 H1 章。生成标题折叠换行并转义 ASCII 标点，正文保留 Markdown、Unicode、空段落与空章节，仅规范化为 LF；Markdown UTF-8 无 BOM。TXT 默认及 BOM、DOCX 原结构保留。
+* 复用 metadata-only 固定计划、20 章批次、顺序/进度/取消、`.part` 原子发布和 24h TTL；同一 suffix map 支持命名、路径与 `.md` 生命周期清理。没有新增导出系统、依赖、端点或迁移。
+* 最终后端 `j-p837lv` 退出 0：八文件 scoped Ruff 与 app-wide `ty check app`，**216 定向 passed（14.83s）**、**2015 完整 passed（255.61s）**。覆盖真实 create → dispatch → succeeded → cleanup → status/download、23 章跨批次顺序/进度、取消/缺章清理、标题字节/空章以及跨项目和过期下载限制。
+* 最终前端 `j-m70e49` 退出 0：**434 文件 lint/type-check 零警告/错误**、完整 desktop build（frontend production/setup/main），**6 browser passed（22.1s）**，覆盖 en/zh-CN × 全书/当前卷/选择章节、真实 writing dialog、精确 POST、实际 mapper、Socket.IO 完成刷新和首次/再次下载。保留既有 large-chunk warning。
+* 独立 fresh SPEC → QUALITY 均 PASS。先修正原始 POST 多余字段被投影丢弃的测试缺口；失败 browser run 的三个未响应真实 GET 现用精确 typed 合成响应补齐，unknown API/socket 断言保留。静态审查与运行验证分别提供证据。
+* 14 个最终文件 SHA-256 与两份终态验证日志一致。仅停止本轮 Vite 并释放 19003，精确验证目录已删除，后端 38,474,137 bytes、最终前端 166 bytes；此前失败用例结果目录已清理。继续使用唯一工作树，没有重跑 packaged smoke。
+* 标题 formatter 为 15 行；既有 service/API test 仅扩现有 owner/矩阵，新 API/writer/browser 套件分别为 360/24/370 physical lines。原 API test 达 804 行，后续新增范围前切分；本次不进行无关重构。验证记录沿用唯一 `docs/aegis/work/2026-10-02-v1-completion`，本地提交事实由 Git 回执读回。
+* 本地源码切片信心 B，**完整 V1.0 仍为 `needs-verification`**。合成 API/socket 与内存 SQLite 不证明生产 session 取消可见性、真实 worker 并发、Windows 文件锁或 Electron 打包运行。Consistency/AI 选择与迟到结果、条件性同版本 wheel 身份需独立复现；真实 provider、干净旧版升级与原数据、native ARM64、最新安装包 runtime、远端双架构 Release 和签名仍待验收。
+

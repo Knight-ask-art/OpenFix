@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "v1-markdown-export-20261003",
+  "type": "local-verification",
+  "source": "TaskStartSnapshot 396a48ff1b2d241f5358b05823904621be385b63 / feature/branding / WORKTREE, 14 frozen files; tmp/markdown-export-source-manifest-20261003.json and complete frozen diff. Final backend C:/Users/20969/.fastctx/jobs/j-p837lv/output.log; final frontend C:/Users/20969/.fastctx/jobs/j-m70e49/output.log. Independent markdown_export_spec_review then markdown_export_quality_review final static PASS.",
+  "summary": "Markdown导出贯通既有plan/job/text loop、canonical suffix/cleanup、schema/MIME和actual frontend mapper/dialog；标题字面转义与正文保留，UTF-8无BOM，TXT/DOCX/default/batch20/atomic/24h TTL兼容。后端terminal exit0：八文件scoped Ruff、app-wide ty、216 target(14.83s)/2015 full(255.61s) passed；前端terminal exit0：434文件lint/type零警告错误、完整desktop build、6 browser(22.1s) passed，保留既有large-chunk warning。最终14文件hash相符；只停止owned Vite，19003释放，精确无链接验证目录删除38474137/166bytes。原POST额外字段投影缺口与fixture三个真实GET遗漏已修复；fresh SPEC/QUALITY静态PASS，unknown/socket/两次下载断言保留。新formatter15行，既有service536/API test804仅扩矩阵，新API360/writer24/browser370，继续扩原API test前切分。无新数据owner、endpoint、依赖、迁移、worktree或packaged smoke；信心B。生产session取消/worker并发/Windows锁与cleanup/重启、Electron打包、真实provider/旧版升级/ARM64/远端双架构Release/签名仍未由本次证明，Consistency/AI与wheel身份先独立复现；完整V1仍needs-verification。",
+  "verifier": "协调者读取最终diff、独立两阶段审查及完整终态结果；receipt verifier确认14当前hash和两份log相符，exact cleanup与port读回。唯一work record，以显式白名单和cached diff保存用户授权本地提交；Git事实由终态读回。",
+  "sliceId": "v1-markdown-export-20261003",
+  "sourceSha256": {
+    "backend/app/chapter_export/service.py": "f026d1e502c954ed6e329012509012bd178317603331cf4324664d096cd353ce",
+    "backend/app/chapter_export/markdown_writer.py": "34768c6c9dcb4b01b9231d7a36da09395a2791a8dd44b4351de55ddaac13c21e",
+    "backend/app/api/schemas/chapter_export.py": "c96794520e57a3ae79214cce05f6c9733e101b12af9bec4282807bac8301d7af",
+    "backend/app/api/routers/chapter_exports.py": "3ab5a332d7af07723fcc6419c747d02418c8ef799f42b140d50f9d1e2ba2d74b",
+    "backend/app/background/jobs/definitions/chapter_export.py": "0d554f39e75f0eab93a84ffe991b585759cbbf939f15ab181f509fbc8891d8c0",
+    "backend/tests/api/test_chapter_exports.py": "ffe59218723f8e22c08c9a5d293372ebbaf588252f57cfb6317592df7678b8a0",
+    "backend/tests/api/test_markdown_exports.py": "6e3cc57de08ec7e058a92f78009294c23bc5630f6b0377b9ec50e7f822a2c53f",
+    "backend/tests/core/test_markdown_export_writer.py": "5fda43cb197810518e8cc1463e7886e8a8d208af05b5afdb3ecc3bd26ba89692",
+    "frontend/src/lib/chapter-export.types.ts": "5a1650a5f6f42f21f9ae078bf28fd987a40d1fb47bf2b5662965fbd56b736156",
+    "frontend/src/lib/api-client.ts": "eb08ad08024b952090b7efbc2fb3567ac91cd319c7fa0c4dff2b50994614a401",
+    "frontend/src/features/writing/components/chapter-export-dialog.tsx": "e51d8adb21a9871494682210f1ad182d8b2c4628de8bed4e51193e631e278cb7",
+    "frontend/src/i18n/locales/en.json": "54a54f4c8d68b347201097b522f4e3c69fd467dc0521f7e4c6278655f6c6fba8",
+    "frontend/src/i18n/locales/zh-CN.json": "6be78845585115fb413e968d7fa0b29b09f9074a25e9b7c8a5239cca8a168463",
+    "frontend/e2e/markdown-export.spec.ts": "62d26ea807ae0a977f49182f381f6cd5b6a49c2870b15202542c56acb764346f"
+  },
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-03"
+}

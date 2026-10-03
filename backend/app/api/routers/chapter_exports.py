@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas.chapter_export import ChapterExportCreate, ChapterExportResponse
 from app.background.jobs import service as background_service
 from app.background.runtime.supervisor import get_background_supervisor
-from app.chapter_export import docx_writer
+from app.chapter_export import docx_writer, markdown_writer
 from app.chapter_export import service as chapter_export_service
 from app.storage.database import get_session
 
@@ -107,6 +107,8 @@ async def download_chapter_export(
     export_format = summary.get("format", "txt")
     if export_format == "docx":
         media_type = docx_writer.DOCX_MEDIA_TYPE
+    elif export_format == "markdown":
+        media_type = markdown_writer.MARKDOWN_MEDIA_TYPE
     else:
         media_type = "text/plain; charset=utf-8"
     _part_path, output_path = chapter_export_service.export_file_paths(

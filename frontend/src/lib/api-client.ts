@@ -223,8 +223,7 @@ function transformChapterExport(raw: Record<string, unknown>): ChapterExport {
     status: raw.status as string,
     filename: raw.filename as string,
     mode: raw.mode as ChapterExport["mode"],
-    format:
-      raw.format === "docx" ? "docx" : ("txt" as ChapterExport["format"]),
+    format: raw.format === "docx" || raw.format === "markdown" ? raw.format : "txt",
     volumeCount: Number(raw.volume_count ?? 0),
     chapterCount: Number(raw.chapter_count ?? 0),
     wordCount: Number(raw.word_count ?? 0),

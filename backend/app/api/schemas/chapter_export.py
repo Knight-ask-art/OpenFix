@@ -13,7 +13,7 @@ class ChapterExportCreate(BaseModel):
     included_chapter_ids: list[str] = Field(default_factory=list)
     excluded_chapter_ids: list[str] = Field(default_factory=list)
     local_date: date
-    format: Literal["txt", "docx"] = "txt"
+    format: Literal["txt", "docx", "markdown"] = "txt"
 
 
 class ChapterExportResponse(BaseModel):

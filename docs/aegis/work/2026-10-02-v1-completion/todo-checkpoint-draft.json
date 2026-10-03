@@ -1,7 +1,7 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
-  "currentTodo": "DOCX body retention and export lifecycle cleanup are source-verified and locally committed as e753bcd/f5fb74f. Terminal record is bundled and structurally checked; record commit/clean/one worktree are read back from final Git. Full V1 remains needs-verification.",
+  "currentTodo": "Markdown export implementation, fresh SPEC then QUALITY and coordinator validation completed; preserve the authorized local commit and read back actual Git receipt. Full V1 remains needs-verification.",
   "completedTodos": [
     "先前里程碑 aa590c15039d669780e51d0193538473d9fb92cb 已完成。",
     "359c8114a889a7e700fce48441ff2d4ac6ed0219: configured runtime backup/restore/rollback protection and IPC overlap policy.",
@@ -17,10 +17,16 @@
     "DOCX unowned body flush preserves current-volume prose; normal/streaming preview-confirm-detail and Heading-only body regressions added. Fresh DOCX SPEC passes.",
     "TXT/DOCX cleanup honors active/fresh/expired lifecycle and format; registered terminal hooks immediately delete their matching artifacts. Expiry-boundary count corrected to five with all-six-file assertions; fresh export SPEC and independent Codex QUALITY pass.",
     "j-ioqgg0 exits 0: scoped Ruff/app-wide ty, 143 target and 1942 full backend tests pass, six source hashes unchanged. Exact synthetic validation directory removed (38470715 bytes).",
-    "Local source commits read back: e753bcd874ebd1eea6c0d4b45d475f8f4b70c3e1 import and f5fb74f7faadb39e3276a9e3393b72b36909ad8b export; three allowlisted files each."
+    "Local source commits read back: e753bcd874ebd1eea6c0d4b45d475f8f4b70c3e1 import and f5fb74f7faadb39e3276a9e3393b72b36909ad8b export; three allowlisted files each.",
+    "Markdown token/suffix/MIME, literal headings, body preservation, batches/cleanup and actual frontend mapper/dialog are wired through existing owners; fresh static SPEC and QUALITY pass.",
+    "j-p837lv exits 0: scoped Ruff, app-wide ty, 216 target and 2015 full backend passed. j-m70e49 exits 0: frontend lint/type 434 files zero warnings/errors, full desktop build and six synthetic browser cases passed.",
+    "All 14 frozen source hashes match the terminal logs and current files; exact backend/frontend validation directories removed (38474137/166 bytes), owned Vite stopped and port 19003 released. One worktree, no packaged smoke."
   ],
-  "activeSlice": "v1-docx-import-export-cleanup-20261003",
+  "activeSlice": "v1-markdown-export-20261003",
   "evidenceRefs": [
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json",
+    "C:/Users/20969/.fastctx/jobs/j-p837lv/output.log",
+    "C:/Users/20969/.fastctx/jobs/j-m70e49/output.log",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json",
     "C:/Users/20969/.fastctx/jobs/j-ioqgg0/output.log",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json",
@@ -35,7 +41,7 @@
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
     "git log/show readback: 359c811, ebae8a3, 49935a4 on feature/branding"
   ],
-  "blockedOn": "DOCX/export defects are repaired and source regression passes. Full V1 lacks Markdown export; Consistency/AI selection and conditional same-version wheel upgrade require dedicated reproduction. Real provider, clean Windows 11 upgrade, native ARM64 startup, current package runtime, remote dual-architecture Release and signing remain unaccepted.",
-  "nextStep": "Read back this slice source/record commits, clean status and one worktree. Next repository slice implements PRD25/source-list31 Markdown export, then reproduces Consistency/AI selection and upgrade identity observations.",
+  "blockedOn": "Markdown local source slice verified. Consistency/AI selection and conditional same-version wheel upgrade require dedicated reproduction. Real provider, clean Windows 11 upgrade, native ARM64 startup, current package runtime, remote dual-architecture Release and signing remain unaccepted.",
+  "nextStep": "Save the authorized local commit with explicit allowlist and cached diff check; read back HEAD/message/files/status and one worktree. Later independently reproduce Consistency/AI selection and upgrade identity observations; local Markdown completion does not close full V1 acceptance.",
   "updatedAt": "2026-10-03"
 }

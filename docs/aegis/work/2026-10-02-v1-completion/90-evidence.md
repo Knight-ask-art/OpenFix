@@ -358,3 +358,13 @@
 - Summary: 最终源码切片通过：scoped Ruff、app-wide ty、143定向测试(11.96s)、1942完整后端测试(168.41s)，六个源码/测试SHA256保持不变。DOCX卷前/卷首/无章标题卷正文保留并经普通/流式preview-confirm-detail验收；TXT/DOCX清理保护active与严格未来期限的匹配成品，终态钩子按原payload格式立即删除，legacy TXT兼容。初轮SPEC漏判expiry测试计数，现改为五件删除并逐一断言六件文件；fresh SPEC撤回旧声明，fresh QUALITY PASS。Claude独立QUALITY余额不足无结论，由Codex独立补审，不能算Claude PASS。唯一runner新建目录核验后删除38470715bytes。既有parser/cleaner/hook owner内修复，退役错误分支，未新增公共合同或持久化owner；测试344/666/789行，Markdown扩展前评估export测试边界。信心B；真实worker抢占/Windows文件占用/并发rename-cleanup/生产重启、最新前端和安装包、真实provider和正式发布未由本次证明。Markdown导出缺失，Consistency/AI和同版本wheel升级需独立复现。完整V1仍needs-verification。
 - Verifier: 协调者读回实际六文件最终diff、fresh两阶段审查和j-ioqgg0完整结果；source hashes和exact synthetic cleanup已检查。显式白名单暂存、cached diff检查和本地源码提交SHA/message/files已读回；后续records-only提交以Git事实为准。未新增worktree或packaged smoke。
 - Evidence status: evidence-finalized
+
+## EvidenceBundleDraft: v1-markdown-export-20261003
+
+- Artifact key: v1-markdown-export-20261003
+- Slice ID: v1-markdown-export-20261003
+- Type: local-verification
+- Source: TaskStartSnapshot 396a48ff1b2d241f5358b05823904621be385b63 / feature/branding / WORKTREE, 14 frozen files; tmp/markdown-export-source-manifest-20261003.json and complete frozen diff. Final backend C:/Users/20969/.fastctx/jobs/j-p837lv/output.log; final frontend C:/Users/20969/.fastctx/jobs/j-m70e49/output.log. Independent markdown_export_spec_review then markdown_export_quality_review final static PASS.
+- Summary: Markdown导出贯通既有plan/job/text loop、canonical suffix/cleanup、schema/MIME和actual frontend mapper/dialog；标题字面转义与正文保留，UTF-8无BOM，TXT/DOCX/default/batch20/atomic/24h TTL兼容。后端terminal exit0：八文件scoped Ruff、app-wide ty、216 target(14.83s)/2015 full(255.61s) passed；前端terminal exit0：434文件lint/type零警告错误、完整desktop build、6 browser(22.1s) passed，保留既有large-chunk warning。最终14文件hash相符；只停止owned Vite，19003释放，精确无链接验证目录删除38474137/166bytes。原POST额外字段投影缺口与fixture三个真实GET遗漏已修复；fresh SPEC/QUALITY静态PASS，unknown/socket/两次下载断言保留。新formatter15行，既有service536/API test804仅扩矩阵，新API360/writer24/browser370，继续扩原API test前切分。无新数据owner、endpoint、依赖、迁移、worktree或packaged smoke；信心B。生产session取消/worker并发/Windows锁与cleanup/重启、Electron打包、真实provider/旧版升级/ARM64/远端双架构Release/签名仍未由本次证明，Consistency/AI与wheel身份先独立复现；完整V1仍needs-verification。
+- Verifier: 协调者读取最终diff、独立两阶段审查及完整终态结果；receipt verifier确认14当前hash和两份log相符，exact cleanup与port读回。唯一work record，以显式白名单和cached diff保存用户授权本地提交；Git事实由终态读回。
+- Evidence status: evidence-finalized

@@ -1,4 +1,4 @@
-export type ChapterExportFormat = "txt" | "docx";
+export type ChapterExportFormat = "txt" | "docx" | "markdown";
 
 export interface ChapterExportCreate {
   selectedVolumeIds: string[];

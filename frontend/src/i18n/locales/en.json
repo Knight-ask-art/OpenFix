@@ -479,7 +479,7 @@
       "previewTab": "Preview",
       "previewWords": "{{count}} words",
       "selectionInfo": "{{chapters}} chapters selected, {{words}} words",
-      "export": "Export TXT",
+      "export": "Export",
       "exporting": "Exporting chapters",
       "cancelling": "Cancelling export",
       "preparing": "Preparing the export task...",
@@ -497,7 +497,8 @@
       "backToSelection": "Back to selection",
       "formatLabel": "Export format",
       "formatTxt": "TXT",
-      "formatDocx": "Word document"
+      "formatDocx": "Word document",
+      "formatMarkdown": "Markdown"
     },
     "backToProjects": "Back to projects",
     "selectChapter": "Select a chapter to start editing",

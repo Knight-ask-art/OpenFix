@@ -23,6 +23,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json
 
 ## Formal Evidence
@@ -33,6 +34,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json
 
 ## Terminal Non-Passed Evidence
@@ -49,7 +51,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 
 ## Drift Check
 
-- Scope status: 保留既有scoped source commits。本轮DOCX/export既有owner修复完成，fresh SPEC/QUALITY、scoped Ruff/app-wide ty、143 target/1942 full后端回归通过，源码提交e753bcd/f5fb74f已读回。完整§42仍needs-verification；迁移唯一头1028未改，用户明确授权本地提交。
+- Scope status: 保留既有scoped source commits。本轮Markdown导出14文件实现、fresh SPEC/QUALITY、216 target/2015 full后端、434文件前端lint/type、完整desktop build与6 browser均通过，source hash一致。保存用户授权本地提交，Git事实读回；完整§42仍needs-verification，迁移唯一头1028未改。
 - Compatibility status: 保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。
-- Retirement status: DOCX discard-only unowned flush和不可达succeeded TTL分支已退役；terminal hook退役default-TXT-only删除调用。保留正常Heading/TXT fallback/manual split和legacy TXT/24h TTL，未新增数据owner/schema/dependency/API。六源码/测试保持验证hash；export测试789行用现有fixture/参数矩阵控制，Markdown扩展前评估拆分。之前四页共享selection owner及local key语义继续保留。未清理用户数据或新增smoke/worktree。
+- Retirement status: 原硬编码export suffix分支收敛到canonical map，actual mapper非DOCX一律TXT假设退役；Markdown复用plan/job/text loop及原有cleanup，default TXT/DOCX/batch20/atomic/24h TTL兼容。新增15行标题formatter，service536行；原API test804行仅扩矩阵，新API360/writer24/browser370行分担范围，下次扩原API test前切分。14最终hash已验证，没有新数据owner/endpoint/dependency/migration或用户数据清理，唯一worktree且无新smoke。
 - Advisory decision: needs-verification

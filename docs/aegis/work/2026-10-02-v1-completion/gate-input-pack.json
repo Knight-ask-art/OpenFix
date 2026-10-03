@@ -6,7 +6,7 @@
   ],
   "impactStatement": "docs/aegis/work/2026-10-02-v1-completion/impact-statement-draft.json",
   "compatPlan": "复用既有 RetrievalIndex 与 Story Memory API；只在必要时追加向后兼容迁移；保留既有未提交 V1 改动",
-  "retirementPlan": "DOCX discard-only unowned flush和不可达succeeded TTL分支已退役；terminal hook退役default-TXT-only删除调用。保留正常Heading/TXT fallback/manual split和legacy TXT/24h TTL，未新增数据owner/schema/dependency/API。六源码/测试保持验证hash；export测试789行用现有fixture/参数矩阵控制，Markdown扩展前评估拆分。之前四页共享selection owner及local key语义继续保留。未清理用户数据或新增smoke/worktree。",
+  "retirementPlan": "原硬编码export suffix分支收敛到canonical map，actual mapper非DOCX一律TXT假设退役；Markdown复用plan/job/text loop及原有cleanup，default TXT/DOCX/batch20/atomic/24h TTL兼容。新增15行标题formatter，service536行；原API test804行仅扩矩阵，新API360/writer24/browser370行分担范围，下次扩原API test前切分。14最终hash已验证，没有新数据owner/endpoint/dependency/migration或用户数据清理，唯一worktree且无新smoke。",
   "evidenceBundle": [
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json",
@@ -14,6 +14,7 @@
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-source-build-20261002.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-local-commit-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-outline-memory-selection-20261003.json"
   ]
 }

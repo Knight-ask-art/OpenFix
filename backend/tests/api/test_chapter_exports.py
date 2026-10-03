@@ -292,7 +292,7 @@ async def test_export_task_writes_full_volume_txt_and_serves_download(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("export_format", ["txt", "docx"])
+@pytest.mark.parametrize("export_format", ["txt", "docx", "markdown"])
 async def test_cancelled_export_removes_partial_file(
     client: AsyncClient,
     monkeypatch,
@@ -450,9 +450,10 @@ async def test_create_docx_export_rejects_invalid_format(client: AsyncClient) ->
 def _write_export_artifacts(directory: Path, job_id: str, export_format: str) -> dict[str, Path]:
     """写入 part、匹配格式成品和其它已识别后缀成品，覆盖改名窗口的真实组合。"""
     other_suffix = ".docx" if export_format == "txt" else ".txt"
+    suffix = ".md" if export_format == "markdown" else f".{export_format}"
     paths = {
         "part": directory / f"{chapter_export_service.EXPORT_FILE_PREFIX}{job_id}.part",
-        "matching": directory / f"{chapter_export_service.EXPORT_FILE_PREFIX}{job_id}.{export_format}",
+        "matching": directory / f"{chapter_export_service.EXPORT_FILE_PREFIX}{job_id}{suffix}",
         "mismatched": directory / f"{chapter_export_service.EXPORT_FILE_PREFIX}{job_id}{other_suffix}",
     }
     for path in paths.values():
@@ -492,7 +493,7 @@ _HOOK_STATUS = {
 @pytest.mark.parametrize("hook_name", ["on_failed", "on_timeout", "on_cancelled"])
 @pytest.mark.parametrize(
     ("payload_format", "expected_format"),
-    [("txt", "txt"), ("docx", "docx"), (None, "txt")],
+    [("txt", "txt"), ("docx", "docx"), ("markdown", "markdown"), (None, "txt")],
 )
 async def test_terminal_hook_deletes_immediate_export_artifacts(
     session,
@@ -539,7 +540,7 @@ async def test_terminal_hook_deletes_immediate_export_artifacts(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("export_format", ["txt", "docx"])
+@pytest.mark.parametrize("export_format", ["txt", "docx", "markdown"])
 @pytest.mark.parametrize(
     ("case", "status", "result", "keep"),
     [
@@ -610,14 +611,17 @@ async def test_cleanup_removes_orphan_and_foreign_type_but_keeps_unknown_names(
         tmp_path / f"{prefix}missing-job.part",
         tmp_path / f"{prefix}missing-job.txt",
         tmp_path / f"{prefix}missing-job.docx",
+        tmp_path / f"{prefix}missing-job.md",
         tmp_path / f"{prefix}foreign-job.part",
         tmp_path / f"{prefix}foreign-job.txt",
+        tmp_path / f"{prefix}foreign-job.md",
     ]
     kept_paths = [
         tmp_path / f"{prefix}missing-job",
         tmp_path / f"{prefix}missing-job.zip",
         tmp_path / f"{prefix}missing-job.doc",
         tmp_path / f"{prefix}.txt",
+        tmp_path / f"{prefix}.md",
         tmp_path / f"{prefix}missing-job.txt.bak",
         tmp_path / "notes.txt",
         tmp_path / "missing-job.txt",
@@ -649,10 +653,14 @@ async def test_cleanup_treats_missing_format_as_legacy_txt(
     )
     running_paths = _write_export_artifacts(tmp_path, "legacy-running", "txt")
     succeeded_paths = _write_export_artifacts(tmp_path, "legacy-succeeded", "txt")
+    markdown_paths = [tmp_path / f"chapter-export-{job_id}.md" for job_id in ("legacy-running", "legacy-succeeded")]
+    for path in markdown_paths:
+        path.write_text("synthetic", encoding="utf-8")
 
     removed = await chapter_export_service.cleanup_chapter_export_files(session)
 
-    assert removed == 3
+    assert removed == 5
+    assert all(not path.exists() for path in markdown_paths)
     assert running_paths["part"].exists()
     assert running_paths["matching"].exists()
     assert not running_paths["mismatched"].exists()
@@ -663,11 +671,13 @@ async def test_cleanup_treats_missing_format_as_legacy_txt(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("invalid_format", ["pdf", None, 7])
+@pytest.mark.parametrize("export_format", ["txt", "docx", "markdown"])
 async def test_cleanup_does_not_preserve_completed_artifact_for_invalid_format(
     session,
     monkeypatch,
     tmp_path,
     invalid_format,
+    export_format: str,
 ) -> None:
     monkeypatch.setattr(chapter_export_service.settings, "chapter_exports_dir", tmp_path)
     job_id = f"invalid-format-{invalid_format}"
@@ -678,7 +688,7 @@ async def test_cleanup_does_not_preserve_completed_artifact_for_invalid_format(
         {"filename": "导出.txt", "format": invalid_format},
         {"expires_at": "2999-01-01T00:00:00+00:00"},
     )
-    paths = _write_export_artifacts(tmp_path, job_id, "txt")
+    paths = _write_export_artifacts(tmp_path, job_id, export_format)
 
     removed = await chapter_export_service.cleanup_chapter_export_files(session)
 
@@ -687,10 +697,12 @@ async def test_cleanup_does_not_preserve_completed_artifact_for_invalid_format(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("export_format", ["txt", "docx", "markdown"])
 async def test_cleanup_keeps_in_flight_part_for_active_job_with_invalid_format(
     session,
     monkeypatch,
     tmp_path,
+    export_format: str,
 ) -> None:
     monkeypatch.setattr(chapter_export_service.settings, "chapter_exports_dir", tmp_path)
     job_id = "invalid-format-running"
@@ -700,7 +712,7 @@ async def test_cleanup_keeps_in_flight_part_for_active_job_with_invalid_format(
         "running",
         {"filename": "导出.pdf", "format": "pdf"},
     )
-    paths = _write_export_artifacts(tmp_path, job_id, "txt")
+    paths = _write_export_artifacts(tmp_path, job_id, export_format)
 
     removed = await chapter_export_service.cleanup_chapter_export_files(session)
 
@@ -719,6 +731,7 @@ async def test_cleanup_keeps_in_flight_part_for_active_job_with_invalid_format(
         ("naive-past", "2000-01-01T00:00:00", False),
     ],
 )
+@pytest.mark.parametrize("export_format", ["txt", "docx", "markdown"])
 async def test_cleanup_interprets_naive_expiry_as_utc(
     session,
     monkeypatch,
@@ -726,6 +739,7 @@ async def test_cleanup_interprets_naive_expiry_as_utc(
     case: str,
     expires_at: str,
     keep_matching: bool,
+    export_format: str,
 ) -> None:
     monkeypatch.setattr(chapter_export_service.settings, "chapter_exports_dir", tmp_path)
     job_id = f"naive-expiry-{case}"
@@ -733,10 +747,10 @@ async def test_cleanup_interprets_naive_expiry_as_utc(
         session,
         job_id,
         "succeeded",
-        {"format": "txt"},
+        {"format": export_format},
         {"expires_at": expires_at},
     )
-    paths = _write_export_artifacts(tmp_path, job_id, "txt")
+    paths = _write_export_artifacts(tmp_path, job_id, export_format)
 
     removed = await chapter_export_service.cleanup_chapter_export_files(session)
 
@@ -746,10 +760,12 @@ async def test_cleanup_interprets_naive_expiry_as_utc(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("export_format", ["txt", "docx", "markdown"])
 async def test_cleanup_expiry_boundary_requires_strictly_future_expiry(
     session,
     monkeypatch,
     tmp_path,
+    export_format: str,
 ) -> None:
     frozen_now = datetime(2030, 1, 1, tzinfo=UTC)
 
@@ -764,18 +780,18 @@ async def test_cleanup_expiry_boundary_requires_strictly_future_expiry(
         session,
         "boundary-equal",
         "succeeded",
-        {"format": "txt"},
+        {"format": export_format},
         {"expires_at": "2030-01-01T00:00:00+00:00"},
     )
     await _add_export_job(
         session,
         "boundary-after",
         "succeeded",
-        {"format": "txt"},
+        {"format": export_format},
         {"expires_at": "2030-01-01T00:00:01+00:00"},
     )
-    equal_paths = _write_export_artifacts(tmp_path, "boundary-equal", "txt")
-    after_paths = _write_export_artifacts(tmp_path, "boundary-after", "txt")
+    equal_paths = _write_export_artifacts(tmp_path, "boundary-equal", export_format)
+    after_paths = _write_export_artifacts(tmp_path, "boundary-after", export_format)
 
     removed = await chapter_export_service.cleanup_chapter_export_files(session)
 

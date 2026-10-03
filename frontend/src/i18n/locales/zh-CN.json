@@ -479,7 +479,7 @@
       "previewTab": "章节预览",
       "previewWords": "{{count}} 字",
       "selectionInfo": "已选择 {{chapters}} 章，共 {{words}} 字",
-      "export": "导出 TXT",
+      "export": "导出",
       "exporting": "正在导出章节",
       "cancelling": "正在取消导出",
       "preparing": "正在准备导出任务...",
@@ -497,7 +497,8 @@
       "backToSelection": "返回选择",
       "formatLabel": "导出格式",
       "formatTxt": "TXT",
-      "formatDocx": "Word 文档"
+      "formatDocx": "Word 文档",
+      "formatMarkdown": "Markdown"
     },
     "backToProjects": "返回项目列表",
     "selectChapter": "选择一个章节开始编辑",

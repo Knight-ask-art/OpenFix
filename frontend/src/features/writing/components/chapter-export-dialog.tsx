@@ -684,6 +684,9 @@ export function ChapterExportDialog({
                 <SegmentedControl.Item value="docx">
                   {t(`${EXPORT_I18N_KEY}.formatDocx`)}
                 </SegmentedControl.Item>
+                <SegmentedControl.Item value="markdown">
+                  {t(`${EXPORT_I18N_KEY}.formatMarkdown`)}
+                </SegmentedControl.Item>
               </SegmentedControl.Root>
             </Flex>
           ) : (

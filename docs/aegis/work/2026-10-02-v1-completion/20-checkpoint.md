@@ -2,9 +2,12 @@
 
 ## Current Checkpoint
 
-- Current todo: DOCX 正文保留与 TXT/DOCX 生命周期清理已完成 fresh SPEC/QUALITY 和协调者后端验证，源码本地提交 e753bcd / f5fb74f 已读回；本轮终态证据已整理并通过 bundle/check。记录提交与最终 clean/一棵工作树以 Git 收尾读回为准；完整 V1.0 仍 needs-verification。
-- Active slice: v1-docx-import-export-cleanup-20261003
+- Current todo: Markdown 导出实现、fresh SPEC → QUALITY 和本机验证已完成；按用户授权保存本地提交，Git 事实以终态 HEAD/message/files/status 回执为准。完整 V1 仍为 needs-verification。
+- Active slice: v1-markdown-export-20261003
 - Completed todos:
+- Markdown/.md/MIME、固定 metadata 计划、标题字面转义、正文保留、批次/生命周期与前端实际 mapper/selector 已贯通；14 个最终源码/测试 hash 与两份验证日志一致。
+- j-p837lv 退出 0：八文件 scoped Ruff、app-wide ty、216 定向及 2015 完整后端测试通过；j-m70e49 退出 0：434 文件 lint/type-check 零警告/错误、完整 desktop build、6 个合成浏览器用例通过。
+- 最终 fixture 仅补三个真实页面 GET 的精确合成响应，unknown API/socket 与原始五字段 POST 断言保留；fresh 有界 SPEC/QUALITY 均 PASS。
 - DOCX 正文保留和导出清理源码提交 e753bcd / f5fb74f；fresh 两阶段审查通过，最终六文件 hash 不变，143 定向和 1942 完整后端测试通过。
 - 本地提交 aa590c15039d669780e51d0193538473d9fb92cb 已完成；201 文件，提交后 OpenFix 工作区干净且只有主工作树。
 - 359c8114a889a7e700fce48441ff2d4ac6ed0219：恢复/回滚保护配置运行时，统一平台名称匹配及 IPC 路径策略。
@@ -13,6 +16,7 @@
 - 本轮两页复用唯一项目选择 hook；有效离页 URL/remembered/recent 项目经 API 校验后显示，URL null/invalid 重入、迟到读取/接口和同 id 编辑状态均有回归。
 - 修复候选 metadata reject 后遗漏的 manual/current guard；直接 hook seam 从 BETA → ALPHA 改为仅 BETA，新增两页真实 pending/404/retry 回归通过。
 - Evidence refs:
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-markdown-export-20261003.json；FastCtx j-p837lv / j-m70e49 完整日志，tmp/markdown-export-source-manifest-20261003.json 与完整冻结 diff。
 - FastCtx j-ioqgg0，docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-docx-import-export-cleanup-20261003.json；final runner 退出 0，精确隔离目录已删除。
 - FastCtx j-7q3b9d：433 文件 lint/type-check 零警告/错误、完整 desktop build、25 selection + 28 deep-link + 8 forms = 61 browser passed（3.4m）；源码与用例保持最终 hash。
 - FastCtx j-taxftg / j-3n8bkv：actual hook 的受控 pending/reject Promise seam，前者复现手动选择被覆盖，后者确认修复；不是完整 React/browser 验收。
@@ -20,10 +24,33 @@
 - FastCtx j-9g2cte: frontend lint/type-check、完整 desktop build 和 36 个合成浏览器用例全部通过。
 - FastCtx j-mnfh77: desktop lint/type-check/build:main、24 passed / 1 POSIX-only skipped / 1 privileged symlink excluded，YAML/六映射/安装脚本静态检查通过。
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
-- Blocked on: 本次 DOCX/export 源码缺陷已修复并通过回归。完整 V1 仍缺 Markdown 导出；Consistency/AI 项目选择与迟到结果、条件性同版本覆盖升级待独立复现。真实 provider、干净 Windows 11 升级、native ARM64 首启、最新安装包 runtime、远端双架构发布和签名仍待验收。
-- Next step: 先读回本轮源码与记录提交、clean 和一棵工作树；后续另切 Markdown 导出，再复现 Consistency/AI 选择与升级身份问题。
+- Blocked on: Markdown 本地源码切片已验证。Consistency/AI 项目选择与迟到结果、条件性同版本覆盖升级待独立复现；真实 provider、干净 Windows 11 升级、native ARM64 首启、最新安装包 runtime、远端双架构发布和签名仍待验收。
+- Next step: 用显式白名单和 cached diff 保存已授权的本地提交并读回；后续继续复现 Consistency/AI 选择与升级身份问题。源码切片通过不关闭完整 V1 验收。
 
 ## Recent Checkpoint History
+
+## 2026-10-03 Markdown Export Terminal Evidence
+
+- Slice / authority: v1-markdown-export-20261003；TaskStartSnapshot 396a48ff1b2d241f5358b05823904621be385b63，feature/branding，一棵注册工作树。实现 PRD §25 / source-change list §§30-31 的 Markdown 范围；沿用 §42 创作/导出链路与现有 plan/job/text loop，完整 V1 为 needs-verification。
+- Frozen sources: 14 个允许路径；backend 8 / frontend 6 的 SHA-256 均与最终验证日志及当前文件一致。最终 browser spec SHA-256 为 62d26ea807ae0a977f49182f381f6cd5b6a49c2870b15202542c56acb764346f，完整冻结 diff 58,561 bytes。记录更新不改变业务验证范围。
+- Review / correction: 最初 SPEC 发现 payload 投影会丢弃额外字段，现先检查原始五字段键集合和类型。浏览器 j-guzmfu 六例在 unknown 请求断言失败，因为 fixture 漏接全局/项目索引状态及 model-providers 的三个真实 GET；唯一实现者只补精确 typed 合成响应，不放宽 unknown/socket 或两次下载断言。最终 fresh SPEC → QUALITY 均 PASS；审查为静态意见。
+- Backend measured: j-p837lv terminal exit 0，八文件 scoped Ruff、ty check app；216 focused passed (14.83s)，2015 full passed (255.61s)。最终八文件 hash 不变。后续唯一修改为 browser fixture，因此此后端证据与最终提交源码相符。
+- Frontend measured: j-m70e49 terminal exit 0，434 files lint/type-check 0 warnings/errors；完整 desktop build 包含 frontend production、setup renderer、main TypeScript。en/zh-CN × full-book/current-volume/fragments 共 6 browser passed (22.1s)，实际 writing dialog、raw create payload、mapper、Socket.IO 完成刷新和两次下载均覆盖。既有 large-chunk warning 保留；最终六文件 hash 不变。
+- Cleanup observed: 仅停止本轮自建 Vite PID tree，19003 已释放；精确无链接验证目录已删除，backend 38,474,137 bytes，最终 frontend 166 bytes。此前两次 browser 失败结果目录各 91,754 bytes 已删除；未创建工作树或 packaged smoke。日志/审阅材料保留，不清理用户数据或共享缓存。
+- Owner / retirement / complexity: 新增 15 行纯标题 formatter；service 536 行、原 API test 804 行仅扩矩阵，新 API suite 360 行、writer suite 24 行、browser spec 370 physical lines。原硬编码 suffix 分支统一到 canonical map，实际 mapper 的非 DOCX 一律 TXT 假设退役；既有 default TXT、DOCX、batch=20、取消/进度、atomic publication 与 24h TTL 保留。没有新持久化 owner、依赖、endpoint 或迁移；下次扩原导出 API test 前切分该已接近软阈值的套件。
+- Confidence B / uncovered: 内存 SQLite/受控 cancellation seam 和合成 API/socket browser 不证明跨生产 session 的取消可见性、真实 worker 并发、Windows 文件锁、并发 rename/cleanup、重启恢复或 Electron 打包运行。后续 Consistency/AI 与 wheel 身份观察必须独立复现，真实 provider/旧版升级/native ARM64/当前安装包/远端双架构 Release/签名仍待验收。
+- Git closeout: 用户明确授权本地提交；协调者独占 staging/commit，采用精确白名单、CRLF-aware cached diff，并读回 SHA/message/files/status 和 worktree。继续使用唯一 work record；bundle/check 只证明记录结构。本段不自引用本次提交 SHA。
+
+## 2026-10-03 Markdown Export Slice Card
+
+- Previous goal turn: progress; import/export source commits and 143 target/1942 full backend tests changed authoritative state, with terminal evidence and record commit 396a48ff1b2d241f5358b05823904621be385b63. Current TaskStartSnapshot is that HEAD on feature/branding, clean index/worktree, one registered checkout before this record/packet edit.
+- Goal / parent: satisfy missing V1 Markdown export in PRD §25 and source-change list §§30-31, within the stable §42 writing/export chain. Public format token markdown, .md file and text/markdown UTF-8 download; full book/current volume/selected chapters use existing fixed metadata plan. TXT default and DOCX contracts remain compatible. No migration, new endpoint/dependency or second export/job system.
+- Owner / patch shape: extend canonical service format/suffix and current text loop; format headings in a bounded markdown_writer owner. Volume mode emits H1 volume/H2 chapter, chapters mode H1 chapter; title line breaks fold and ASCII punctuation escapes, body Markdown preserved with LF normalization. API schema/router, raw payload/status, frontend types/mapper and selector must share the token. Legacy mapper currently coerces every non-DOCX format to TXT, so the existing API-client block needs wiring.
+- Allowed files: exact allowlist and full contract in tmp/claude-markdown-export-20261003.txt. Only coordinator owns Git, shared validation and consolidated records. No user manuscript/database/.env/keys, provider calls, desktop/runtime/installer/packaged smoke, push/tag/Release/signing or new worktree. TDD off/skipped; implementer writes proportional synthetic regressions and runs no commands.
+- Complexity: service 532 lines and dialog 749 remain bounded owners; API-client is a large owner and only its format mapping is wiring-only. Export API test is 789 lines: small existing matrix/helper extension only; new Markdown API/format/browser suites receive the new scope to avoid unbounded append. Keep batching/cancellation/progress/atomic publication/24h TTL in the existing loop; do not duplicate that pipeline.
+- Verification / stop: freeze implementation before independent SPEC then QUALITY and coordinated backend Ruff/ty/target/full tests, frontend lint/type and full desktop build, synthetic browser scopes/locales/download action. >20-chapter batch and Markdown lifecycle/expired/cross-project download guard must be tested. Source hashes and exact task-resource cleanup bind evidence; old tests/builds are not new-format evidence. Overall V1 remains needs-verification while remaining source/release gates exist.
+- Resume / live ownership: user reiterated local commit. Coordinator re-read HEAD 396a48f, feature/branding, one registered worktree and the in-progress allowlisted patch. Existing /root/markdown_export_implementation remains the sole source writer; do not duplicate its dispatch. Claude implementation j-cq86fv ended with third-party insufficient credits (exit 1), no implementation or review conclusion; this is not a login issue. Codex fallback continues the same slice. The existing en/zh-CN writing.chapterExport.export key may become Export / 导出 so the CTA applies to all three formats. No other locale expansion is authorized.
+- Frozen delivery: /root/markdown_export_implementation returned DONE with 14 allowlisted files, then stopped editing. Coordinator captured tmp/markdown-export-source-manifest-20261003.json and a complete 57,398-byte working-tree diff including four new files. Fresh /root/markdown_export_spec_review owns Stage 1; Stage 2 and executed validation are pending. Tracked source whitespace check with CRLF-aware rules exits 0. No new-format test/build result exists yet.
 
 ## 2026-10-03 DOCX Import / Export Cleanup Terminal Evidence
 
@@ -187,10 +214,10 @@
 
 ## DriftCheckDraft
 
-- Scope status: 既有 authoring/restore/distribution 源码提交保留；本轮 outline/story-memory 最终 61 browser、静态/build 和 fresh SPEC/QUALITY 通过，用户明确授权同主题本地提交。仍继续完整 §42；当前后端未改变，迁移唯一头保持 1028。
+- Scope status: 既有 source commits 保留；本轮 Markdown fresh 两阶段审查、216 定向/2015 完整后端、434 文件前端静态/完整 desktop build/6 browser 通过，14 个最终 hash 相符。保存用户授权的同主题本地提交；完整 §42 仍 needs-verification，迁移唯一头保持 1028。
 - Compatibility status: 保留 OpenFix 既有工作、唯一主工作树、外层 ai-novel 和只读 OpenFic。当前 source checks 不等同于当前安装包 runtime、真实 provider、干净升级或 ARM64 发布验收。
-- Retirement status: 人物/世界书及本轮大纲/故事记忆的 competing initializers 已收敛到共享 selection owner；保留既有 API/store 合同和内部 openfic wheel。配置 runtime 的已有顶层保护、普通子树 symlink 检查和 migration/portable 行为保留；没有清理用户数据。
+- Retirement status: Markdown 复用既有 plan/job/text loop；硬编码 suffix 分支统一到 canonical map，实际 mapper 的非 DOCX 一律 TXT 假设已退役。default TXT/DOCX、batch/atomic/TTL 保留；既有 selection/restore owner 和内部 openfic wheel 兼容性保留，未清理用户数据。
 - New risk signals:
-- 上轮表单、人物/世界书、asset mapping、fork wheel、restore runtime 以及本轮大纲/故事记忆 URL/候选竞态已修复；新审计确认 DOCX 前置正文丢失和导出 TTL 两个缺陷，另切后端任务。Consistency/AI 选择与条件性手动覆盖升级仅有源码证据。
+- 表单/选择/restore/distribution、DOCX 前置正文与导出 TTL 已修复，Markdown 缺失能力本轮已实现并验证。Consistency/AI 选择与条件性手动覆盖升级仍仅有源码观察；跨生产 session 取消、真实 worker/Windows 文件占用并发仍未由合成测试证明。
 - Windows 符号链接用例仍缺少本机权限；冷缓存 remount 没有专门 fixture，当前安装包不覆盖最新源码，Windows ARM64 binary dependencies/首启与真实供应商、升级、远端 release、签名仍待验收。
 - Advisory decision: needs-verification
