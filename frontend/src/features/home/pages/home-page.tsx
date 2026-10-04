@@ -1,9 +1,9 @@
-import { Box, Button, Container, Flex, Text } from "@radix-ui/themes";
+import { Box, Button } from "@radix-ui/themes";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Upload } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
+import { Link, useNavigate } from "react-router";
 
 import { toast } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
@@ -96,34 +96,17 @@ export function HomePage() {
       {...mobileSidebarSwipeHandlers}
       className="home-page mobile-sidebar-swipe-surface"
     >
-      <Container
-        size="4"
-        px="5"
-      >
-        <Flex
-          className="home-page__header"
-          align="center"
-          justify="between"
-          gap="3"
-          wrap="wrap"
-        >
-          <Flex
-            align="center"
-            gap="3"
-          >
+      <div className="home-page__inner">
+        <header className="home-page__header">
+          <div className="home-page__heading">
             <MobileAppSidebarTrigger />
-            <Text
-              size="5"
-              weight="medium"
-            >
-              {t("home.title")}
-            </Text>
-          </Flex>
+            <div className="home-page__heading-text">
+              <h1 className="home-page__title">{t("home.title")}</h1>
+              <p className="home-page__subtitle">{t("home.subtitle")}</p>
+            </div>
+          </div>
 
-          <Flex
-            align="center"
-            gap="2"
-          >
+          <div className="home-page__header-actions">
             <Button
               size="2"
               onClick={() => setIsCreateDialogOpen(true)}
@@ -145,43 +128,28 @@ export function HomePage() {
               />
               {t("home.importNovel")}
             </Button>
-          </Flex>
-        </Flex>
-      </Container>
+          </div>
+        </header>
 
-      <Container
-        size="4"
-        px="5"
-        py="5"
-        className="home-page__body"
-      >
-        <Flex
-          direction="column"
-          gap="5"
-        >
-          <Flex
-            gap="4"
-            wrap="wrap"
-            align="stretch"
-          >
-            <Box className="home-page__continue">
-              <ContinueWritingCard project={recentProjects[0]} />
-            </Box>
+        <main className="home-page__body">
+          <div className="home-page__overview">
+            <ContinueWritingCard project={recentProjects[0]} />
             <WritingStatCards project={recentProjects[0]} />
-          </Flex>
+          </div>
 
           <RecentProjectsList projects={recentProjects} />
 
-          <Button
-            asChild
-            variant="soft"
-            size="2"
-            className="home-page__all-projects"
-          >
-            <Link to="/projects">{t("home.goToProjects")}</Link>
-          </Button>
-        </Flex>
-      </Container>
+          <div className="home-page__footer">
+            <Button
+              asChild
+              variant="soft"
+              size="2"
+            >
+              <Link to="/projects">{t("home.goToProjects")}</Link>
+            </Button>
+          </div>
+        </main>
+      </div>
 
       <ProjectFormDialog
         open={isCreateDialogOpen}

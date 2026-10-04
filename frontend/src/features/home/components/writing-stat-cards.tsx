@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   Dialog,
   Flex,
@@ -51,55 +50,38 @@ function formatWordDelta(value: number): string {
 function WritingStatCard({ label, stats, isLoading }: WritingStatCardProps) {
   const { t } = useTranslation();
 
+  // 读取中与读取失败都不能编造数字：只显示占位符，并保留单位与说明的位置，避免卡片高度跳动。
+  const hasValue = !isLoading && Boolean(stats);
+
   return (
-    <Box className="writing-stat-card">
-      <Flex
-        align="center"
-        gap="2"
-      >
-        <CalendarDays
-          size={14}
-          color="var(--gray-11)"
+    <article className="writing-stat-card">
+      <header className="writing-stat-card__head">
+        <span
+          className="writing-stat-card__icon"
           aria-hidden="true"
-        />
-        <Text
-          size="2"
-          color="gray"
         >
-          {label}
-        </Text>
-      </Flex>
-      {isLoading || !stats ? (
-        <Text
-          size="5"
-          color="gray"
+          <CalendarDays size={14} />
+        </span>
+        <span className="writing-stat-card__label">{label}</span>
+      </header>
+
+      <p className="writing-stat-card__value-row">
+        <span
+          className={
+            hasValue
+              ? "writing-stat-card__value"
+              : "writing-stat-card__value writing-stat-card__value--placeholder"
+          }
         >
-          --
-        </Text>
-      ) : (
-        <>
-          <Text
-            size="5"
-            weight="medium"
-          >
-            {formatWordDelta(stats.wordDelta)}
-            <Text
-              size="1"
-              color="gray"
-              ml="1"
-            >
-              {t("home.wordsUnit")}
-            </Text>
-          </Text>
-          <Text
-            size="1"
-            color="gray"
-          >
-            {t("home.activeDays", { count: stats.activeDays })}
-          </Text>
-        </>
-      )}
-    </Box>
+          {hasValue && stats ? formatWordDelta(stats.wordDelta) : "--"}
+        </span>
+        {hasValue ? <span className="writing-stat-card__unit">{t("home.wordsUnit")}</span> : null}
+      </p>
+
+      <p className="writing-stat-card__caption">
+        {hasValue && stats ? t("home.activeDays", { count: stats.activeDays }) : ""}
+      </p>
+    </article>
   );
 }
 
@@ -211,31 +193,19 @@ function DailyGoalCard({ project }: DailyGoalCardProps) {
   };
 
   return (
-    <Box className="writing-stat-card">
-      <Flex
-        align="center"
-        justify="between"
-        gap="2"
-      >
-        <Flex
-          align="center"
-          gap="2"
+    <article className="writing-stat-card writing-stat-card--goal">
+      <header className="writing-stat-card__head">
+        <span
+          className="writing-stat-card__icon"
+          aria-hidden="true"
         >
-          <Target
-            size={14}
-            color="var(--gray-11)"
-            aria-hidden="true"
-          />
-          <Text
-            size="2"
-            color="gray"
-          >
-            {t("home.dailyGoal")}
-          </Text>
-        </Flex>
+          <Target size={14} />
+        </span>
+        <span className="writing-stat-card__label">{t("home.dailyGoal")}</span>
         {/* 读取成功前不允许编辑，避免用空值覆盖已保存的目标。 */}
         <Tooltip content={t("home.dailyGoalEdit")}>
           <IconButton
+            className="writing-stat-card__edit"
             size="1"
             variant="ghost"
             color="gray"
@@ -249,31 +219,19 @@ function DailyGoalCard({ project }: DailyGoalCardProps) {
             />
           </IconButton>
         </Tooltip>
-      </Flex>
+      </header>
 
       {/* 目标按项目保存，卡片里必须标出是哪个项目；标题过长时截断并保留完整提示。 */}
-      <Text
-        size="1"
-        color="gray"
-        truncate
+      <p
+        className="writing-stat-card__project"
         title={project.title}
-        style={{ maxWidth: 160 }}
       >
         {project.title}
-      </Text>
+      </p>
 
       {hasProfileLoadFailed ? (
-        <Flex
-          direction="column"
-          align="start"
-          gap="2"
-        >
-          <Text
-            size="1"
-            color="red"
-          >
-            {t("home.dailyGoalProfileFailed")}
-          </Text>
+        <div className="writing-stat-card__fallback">
+          <p className="writing-stat-card__error">{t("home.dailyGoalProfileFailed")}</p>
           {/* 读取失败时用同一个查询重试，而不是让编辑入口一直不可用。 */}
           <Button
             size="1"
@@ -288,44 +246,46 @@ function DailyGoalCard({ project }: DailyGoalCardProps) {
             />
             {t("home.dailyGoalProfileRetry")}
           </Button>
-        </Flex>
+        </div>
       ) : dailyWordGoal > 0 ? (
         <>
-          <Text
-            size="5"
-            weight="medium"
-          >
-            {todayStats
-              ? t("home.dailyGoalProgress", {
-                  current: todayStats.wordDelta.toLocaleString(),
-                  target: dailyWordGoal.toLocaleString(),
-                })
-              : "--"}
-          </Text>
+          <p className="writing-stat-card__value-row">
+            <span
+              className={
+                todayStats
+                  ? "writing-stat-card__value"
+                  : "writing-stat-card__value writing-stat-card__value--placeholder"
+              }
+            >
+              {todayStats
+                ? t("home.dailyGoalProgressValue", {
+                    current: todayStats.wordDelta.toLocaleString(),
+                    target: dailyWordGoal.toLocaleString(),
+                  })
+                : "--"}
+            </span>
+            {todayStats ? (
+              <span className="writing-stat-card__unit">{t("home.wordsUnit")}</span>
+            ) : null}
+          </p>
           {/* 没有真实数字时不画进度条：0% 会被读成「今天一个字都没写」。 */}
           {progressPercent === null ? null : (
             <Progress
+              className="writing-stat-card__progress"
               value={progressPercent}
               size="1"
             />
           )}
           {hasTodayStatsLoadFailed ? (
-            <Text
-              size="1"
-              color="red"
-            >
-              {t("home.dailyGoalStatsFailed")}
-            </Text>
+            <p className="writing-stat-card__error">{t("home.dailyGoalStatsFailed")}</p>
           ) : null}
         </>
       ) : (
-        <Text
-          size="5"
-          weight="medium"
-          color="gray"
-        >
-          {profile ? t("home.dailyGoalUnset") : "--"}
-        </Text>
+        <p className="writing-stat-card__value-row">
+          <span className="writing-stat-card__value writing-stat-card__value--muted">
+            {profile ? t("home.dailyGoalUnset") : "--"}
+          </span>
+        </p>
       )}
 
       <Dialog.Root
@@ -400,7 +360,7 @@ function DailyGoalCard({ project }: DailyGoalCardProps) {
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
-    </Box>
+    </article>
   );
 }
 
@@ -415,26 +375,25 @@ export function WritingStatCards({ project }: WritingStatCardsProps) {
   const { data: weekStats, isLoading: isWeekLoading } = useWritingStats("week");
 
   return (
-    <Flex
-      gap="3"
-      wrap="wrap"
-    >
-      <WritingStatCard
-        label={t("home.todayWriting")}
-        stats={todayStats}
-        isLoading={isTodayLoading}
-      />
-      <WritingStatCard
-        label={t("home.thisWeekWriting")}
-        stats={weekStats}
-        isLoading={isWeekLoading}
-      />
-      {project ? (
-        <DailyGoalCard
-          key={project.projectId}
-          project={project}
+    <div className="writing-stat-cards">
+      <div className="writing-stat-cards__grid">
+        <WritingStatCard
+          label={t("home.todayWriting")}
+          stats={todayStats}
+          isLoading={isTodayLoading}
         />
-      ) : null}
-    </Flex>
+        <WritingStatCard
+          label={t("home.thisWeekWriting")}
+          stats={weekStats}
+          isLoading={isWeekLoading}
+        />
+        {project ? (
+          <DailyGoalCard
+            key={project.projectId}
+            project={project}
+          />
+        ) : null}
+      </div>
+    </div>
   );
 }

@@ -22,13 +22,14 @@
 }
 
 .mobile-sidebar-sheet {
-  transform: translateX(-100%);
-  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  /* 独立位移属性不会被桌面侧栏 MotionBox 遗留的行内 transform 覆盖。 */
+  translate: -100% 0;
+  transition: translate 0.24s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
 }
 
 .mobile-sidebar-sheet[data-open="true"] {
-  transform: translateX(0);
+  translate: 0 0;
   pointer-events: auto;
 }
 

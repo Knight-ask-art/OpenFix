@@ -1,10 +1,163 @@
+/*
+ * 写作统计组：今日 / 本周 / 每日目标。
+ *
+ * 外层是查询容器，真正的网格在内层：这样统计区放在「续写卡片旁边」还是「整行独占」时，
+ * 都能按自身可用宽度决定列数，而不是按视口宽度猜测。
+ */
+.writing-stat-cards {
+  container-name: home-writing-stats;
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.writing-stat-cards__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 12px;
+}
+
+/* 目标卡片内容比今日/本周更长，窄容器里让它独占一行。 */
+.writing-stat-cards__grid > .writing-stat-card--goal {
+  grid-column: 1 / -1;
+}
+
+@container home-writing-stats (min-width: 700px) {
+  .writing-stat-cards__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .writing-stat-cards__grid > .writing-stat-card--goal {
+    grid-column: auto;
+  }
+}
+
+@container home-writing-stats (max-width: 340px) {
+  .writing-stat-cards__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .writing-stat-card {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 160px;
-  padding: 16px 20px;
-  border: 1px solid var(--gray-a5);
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--home-card-border);
   border-radius: var(--radius-3);
-  background: var(--color-panel-solid);
+  background: var(--home-card-surface);
+}
+
+.writing-stat-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.writing-stat-card__icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--gray-11);
+}
+
+.writing-stat-card__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--gray-11);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.writing-stat-card__edit {
+  flex-shrink: 0;
+}
+
+.home-page .writing-stat-card__edit.rt-IconButton {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  margin-left: auto;
+}
+
+/* 目标按项目保存，卡片必须标出项目；过长时截断并保留完整提示。 */
+.writing-stat-card__project {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--gray-11);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 数值与单位是两个独立的行内区域，靠基线对齐，不靠内联外边距硬挤。 */
+.writing-stat-card__value-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  margin: 6px 0 0;
+}
+
+.writing-stat-card__value {
+  min-width: 0;
+  color: var(--gray-12);
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  /* 超大数字在窄卡片里宁可折行，也不要撑出卡片外。 */
+  overflow-wrap: anywhere;
+}
+
+.writing-stat-card__value--placeholder {
+  color: var(--gray-9);
+}
+
+.writing-stat-card__value--muted {
+  color: var(--gray-11);
+  font-size: var(--font-size-xl);
+  letter-spacing: 0;
+}
+
+.writing-stat-card__unit {
+  flex-shrink: 0;
+  color: var(--gray-11);
+  font-size: var(--font-size-sm);
+}
+
+.writing-stat-card__caption {
+  min-height: 17px;
+  margin: 0;
+  color: var(--gray-11);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
+.writing-stat-card__progress {
+  margin-top: 2px;
+}
+
+.writing-stat-card__error {
+  margin: 0;
+  color: var(--red-11);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.writing-stat-card__fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
 }

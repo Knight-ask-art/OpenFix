@@ -1,6 +1,6 @@
-import { Box, Flex, Text } from "@radix-ui/themes";
-import { Link } from "react-router";
+import { ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 import { getProjectInitial, type RecentProject } from "@/lib/recent-projects";
 
@@ -18,40 +18,39 @@ export function RecentProjectsList({ projects }: RecentProjectsListProps) {
   }
 
   return (
-    <Box className="recent-projects-list">
-      <Text
-        size="2"
-        weight="medium"
-        color="gray"
-      >
-        {t("home.recentProjects")}
-      </Text>
-      <Flex
-        direction="column"
-        gap="2"
-      >
+    <section className="recent-projects-list">
+      <h2 className="recent-projects-list__heading">{t("home.recentProjects")}</h2>
+      <ul className="recent-projects-list__items">
         {projects.map((project) => (
-          <Link
+          <li
             key={project.projectId}
-            to={`/projects/${project.projectId}`}
-            className="recent-projects-list__item"
+            className="recent-projects-list__row"
           >
-            <span
-              aria-hidden="true"
-              className={`recent-projects-list__badge recent-projects-list__badge--${project.color}`}
+            <Link
+              to={`/projects/${project.projectId}`}
+              className="recent-projects-list__item"
             >
-              {getProjectInitial(project.title)}
-            </span>
-            <Text
-              size="2"
-              weight="medium"
-              className="recent-projects-list__title"
-            >
-              {project.title}
-            </Text>
-          </Link>
+              <span
+                aria-hidden="true"
+                className={`recent-projects-list__badge recent-projects-list__badge--${project.color}`}
+              >
+                {getProjectInitial(project.title)}
+              </span>
+              <span
+                className="recent-projects-list__title"
+                title={project.title}
+              >
+                {project.title}
+              </span>
+              <ChevronRight
+                className="recent-projects-list__chevron"
+                size={16}
+                aria-hidden="true"
+              />
+            </Link>
+          </li>
         ))}
-      </Flex>
-    </Box>
+      </ul>
+    </section>
   );
 }

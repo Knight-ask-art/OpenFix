@@ -1,4 +1,17 @@
+/*
+ * 首页版面。
+ *
+ * 这里只定义首页自己的排版骨架与共享表面变量（--home-*），供 home 特性下的卡片复用；
+ * 不去改动全局主题，也不依赖 Radix 的响应式属性，避免宽度变化时出现互相挤压的行内布局。
+ */
 .home-page {
+  /* 页面级表面变量：卡片、描边、暖色点缀都从这里取，便于首页内部保持一致。 */
+  --home-card-surface: var(--color-panel-solid);
+  --home-card-border: var(--gray-a5);
+  --home-feature-surface: color-mix(in srgb, var(--amber-a2) 45%, var(--color-panel-solid));
+  --home-feature-border: var(--amber-a4);
+  --home-accent: var(--amber-11);
+
   height: 100%;
   min-height: 0;
   overflow-y: auto;
@@ -6,21 +19,121 @@
   background: var(--color-background);
 }
 
+.home-page__inner {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+
 .home-page__header {
-  padding-top: 20px;
-  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--gray-a4);
+}
+
+.home-page__heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.home-page__heading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.home-page__title {
+  margin: 0;
+  color: var(--gray-12);
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.home-page__subtitle {
+  margin: 0;
+  color: var(--gray-11);
+  font-size: var(--font-size-base);
+  line-height: 1.4;
+}
+
+.home-page__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .home-page__body {
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 24px;
 }
 
-.home-page__continue {
-  flex: 1;
-  min-width: 240px;
-  max-width: 360px;
+/*
+ * 宽屏：续写卡片与写作统计并排；窄屏折成单列。
+ * 两个子项都允许收缩（min-width: 0），长书名与大数字不会把网格撑破。
+ */
+.home-page__overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
 }
 
-.home-page__all-projects {
-  align-self: flex-start;
+.home-page__overview > * {
+  min-width: 0;
+}
+
+.home-page__footer {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.home-page .rt-BaseButton {
+  min-height: 36px;
+}
+
+.home-page :is(.rt-BaseButton, .rt-IconButton):focus-visible {
+  outline: 2px solid var(--focus-8);
+  outline-offset: 3px;
+}
+
+.home-page .rt-BaseButton {
+  min-height: 36px;
+}
+
+.home-page :is(.rt-BaseButton, .rt-IconButton):focus-visible {
+  outline: 2px solid var(--focus-8);
+  outline-offset: 3px;
+}
+
+@media (max-width: 960px) {
+  .home-page__overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .home-page__inner {
+    padding: 18px 14px 32px;
+  }
+
+  .home-page__title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .home-page__body {
+    gap: 20px;
+  }
 }

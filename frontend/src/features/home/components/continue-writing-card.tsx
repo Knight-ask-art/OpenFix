@@ -1,8 +1,8 @@
-import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import { Button } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
-import { LayoutDashboard, PenLine } from "lucide-react";
-import { Link } from "react-router";
+import { BookOpen, LayoutDashboard, PenLine } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 import { fetchProject } from "@/lib/api-client";
 import type { RecentProject } from "@/lib/recent-projects";
@@ -25,78 +25,75 @@ export function ContinueWritingCard({ project }: ContinueWritingCardProps) {
 
   if (!project) {
     return (
-      <Box className="continue-writing-card continue-writing-card--empty">
-        <Text
-          size="4"
-          weight="medium"
+      <section className="continue-writing-card continue-writing-card--empty">
+        <span
+          className="continue-writing-card__empty-icon"
+          aria-hidden="true"
         >
-          {t("home.continueEmptyTitle")}
-        </Text>
-        <Text
-          size="2"
-          color="gray"
-        >
-          {t("home.continueEmptyBody")}
-        </Text>
-        <Button
-          asChild
-          variant="soft"
-          size="2"
-        >
-          <Link to="/projects">{t("home.goToProjects")}</Link>
-        </Button>
-      </Box>
+          <BookOpen size={18} />
+        </span>
+        <h2 className="continue-writing-card__empty-title">{t("home.continueEmptyTitle")}</h2>
+        <p className="continue-writing-card__empty-body">{t("home.continueEmptyBody")}</p>
+        <div className="continue-writing-card__actions">
+          <Button
+            asChild
+            variant="soft"
+            size="2"
+          >
+            <Link to="/projects">{t("home.goToProjects")}</Link>
+          </Button>
+        </div>
+      </section>
     );
   }
 
   return (
-    <Box className="continue-writing-card">
-      <Flex
-        align="center"
-        justify="between"
-      >
-        <Text
-          size="2"
-          color="gray"
-        >
-          {t("home.continueLabel")}
-        </Text>
+    <section className="continue-writing-card">
+      <p className="continue-writing-card__label">
         <PenLine
-          size={16}
-          color="var(--gray-11)"
+          size={14}
           aria-hidden="true"
         />
-      </Flex>
-      <Text
-        size="5"
-        weight="medium"
+        {t("home.continueLabel")}
+      </p>
+
+      {/* 书名可能很长，这里允许换行显示完整标题，不做截断。 */}
+      <h2
         className="continue-writing-card__title"
+        title={project.title}
       >
         {project.title}
-      </Text>
-      {projectDetail ? (
-        <Text
-          size="2"
-          color="gray"
+      </h2>
+
+      {/* 字数与章数是两个独立的数值区域，各自带单位，不与书名挤在同一行。 */}
+      <p className="continue-writing-card__meta">
+        <span className="continue-writing-card__meta-item">
+          <span className="continue-writing-card__meta-value">
+            {projectDetail ? projectDetail.wordCount.toLocaleString() : "--"}
+          </span>
+          <span className="continue-writing-card__meta-unit">{t("home.wordsUnit")}</span>
+        </span>
+        <span
+          className="continue-writing-card__meta-separator"
+          aria-hidden="true"
         >
-          {t("home.continueMeta", {
-            words: projectDetail.wordCount.toLocaleString(),
-            chapters: projectDetail.chapterCount,
-          })}
-        </Text>
-      ) : null}
-      <Text
-        size="1"
-        color="gray"
-      >
+          ·
+        </span>
+        <span className="continue-writing-card__meta-item">
+          <span className="continue-writing-card__meta-value">
+            {projectDetail ? projectDetail.chapterCount.toLocaleString() : "--"}
+          </span>
+          <span className="continue-writing-card__meta-unit">{t("home.chaptersUnit")}</span>
+        </span>
+      </p>
+
+      <p className="continue-writing-card__opened">
         {t("home.continueLastOpened", {
           time: project.openedAt.toLocaleString(),
         })}
-      </Text>
-      <Flex
-        gap="2"
-        wrap="wrap"
-      >
+      </p>
+
+      <div className="continue-writing-card__actions">
         <Button
           asChild
           size="2"
@@ -110,11 +107,14 @@ export function ContinueWritingCard({ project }: ContinueWritingCardProps) {
           color="gray"
         >
           <Link to={`/projects/${project.projectId}/overview`}>
-            <LayoutDashboard size={14} />
+            <LayoutDashboard
+              size={14}
+              aria-hidden="true"
+            />
             {t("home.openOverview")}
           </Link>
         </Button>
-      </Flex>
-    </Box>
+      </div>
+    </section>
   );
 }
