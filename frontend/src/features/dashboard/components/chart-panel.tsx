@@ -252,11 +252,20 @@ function ChartTooltipRows({ rows }: { rows: ChartTooltipRow[] }) {
   );
 }
 
-function ChartLegend({ items }: { items: Array<{ color: string; label: string }> }) {
+function ChartLegend({
+  items,
+  variant,
+}: {
+  items: Array<{ color: string; label: string; value?: string }>;
+  variant?: "pie";
+}) {
   if (items.length === 0) return null;
 
   return (
-    <div className="dashboard-chart-legend">
+    <div
+      className="dashboard-chart-legend"
+      data-variant={variant}
+    >
       {items.map((item) => (
         <div
           key={`${item.color}:${item.label}`}
@@ -266,7 +275,8 @@ function ChartLegend({ items }: { items: Array<{ color: string; label: string }>
             className="dashboard-chart-legend-chip"
             style={getTooltipChipStyle(item.color)}
           />
-          <span>{item.label}</span>
+          <span className="dashboard-chart-legend-label">{item.label}</span>
+          {item.value ? <span className="dashboard-chart-legend-value">{item.value}</span> : null}
         </div>
       ))}
     </div>
@@ -285,6 +295,12 @@ export function ChartPanel({
   const [canRenderChart, setCanRenderChart] = useState(false);
   const shouldShowLoadingState = (isLoading && !hasData) || (hasData && !canRenderChart);
   const shouldShowEmptyState = !isLoading && !hasData;
+  const lineDateCount =
+    option.kind === "line"
+      ? new Set(option.data.flatMap((series) => series.data.map((item) => item.x))).size
+      : 0;
+  const pieTotal =
+    option.kind === "pie" ? option.data.reduce((total, item) => total + item.value, 0) : 0;
   const yTickValues = getIntegerTickValues(getChartMaxValue(option));
   const areaBaselineValue = getChartMinValue(option);
   const valueFormat = (value: number) => formatChartValue(value, option.valueFormat);
@@ -377,6 +393,7 @@ export function ChartPanel({
             className="dashboard-chart"
             data-ready="true"
             data-size={size}
+            data-single-date={lineDateCount === 1}
           >
             <div className="dashboard-chart-plot">
               {option.kind === "line" ? (
@@ -412,7 +429,11 @@ export function ChartPanel({
                   enableArea={Boolean(option.enableArea)}
                   areaBaselineValue={areaBaselineValue}
                   areaOpacity={0.14}
-                  enablePoints={false}
+                  enablePoints={lineDateCount === 1}
+                  pointSize={7}
+                  pointColor={{ from: "series.color" }}
+                  pointBorderWidth={2}
+                  pointBorderColor="var(--color-panel-solid)"
                   enableGridX={false}
                   enableSlices="x"
                   useMesh={false}
@@ -457,23 +478,30 @@ export function ChartPanel({
                 />
               ) : null}
               {option.kind === "pie" ? (
-                <ResponsivePie
-                  data={option.data}
-                  theme={dashboardChartTextTheme}
-                  colors={dashboardChartLegendColors}
-                  margin={{ top: 10, right: 12, bottom: 18, left: 12 }}
-                  innerRadius={0.58}
-                  padAngle={1.5}
-                  cornerRadius={4}
-                  activeOuterRadiusOffset={6}
-                  enableArcLabels
-                  enableArcLinkLabels={false}
-                  arcLabel={(item) => String(item.label)}
-                  arcLabelsSkipAngle={16}
-                  tooltip={pieTooltip}
-                  valueFormat={valueFormat}
-                  legends={[]}
-                />
+                <div className="dashboard-pie-chart">
+                  <ResponsivePie
+                    data={option.data}
+                    theme={dashboardChartTextTheme}
+                    colors={dashboardChartLegendColors}
+                    margin={{ top: 10, right: 12, bottom: 18, left: 12 }}
+                    innerRadius={0.58}
+                    padAngle={1.5}
+                    cornerRadius={4}
+                    activeOuterRadiusOffset={6}
+                    enableArcLabels={false}
+                    enableArcLinkLabels={false}
+                    tooltip={pieTooltip}
+                    valueFormat={valueFormat}
+                    legends={[]}
+                  />
+                  <div
+                    className="dashboard-pie-center"
+                    aria-hidden="true"
+                  >
+                    <strong>{formatChartValue(pieTotal, option.valueFormat)}</strong>
+                    <span>{t(getTooltipUnitKey(option.tooltip?.unit ?? "calls"))}</span>
+                  </div>
+                </div>
               ) : null}
             </div>
             {option.kind === "line" && option.data.length > 1 ? (
@@ -497,7 +525,9 @@ export function ChartPanel({
                 items={option.data.map((item, index) => ({
                   color: dashboardChartLegendColors[index % dashboardChartLegendColors.length],
                   label: item.label,
+                  value: formatChartValue(item.value, option.valueFormat),
                 }))}
+                variant="pie"
               />
             ) : null}
           </div>

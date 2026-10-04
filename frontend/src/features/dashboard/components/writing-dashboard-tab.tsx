@@ -277,7 +277,7 @@ export function WritingDashboardTab({
                         align="top-left"
                         margin={{ top: 24, right: 0, bottom: 0, left: 0 }}
                         dayRadius={2}
-                        daySpacing={4}
+                        daySpacing={2}
                         dayBorderWidth={0.5}
                         dayBorderColor="var(--gray-a5)"
                         emptyColor="var(--gray-a3)"
