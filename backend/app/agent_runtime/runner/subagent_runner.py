@@ -261,11 +261,22 @@ def _interrupt_resume_id(payload: dict[str, Any]) -> str | None:
 
 
 def _last_assistant_content(messages: list[BaseMessage]) -> str | None:
+    """Return the latest AI answer produced after the current ``HumanMessage``.
+
+    Only the most recent AI message of the current turn may supply the final
+    assistant content. When that message carries no usable text (empty string,
+    reasoning/image-only blocks, or an unfinished tool call), the turn has
+    no answer and older assistant text from previous turns must not be reused.
+    """
     for message in reversed(messages):
-        if isinstance(message, AIMessage) and isinstance(message.content, str):
-            content = message.content.strip()
-            if content:
-                return content
+        if isinstance(message, HumanMessage):
+            return None
+        if not isinstance(message, AIMessage):
+            continue
+        if message.tool_calls:
+            return None
+        content = str(message.text).strip()
+        return content or None
     return None
 
 

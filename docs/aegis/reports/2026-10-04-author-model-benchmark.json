@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-04",
+  "baseline": {
+    "repository": "Knight-ask-art/OpenFix",
+    "branch": "feature/branding",
+    "head": "edcd674f28054133e88e8f11ba4b7ffcac33feb2",
+    "baseline_kind": "current_local_worktree"
+  },
+  "methodology": {
+    "comparison": "same-author-samples-two-model-observation",
+    "before_after_controlled": false,
+    "blind_quality_evaluation": false,
+    "sample_chapters": 4,
+    "sample_openfix_word_count": 5297,
+    "output_limit": 6144,
+    "temperature": 0.6,
+    "provider": "local-openai-compatible",
+    "configured_context_length": 128000,
+    "provider_context_limit_verified": false,
+    "real_model_api_used": true,
+    "unit_prices_available": false,
+    "total_cost": null,
+    "counts_source": "OpenFix audit rows with category=agent; session_title excluded",
+    "calls_are_http_attempt_count": false,
+    "output_includes_reasoning": true,
+    "latency_is_end_to_end": false,
+    "latency_note": "Parent agent latency includes waits and may overlap child calls; approvals affect wall time.",
+    "estimated_aggregate_note": "Tool-result, pruning and part totals are request contributions and are not deduplicated corpus sizes.",
+    "zero_error_usage_note": "Zero-token failed audit rows do not establish that provider attempts were unbilled.",
+    "zero_cache_write_note": "Zero recorded cache writes does not prove explicit cache writes are supported or absent.",
+    "completed_run_note": "Transport success does not establish usable agent prose; exhausted reasoning-only turns failed at the subagent seam."
+  },
+  "style_card": {
+    "compiled_tokens_estimated": 388,
+    "cap": 800,
+    "wrapped_request_tokens_estimated": 447,
+    "observed_agents": [
+      "writer",
+      "reviewer",
+      "actor",
+      "build"
+    ],
+    "raw_samples_reloaded_for_style_card": false
+  },
+  "runs": [
+    {
+      "phase": "style",
+      "model": "cline-pass/mimo-v2.6-flash",
+      "logical_agent_calls": 7,
+      "tool_calls": 10,
+      "failed_tool_calls": 2,
+      "input_tokens": 91909,
+      "cached_input_tokens": 67584,
+      "uncached_input_tokens": 24325,
+      "reported_cache_write_tokens": 0,
+      "output_tokens": 8055,
+      "reasoning_tokens": 5244,
+      "cache_hit_rate": 0.7353360389080503,
+      "request_tool_result_tokens_estimated_sum": 10574,
+      "request_pruned_tokens_estimated_sum": 0,
+      "request_compacted_tokens_estimated_sum": 0,
+      "audit_latency_ms_sum": 96244,
+      "provider_error_calls": 0,
+      "reasoning_only_exhausted_calls": 0,
+      "by_agent": {
+        "build": {
+          "calls": 4,
+          "input_tokens": 52320,
+          "cached_input_tokens": 37504,
+          "output_tokens": 2179,
+          "reasoning_tokens": 519,
+          "tool_schema_tokens_estimated_per_call": [
+            8675
+          ],
+          "style_card_tokens_estimated_per_call": [
+            0
+          ]
+        },
+        "composer": {
+          "calls": 3,
+          "input_tokens": 39589,
+          "cached_input_tokens": 30080,
+          "output_tokens": 5876,
+          "reasoning_tokens": 4725,
+          "tool_schema_tokens_estimated_per_call": [
+            4567
+          ],
+          "style_card_tokens_estimated_per_call": [
+            0
+          ]
+        }
+      }
+    },
+    {
+      "phase": "style",
+      "model": "cline-pass/deepseek-v4.1-flash",
+      "logical_agent_calls": 6,
+      "tool_calls": 11,
+      "failed_tool_calls": 0,
+      "input_tokens": 80672,
+      "cached_input_tokens": 48768,
+      "uncached_input_tokens": 31904,
+      "reported_cache_write_tokens": 0,
+      "output_tokens": 5421,
+      "reasoning_tokens": 2391,
+      "cache_hit_rate": 0.6045220150733835,
+      "request_tool_result_tokens_estimated_sum": 11785,
+      "request_pruned_tokens_estimated_sum": 0,
+      "request_compacted_tokens_estimated_sum": 0,
+      "audit_latency_ms_sum": 54993,
+      "provider_error_calls": 0,
+      "reasoning_only_exhausted_calls": 0,
+      "by_agent": {
+        "composer": {
+          "calls": 4,
+          "input_tokens": 55978,
+          "cached_input_tokens": 37376,
+          "output_tokens": 3491,
+          "reasoning_tokens": 2196,
+          "tool_schema_tokens_estimated_per_call": [
+            4567
+          ],
+          "style_card_tokens_estimated_per_call": [
+            0
+          ]
+        },
+        "build": {
+          "calls": 2,
+          "input_tokens": 24694,
+          "cached_input_tokens": 11392,
+          "output_tokens": 1930,
+          "reasoning_tokens": 195,
+          "tool_schema_tokens_estimated_per_call": [
+            8675
+          ],
+          "style_card_tokens_estimated_per_call": [
+            0
+          ]
+        }
+      }
+    },
+    {
+      "phase": "writing",
+      "model": "cline-pass/mimo-v2.6-flash",
+      "logical_agent_calls": 23,
+      "tool_calls": 17,
+      "failed_tool_calls": 4,
+      "input_tokens": 264754,
+      "cached_input_tokens": 219648,
+      "uncached_input_tokens": 45106,
+      "reported_cache_write_tokens": 0,
+      "output_tokens": 31824,
+      "reasoning_tokens": 22115,
+      "cache_hit_rate": 0.8296305249401331,
+      "request_tool_result_tokens_estimated_sum": 7239,
+      "request_pruned_tokens_estimated_sum": 4605,
+      "request_compacted_tokens_estimated_sum": 0,
+      "audit_latency_ms_sum": 488858,
+      "provider_error_calls": 0,
+      "reasoning_only_exhausted_calls": 2,
+      "by_agent": {
+        "writer": {
+          "calls": 5,
+          "input_tokens": 45028,
+          "cached_input_tokens": 34688,
+          "output_tokens": 3243,
+          "reasoning_tokens": 2424,
+          "tool_schema_tokens_estimated_per_call": [
+            5871
+          ],
+          "style_card_tokens_estimated_per_call": [
+            447
+          ]
+        },
+        "build": {
+          "calls": 8,
+          "input_tokens": 138447,
+          "cached_input_tokens": 127232,
+          "output_tokens": 6924,
+          "reasoning_tokens": 396,
+          "tool_schema_tokens_estimated_per_call": [
+            8675
+          ],
+          "style_card_tokens_estimated_per_call": [
+            447
+          ]
+        },
+        "reviewer": {
+          "calls": 7,
+          "input_tokens": 53152,
+          "cached_input_tokens": 40832,
+          "output_tokens": 8561,
+          "reasoning_tokens": 6862,
+          "tool_schema_tokens_estimated_per_call": [
+            2666
+          ],
+          "style_card_tokens_estimated_per_call": [
+            447
+          ]
+        },
+        "actor": {
+          "calls": 3,
+          "input_tokens": 28127,
+          "cached_input_tokens": 16896,
+          "output_tokens": 13096,
+          "reasoning_tokens": 12433,
+          "tool_schema_tokens_estimated_per_call": [
+            6581
+          ],
+          "style_card_tokens_estimated_per_call": [
+            447
+          ]
+        }
+      }
+    },
+    {
+      "phase": "writing",
+      "model": "cline-pass/deepseek-v4.1-flash",
+      "logical_agent_calls": 21,
+      "tool_calls": 13,
+      "failed_tool_calls": 1,
+      "input_tokens": 273345,
+      "cached_input_tokens": 247808,
+      "uncached_input_tokens": 25537,
+      "reported_cache_write_tokens": 0,
+      "output_tokens": 22851,
+      "reasoning_tokens": 13580,
+      "cache_hit_rate": 0.9065759388318791,
+      "request_tool_result_tokens_estimated_sum": 10132,
+      "request_pruned_tokens_estimated_sum": 10053,
+      "request_compacted_tokens_estimated_sum": 0,
+      "audit_latency_ms_sum": 557893,
+      "provider_error_calls": 2,
+      "reasoning_only_exhausted_calls": 0,
+      "by_agent": {
+        "build": {
+          "calls": 12,
+          "input_tokens": 209186,
+          "cached_input_tokens": 194944,
+          "output_tokens": 8073,
+          "reasoning_tokens": 1335,
+          "tool_schema_tokens_estimated_per_call": [
+            8675
+          ],
+          "style_card_tokens_estimated_per_call": [
+            447
+          ]
+        },
+        "writer": {
+          "calls": 4,
+          "input_tokens": 17769,
+          "cached_input_tokens": 15488,
+          "output_tokens": 3842,
+          "reasoning_tokens": 3235,
+          "tool_schema_tokens_estimated_per_call": [
+            5871
+          ],
+          "style_card_tokens_estimated_per_call": [
+            447
+          ]
+        },
+        "reviewer": {
+          "calls": 4,
+          "input_tokens": 36937,
+          "cached_input_tokens": 28928,
+          "output_tokens": 7984,
+          "reasoning_tokens": 6728,
+          "tool_schema_tokens_estimated_per_call": [
+            2666
+          ],
+          "style_card_tokens_estimated_per_call": [
+            447
+          ]
+        },
+        "actor": {
+          "calls": 1,
+          "input_tokens": 9453,
+          "cached_input_tokens": 8448,
+          "output_tokens": 2952,
+          "reasoning_tokens": 2282,
+          "tool_schema_tokens_estimated_per_call": [
+            6581
+          ],
+          "style_card_tokens_estimated_per_call": [
+            447
+          ]
+        }
+      }
+    }
+  ],
+  "quality": [
+    {
+      "model": "cline-pass/mimo-v2.6-flash",
+      "draft_chinese_characters": 542,
+      "curated_chinese_characters": 517,
+      "names_retained": true,
+      "scene_retained": true,
+      "unsupported_past_removed_by_human": null,
+      "manuscript_written": false
+    },
+    {
+      "model": "cline-pass/deepseek-v4.1-flash",
+      "draft_chinese_characters": 534,
+      "curated_chinese_characters": 499,
+      "names_retained": true,
+      "scene_retained": true,
+      "unsupported_past_removed_by_human": true,
+      "manuscript_written": false
+    }
+  ],
+  "limitations": [
+    "Four short public prose samples; no 50+ chapter/long-session quality run.",
+    "No controlled pre-optimization baseline; no percentage savings claim.",
+    "No actual RAG or long-history compaction comparison in these runs.",
+    "Independent review found one unsupported past event missed by the model reviewer, and removed it from the curated note only.",
+    "No actual provider pricing metadata or independent gateway billing/HTTP-attempt ledger."
+  ]
+}

@@ -7,7 +7,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 ## Task Intent
 
 - Requested outcome: 按 V1.0 PRD 和源码改造清单第42节完成可在本机完成的产品修复与验收
-- Scope: 新版本/OpenFix 中 V1.0 残余实现与本机验收；用户明确授权完成后提交全部项目改动并推送自有 OpenFix 仓库，覆盖旧的仅本地提交限制；不修改 OpenFic 上游，不创建 tag/Release 或使用正式签名身份。当前切片验证自然度增强/Token 优化最新包、smoke 生命周期及备份文件锁修复。
+- Scope: 新版本/OpenFix 中 V1.0 残余实现与本机验收；用户明确授权完成后提交全部项目改动并推送自有 OpenFix 仓库，覆盖旧的仅本地提交限制；不修改 OpenFic 上游，不创建 tag/Release 或使用正式签名身份。保留自然度增强/Token 优化、smoke 生命周期及备份文件锁历史验收。当前切片按用户授权配置真实兼容网关、采用作者文风、用指定 MiMo/DeepSeek 实测，修复当前回合空正文判定并核验新包；不重跑 packaged smoke，原文、候选和凭据只存本地应用数据。
 
 ## Impact
 
@@ -20,6 +20,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-ai-model-error-and-inline-position-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-author-model-validation-20261004.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json
@@ -39,6 +40,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-ai-model-error-and-inline-position-20261003.json
+- docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-author-model-validation-20261004.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json
 - docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json
@@ -67,7 +69,7 @@ This proof bundle is an advisory Aegis Method Pack record. It does not determine
 
 ## Drift Check
 
-- Scope status: 本机切片evidence-finalized；源码f9d680b/feature/branding、一个worktree，26 release及64当前包合成smoke通过，250相关回归/Ruff/ty通过；用户授权显式路径提交并推送自有OpenFix。本次文档变更不改变业务/测试输入。
-- Compatibility status: 复用现有Notes/Skill/context/dispatch及Data Manager；DB Agent/Prompt/空skills覆盖保留，普通数据不被session filter排除。版本0.11.1，第三方provider行为与升级尚需外部验收。
-- Retirement status: 退役smoke只删目录不卸载的路径与备份Chromium网络状态；保留IndexedDB记录/数据库/凭据、fail-closed锁与symlink。owned卸载/登记及清理真实通过；win-unpacked和专用UV cache精确清理395950853bytes，交付hash不变，9000服务保留。
+- Scope status: 本轮局部evidence-finalized，基线edcd674f/feature/branding，一个worktree；真实模型与修复、静态新包均有终态；Git以实际提交推送读回为准。
+- Compatibility status: 原Notes/Skills/dispatch、SQLite、凭据、正文候选和用户Agent/Prompt权限保持原owner；没有迁移或新依赖，源码服务重启后四章/六笔记/default settings哈希一致。
+- Retirement status: 替换旧的跨历史找非空正文判定；空/工具前言不回退旧内容。清理本轮win-unpacked和专用UV cache，保留五交付资产、用户数据和共享缓存；历史smoke与当前新包分开。
 - Advisory decision: needs-verification

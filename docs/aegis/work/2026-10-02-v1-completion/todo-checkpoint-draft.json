@@ -1,20 +1,20 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
-  "currentTodo": "自然度增强、最新x64包和owned smoke/备份修复本机切片已验收收尾；授权提交推送以Git实际读回为准，整体V1正式验收needs-verification。",
+  "currentTodo": "作者模型实测、当前补丁、完整回归、新包静态与内容验收已完成；执行授权Git提交推送，以实际读回为准；整体V1正式验收needs-verification。",
   "completedTodos": [
-    "bfec5d1自然度增强和Style Card实现；实现阶段2139 full backend passed，收尾j-ltrge5 Ruff/ty/250 targeted passed；用户自定义与按需Skill兼容。",
-    "d9e63e8 owned smoke安装/卸载，f9d680b session网络锁精确过滤保留IndexedDB草稿；41 Node和80 Node/1 POSIX-only skip，desktop lint/typecheck通过。",
-    "j-oj5yw5最终退出0，26 release checks和64合成smoke通过；644 backend/733 frontend/56 desktop dist和ZIP逐字节一致；Authenticode NotSigned。",
-    "owned smoke目录/登记/进程0、9224释放、9000保留；清理win-unpacked与独立UV缓存共395950853bytes，5交付资产hash不变，一个工作树。"
+    "配置DeepSeek主模型/MiMo轻模型，四章原文与确认Style Card及候选Notes持久化；真实两模型分析和写作审稿链完成，未覆盖原章。",
+    "当前回合空AI不能复用旧正文，text blocks与tool-call前言边界回归；Claude CLI审查和实现退出0，协调者独立复核。",
+    "j-zt1gb0完整2149 passed；j-qxtekx Ruff/ty与149相关passed；j-sl5fg2自然度/Context/Skill相关250 passed；frontend/desktop lint/typecheck/build通过。",
+    "j-l1g1di退出0：26 release checks，644后端/733前端/56桌面及ZIP内容一致；两个临时目录精确清理395951061bytes，交付hash不变；新包NotSigned，未重跑packaged smoke。"
   ],
-  "activeSlice": "v1-current-package-and-smoke-cleanup-20261004 (evidence-finalized)",
+  "activeSlice": "v1-author-model-validation-20261004 (evidence-finalized)",
   "evidenceRefs": [
-    "docs/aegis/reports/2026-10-04-novel-naturalness.md",
-    "docs/aegis/reports/2026-10-04-current-package.md",
-    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-current-package-and-smoke-cleanup-20261004.json"
+    "docs/aegis/reports/2026-10-04-author-model-validation.md",
+    "docs/aegis/reports/2026-10-04-author-model-benchmark.json",
+    "tmp/real-model-validation-20261004-package/cleanup-final.json"
   ],
-  "blockedOn": "正式V1仍缺真实模型小说质量、干净Windows11历史升级/原数据、native ARM64、远端Actions/Release及签名身份/证书链；本机源码和合成包没有失败blocker。",
-  "nextStep": "先读回Git提交/推送状态，不重复已通过的实现或smoke；下一阶段准备真实小说样本盲评及干净历史升级环境，正式签名/Release作为独立授权验收。",
+  "blockedOn": "正式V1仍需长篇人物/POV/声线质量验证、干净Windows历史升级及原数据、native ARM64、远端Actions/双架构Release和签名；本轮局部有明确已完成证据。",
+  "nextStep": "读回授权提交和push到origin feature/branding的终态、一个worktree及服务；后续先优化调度往返/reasoning预算并完成长篇受控质量评估。",
   "updatedAt": "2026-10-04"
 }

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "v1-author-model-validation-20261004",
+  "type": "local-real-model-and-regression",
+  "source": "docs/aegis/reports/2026-10-04-author-model-validation.md; C:/Users/20969/.fastctx/jobs/j-zt1gb0/output.log; C:/Users/20969/.fastctx/jobs/j-qxtekx/output.log; C:/Users/20969/.fastctx/jobs/j-l1g1di/output.log; tmp/real-model-validation-20261004-package/cleanup-final.json",
+  "summary": "指定两模型的文风与写作审稿链、确认短卡与候选持久化；发现无正文回合可能复用旧正文并修复；2149完整/149接缝/250自然度回归，Ruff/ty及frontend/desktop门禁通过；当前包26静态检查和内容一致，395951061bytes清理后交付hash不变。新包未重跑smoke，第三方服务错误和reasoning-only失败、人工事实修订均保留；非盲评，费用未知，正式V1仍待外部验收。",
+  "verifier": "Claude CLI限定审查/实现后由协调者独立代码、门禁、API哈希、包内容及Windows清理/签名读回",
+  "sliceId": "v1-author-model-validation-20261004",
+  "evidenceStatus": "evidence-finalized",
+  "updatedAt": "2026-10-04"
+}

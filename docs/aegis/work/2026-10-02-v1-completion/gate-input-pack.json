@@ -1,18 +1,17 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "baselineRefs": [
-    "新版本/docs/03-source-change-list.md §42",
-    "新版本/docs/04-fork-and-packaging-roadmap.md Phase 5",
-    "docs/aegis/reports/2026-10-04-novel-naturalness.md",
-    "docs/aegis/reports/2026-10-04-current-package.md"
+    "docs/aegis/plans/2026-10-04-real-author-model-validation.md",
+    "docs/aegis/reports/2026-10-04-author-model-validation.md"
   ],
   "impactStatement": "docs/aegis/work/2026-10-02-v1-completion/impact-statement-draft.json",
   "compatPlan": "复用既有 RetrievalIndex 与 Story Memory API；只在必要时追加向后兼容迁移；保留既有未提交 V1 改动",
-  "retirementPlan": "退役smoke只删目录不卸载的路径与备份Chromium网络状态；保留IndexedDB记录/数据库/凭据、fail-closed锁与symlink。owned卸载/登记及清理真实通过；win-unpacked和专用UV cache精确清理395950853bytes，交付hash不变，9000服务保留。",
+  "retirementPlan": "替换旧的跨历史找非空正文判定；空/工具前言不回退旧内容。清理本轮win-unpacked和专用UV cache，保留五交付资产、用户数据和共享缓存；历史smoke与当前新包分开。",
   "evidenceBundle": [
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-phase5-release-version-guard-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-story-memory-hidden-note-visibility-20261002.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-ai-model-error-and-inline-position-20261003.json",
+    "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-author-model-validation-20261004.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-authoring-and-restore-boundaries-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-auto-backup-continuity-20261003.json",
     "docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-bundled-backend-identity-20261003.json",

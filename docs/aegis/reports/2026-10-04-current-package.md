@@ -1,5 +1,7 @@
 # OpenFix 最新 Windows 包与 smoke 清理验收
 
+> 历史验收记录：下文文件哈希和 64 项 smoke 对应 `f9d680b` 包。后续作者模型实测修复重建了同名交付资产，当前文件哈希、源码补丁、内容核对与清理结果见 [作者模型验证报告](2026-10-04-author-model-validation.md)。后续新包只进行了静态/内容核验，不能继承下文 smoke 结论。
+
 ## 基线与结果
 
 产品根为 `新版本/OpenFix`，分支 `feature/branding`；本切片初始本地 HEAD 为 `bfec5d194932efaec3dc561309805d925501aa89`，clean、与 origin 同步、一个工作树。最终包绑定业务源码 HEAD **`f9d680b9f8157068571065dc92a3288ac52e4f4d`**，包含自然度增强和既有 Token 优化。工程版本仍为 **0.11.1**。

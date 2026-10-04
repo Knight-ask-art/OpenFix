@@ -51,3 +51,7 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-10-04 | plan | docs/aegis/plans/2026-10-04-novel-naturalness.md | 小说自然度增强实施计划 |
 | 2026-10-04 | report | docs/aegis/reports/2026-10-04-novel-naturalness.md | 小说自然度增强实现与验证 |
 | 2026-10-04 | report | docs/aegis/reports/2026-10-04-current-package.md | 最新 Windows 包与 smoke 清理验收 |
+| 2026-10-04 | artifact | docs/aegis/work/2026-10-02-v1-completion/evidence-bundle-draft-v1-author-model-validation-20261004.json | 2026-10-02-v1-completion evidence v1-author-model-validation-20261004 |
+| 2026-10-04 | plan | docs/aegis/plans/2026-10-04-real-author-model-validation.md | 作者样本与真实模型验证 |
+| 2026-10-04 | report | docs/aegis/reports/2026-10-04-author-model-validation.md | 作者文风档案与真实模型实测 |
+| 2026-10-04 | artifact | docs/aegis/reports/2026-10-04-author-model-benchmark.json | 匿名作者模型实测指标 |

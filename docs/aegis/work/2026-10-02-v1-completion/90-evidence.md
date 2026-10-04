@@ -440,3 +440,13 @@
 - Summary: 源码f9d680b当前0.11.1 x64包，j-oj5yw5退出0，26 release及64 smoke PASS；644后端、733前端、56 desktop dist逐字节一致，ZIP绑定一致；41 Node及80 Node/1 POSIX-only skip，Ruff/ty/250相关回归退出0。首轮j-87fcyi EBUSY失败保留；owned目录/登记/进程0，9224释放、9000保留，精确清理395950853bytes，5交付hash不变。NotSigned；整体V1仍需外部验收。
 - Verifier: coordinator actual commands, artifact bytes, OS process/port/registry and cleanup readback
 - Evidence status: evidence-finalized
+
+## EvidenceBundleDraft: v1-author-model-validation-20261004
+
+- Artifact key: v1-author-model-validation-20261004
+- Slice ID: v1-author-model-validation-20261004
+- Type: local-real-model-and-regression
+- Source: docs/aegis/reports/2026-10-04-author-model-validation.md; C:/Users/20969/.fastctx/jobs/j-zt1gb0/output.log; C:/Users/20969/.fastctx/jobs/j-qxtekx/output.log; C:/Users/20969/.fastctx/jobs/j-l1g1di/output.log; tmp/real-model-validation-20261004-package/cleanup-final.json
+- Summary: 指定两模型的文风与写作审稿链、确认短卡与候选持久化；发现无正文回合可能复用旧正文并修复；2149完整/149接缝/250自然度回归，Ruff/ty及frontend/desktop门禁通过；当前包26静态检查和内容一致，395951061bytes清理后交付hash不变。新包未重跑smoke，第三方服务错误和reasoning-only失败、人工事实修订均保留；非盲评，费用未知，正式V1仍待外部验收。
+- Verifier: Claude CLI限定审查/实现后由协调者独立代码、门禁、API哈希、包内容及Windows清理/签名读回
+- Evidence status: evidence-finalized

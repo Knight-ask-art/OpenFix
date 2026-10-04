@@ -2,12 +2,12 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "openfix-v1-completion-20261002",
   "lastCheckpointRef": "docs/aegis/work/2026-10-02-v1-completion/todo-checkpoint-draft.json",
-  "resumeInstruction": "最终包绑定业务源码f9d680b9f8157068571065dc92a3288ac52e4f4d，j-oj5yw5退出0。先读取两个2026-10-04报告和git status/log/ls-remote确认后续文档提交与推送；已通过切片不重派、不重跑smoke。只使用Claude CLI委派，502调用没有审查结论。用户授权提交全部项目改动并推送自有OpenFix；无tag/Release/签名授权。保持一个工作树和原9000服务。",
+  "resumeInstruction": "先读当前作者模型报告、benchmark、checkpoint与Git状态，保留现有一个worktree和本地写作数据；不重复已结束的模型实测/Claude委派或旧smoke。",
   "knownPartialWork": [
-    "bfec5d1自然度增强和Style Card实现；实现阶段2139 full backend passed，收尾j-ltrge5 Ruff/ty/250 targeted passed；用户自定义与按需Skill兼容。",
-    "d9e63e8 owned smoke安装/卸载，f9d680b session网络锁精确过滤保留IndexedDB草稿；41 Node和80 Node/1 POSIX-only skip，desktop lint/typecheck通过。",
-    "j-oj5yw5最终退出0，26 release checks和64合成smoke通过；644 backend/733 frontend/56 desktop dist和ZIP逐字节一致；Authenticode NotSigned。",
-    "owned smoke目录/登记/进程0、9224释放、9000保留；清理win-unpacked与独立UV缓存共395950853bytes，5交付资产hash不变，一个工作树。"
+    "配置DeepSeek主模型/MiMo轻模型，四章原文与确认Style Card及候选Notes持久化；真实两模型分析和写作审稿链完成，未覆盖原章。",
+    "当前回合空AI不能复用旧正文，text blocks与tool-call前言边界回归；Claude CLI审查和实现退出0，协调者独立复核。",
+    "j-zt1gb0完整2149 passed；j-qxtekx Ruff/ty与149相关passed；j-sl5fg2自然度/Context/Skill相关250 passed；frontend/desktop lint/typecheck/build通过。",
+    "j-l1g1di退出0：26 release checks，644后端/733前端/56桌面及ZIP内容一致；两个临时目录精确清理395951061bytes，交付hash不变；新包NotSigned，未重跑packaged smoke。"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-10-02-v1-completion/10-intent.md",
@@ -15,6 +15,6 @@
     "docs/aegis/work/2026-10-02-v1-completion/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "旧71ef0d3和首轮j-87fcyi包均非最终运行证据；j-87fcyi EBUSY失败保留，最终j-oj5yw5通过。0.11.1、NotSigned和合成模型不能宣称正式V1或真实小说质量已验收。"
+    "新包静态校验不等于新包smoke通过；真实单轮模型实测不等于旧新受控benchmark或全书质量通过；费用未知。"
   ]
 }

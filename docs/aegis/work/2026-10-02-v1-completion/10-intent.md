@@ -81,3 +81,11 @@ These records are Method Pack drafts / hints, not authoritative runtime decision
 - 最新 `j-oj5yw5` 在源码 HEAD `f9d680b9f8157068571065dc92a3288ac52e4f4d` 打包、26 项发布静态校验、644 后端/733 前端逐字节核对、64 项合成 packaged smoke 全部通过，退出 0。附加核对 56 desktop dist 文件与 app.asar，以及 ZIP 的 frontend/wheel/asar/update 配置一致。
 - 收尾独立验证：smoke Temp 目录、OpenFix 安装登记、本次进程均为 0，9224 已释放，原 9000 服务保留。精确删除展开目录和独立 UV 缓存共 395,950,853 bytes；交付资产清理前后 hash 一致。
 - 本机切片 evidence-finalized / 信心 B；完整 V1 正式发布仍需真实模型、干净 Windows 11 历史升级与原数据、native ARM64、远端 Actions/Release 和签名验证。当前版本 0.11.1，安装包实测 NotSigned；本机成功不能关闭这些外部门槛。
+
+## 当前切片：作者样本与指定真实模型（2026-10-04）
+
+- 用户授权配置本地兼容网关、分析本人样本并采用项目文风；实测固定 `cline-pass/mimo-v2.6-flash` 与 `cline-pass/deepseek-v4.1-flash`。沿用当前 Notes/Skills/dispatch/加密凭据，只存候选，不覆盖原章。
+- 本地切片基线 `edcd674f28054133e88e8f11ba4b7ffcac33feb2` / `feature/branding`，开始 clean、与远端同步，一个工作树；本轮末尾授权提交全部本轮成果并推送自有 OpenFix。
+- 真实空正文引出的判定修复只涉及现有 SubagentRunner 和同 owner 测试：最新 HumanMessage 为回合边界，最新空 AI 不能回退旧正文，tool-call 前言不是最终答案，合法 text blocks 正常读取。分类为 `local-fix-without-new-responsibility`，不新增迁移、Provider 或工作流 owner。
+- 方法、真实 Token 数字、失败和人工质量复核见 `docs/aegis/reports/2026-10-04-author-model-validation.md` 与对应 benchmark JSON。当前新包与原有 smoke 分开，保留不重跑 packaged smoke 的用户限制。
+- 用户数据、原文、输出和凭据留在本地加密应用数据中，Git 只提交修复/测试/匿名报告。长篇质量、历史升级/native ARM64、远端 Release/签名仍为正式 V1 的未覆盖门槛。

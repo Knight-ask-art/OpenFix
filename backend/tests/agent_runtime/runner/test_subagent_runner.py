@@ -7,6 +7,8 @@ import pytest
 import pytest_asyncio
 from langchain_core.messages import AIMessage
 from langchain_core.messages import AIMessageChunk
+from langchain_core.messages import HumanMessage
+from langchain_core.messages import ToolMessage
 from langgraph.errors import GraphInterrupt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -2074,3 +2076,356 @@ async def test_wait_for_request_resolution_raises_on_cancelled_request() -> None
             )
     finally:
         await engine.dispose()
+
+
+def test_last_assistant_content_returns_none_for_empty_reply_after_new_human_message():
+    from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+
+    messages = [
+        AIMessage(content="previous answer"),
+        HumanMessage(content="notify turn"),
+        AIMessage(content=""),
+    ]
+
+    assert _last_assistant_content(messages) is None
+
+
+def test_last_assistant_content_returns_none_when_new_human_message_has_no_reply():
+    from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+
+    messages = [
+        AIMessage(content="previous answer"),
+        HumanMessage(content="notify turn"),
+    ]
+
+    assert _last_assistant_content(messages) is None
+
+
+def test_last_assistant_content_returns_none_when_latest_reply_after_interim_text_is_empty():
+    from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+
+    messages = [
+        HumanMessage(content="write the chapter"),
+        AIMessage(content="working on it"),
+        ToolMessage(content="tool output", tool_call_id="call-1"),
+        AIMessage(content=""),
+    ]
+
+    assert _last_assistant_content(messages) is None
+
+
+def test_last_assistant_content_returns_latest_string_reply_of_current_turn():
+    from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+
+    messages = [
+        AIMessage(content="previous answer"),
+        HumanMessage(content="notify turn"),
+        AIMessage(content="  current answer  "),
+    ]
+
+    assert _last_assistant_content(messages) == "current answer"
+
+
+def test_last_assistant_content_reads_text_blocks_and_ignores_reasoning_blocks():
+    from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+
+    messages = [
+        AIMessage(content="previous answer"),
+        HumanMessage(content="notify turn"),
+        AIMessage(
+            content=[
+                {"type": "reasoning", "reasoning": "thinking about it"},
+                {"type": "text", "text": "block answer"},
+            ]
+        ),
+    ]
+
+    assert _last_assistant_content(messages) == "block answer"
+
+
+def test_last_assistant_content_returns_none_for_reasoning_only_blocks():
+    from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+
+    messages = [
+        HumanMessage(content="notify turn"),
+        AIMessage(content=[{"type": "reasoning", "reasoning": "thinking about it"}]),
+    ]
+
+    assert _last_assistant_content(messages) is None
+
+
+def test_last_assistant_content_returns_none_for_tool_call_only_messages():
+    from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+
+    openai_style = [
+        HumanMessage(content="notify turn"),
+        AIMessage(
+            content="",
+            tool_calls=[{"id": "call-1", "name": "read_chapter", "args": {"order": 1}}],
+        ),
+    ]
+    anthropic_style = [
+        HumanMessage(content="notify turn"),
+        AIMessage(
+            content=[
+                {
+                    "type": "tool_call",
+                    "id": "call-1",
+                    "name": "read_chapter",
+                    "args": {"order": 1},
+                }
+            ]
+        ),
+    ]
+
+    assert _last_assistant_content(openai_style) is None
+    assert _last_assistant_content(anthropic_style) is None
+
+
+def test_last_assistant_content_does_not_accept_tool_call_preamble_as_answer():
+    from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+
+    messages = [
+        AIMessage(content="previous answer"),
+        HumanMessage(content="notify turn"),
+        AIMessage(
+            content="I will read the chapter first.",
+            tool_calls=[{"id": "call-1", "name": "read_chapter", "args": {}}],
+        ),
+        ToolMessage(content="chapter read", tool_call_id="call-1"),
+    ]
+
+    assert _last_assistant_content(messages) is None
+
+
+@pytest.mark.asyncio
+async def test_subagent_runner_errors_on_empty_notify_reply_without_reusing_previous_answer(
+    db_session_factory,
+    monkeypatch,
+):
+    from app.agent_runtime.runner.subagent_runner import SubagentRunner
+
+    async with db_session_factory() as session:
+        row = await create_child_run(
+            session,
+            parent_session_id="parent-session",
+            parent_task_id="task-1",
+            parent_thread_id="parent-session",
+            child_thread_id="child-thread-empty-notify",
+            agent_key="writer",
+            dispatch_id="dispatch-empty-notify",
+            tool_call_id="tool-call-empty-notify",
+            request={"task": "initial", "input": {}},
+        )
+        first_request = await get_child_run_request_by_seq(
+            session,
+            child_run_id=row.id,
+            seq=0,
+        )
+        assert first_request is not None
+        await complete_child_run_request(
+            session,
+            first_request.id,
+            assistant_content="initial answer",
+        )
+        await enqueue_child_run_request(
+            session,
+            child_run_id=row.id,
+            request_kind="notify",
+            content="second turn",
+        )
+        await session.commit()
+
+    emitted: list[tuple[str, dict, str | None]] = []
+
+    async def fake_emit(name, payload, room=None):
+        emitted.append((name, payload, room))
+
+    class FakeGraph:
+        async def astream_events(self, initial_state, config=None, version=None):
+            yield {
+                "event": "on_chain_end",
+                "tags": ["subagent_child"],
+                "data": {
+                    "output": {
+                        "messages": [
+                            AIMessage(content="initial answer"),
+                            HumanMessage(content="second turn"),
+                            AIMessage(content=""),
+                        ],
+                        "iteration_count": 1,
+                        "is_done": True,
+                        "final_output": None,
+                    }
+                },
+            }
+
+        async def ainvoke(self, initial_state, config=None):
+            return {
+                "messages": [AIMessage(content="initial answer")],
+                "iteration_count": 1,
+                "is_done": True,
+                "final_output": None,
+            }
+
+    monkeypatch.setattr("app.agent_runtime.runner.subagent_runner.emit", fake_emit)
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_chat_model",
+        lambda _config: object(),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_react_agent",
+        lambda *_args, **_kwargs: FakeGraph(),
+    )
+
+    runner = SubagentRunner(
+        session_factory=db_session_factory,
+        model_config={
+            "provider_type": "openai",
+            "base_url": "",
+            "api_key": "key",
+            "model_id": "gpt-test",
+            "max_context_tokens": 8000,
+        },
+        project_id="project-1",
+    )
+    result = await runner.run(row.id)
+
+    assert result == {"error": "subagent turn completed without assistant content"}
+    assert "assistant_content" not in result
+
+    async with db_session_factory() as session:
+        requests = (
+            (
+                await session.execute(
+                    select(AgentChildRunRequest)
+                    .where(AgentChildRunRequest.child_run_id == row.id)
+                    .order_by(AgentChildRunRequest.seq.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+    assert [(request.seq, request.status) for request in requests] == [
+        (0, "completed"),
+        (1, "error"),
+    ]
+    assert requests[0].assistant_content == "initial answer"
+    assert not requests[1].assistant_content
+    assert requests[1].error == "subagent turn completed without assistant content"
+
+    child_error_events = [
+        payload
+        for name, payload, room in emitted
+        if name == "agent:error"
+        and room == "agent_subagent_session:child-thread-empty-notify"
+    ]
+    assert len(child_error_events) == 1
+    assert child_error_events[0]["session_id"] == "child-thread-empty-notify"
+    assert child_error_events[0]["type"] == "subagent_failed"
+    assert (
+        child_error_events[0]["reason"]
+        == "subagent turn completed without assistant content"
+    )
+
+
+@pytest.mark.asyncio
+async def test_subagent_runner_returns_text_block_reply_for_current_turn(
+    db_session_factory,
+    monkeypatch,
+):
+    from app.agent_runtime.runner.subagent_runner import SubagentRunner
+
+    async with db_session_factory() as session:
+        row = await create_child_run(
+            session,
+            parent_session_id="parent-session",
+            parent_task_id="task-1",
+            parent_thread_id="parent-session",
+            child_thread_id="child-thread-blocks",
+            agent_key="writer",
+            dispatch_id="dispatch-blocks",
+            tool_call_id="tool-call-blocks",
+            request={"task": "write", "input": {}},
+        )
+
+    async def fake_emit(*_args, **_kwargs):
+        return None
+
+    class FakeGraph:
+        async def astream_events(self, initial_state, config=None, version=None):
+            yield {
+                "event": "on_chain_end",
+                "tags": ["subagent_child"],
+                "data": {
+                    "output": {
+                        "messages": [
+                            AIMessage(
+                                content=[
+                                    {"type": "reasoning", "reasoning": "thinking"},
+                                    {"type": "text", "text": "block answer"},
+                                ]
+                            )
+                        ],
+                        "iteration_count": 1,
+                        "is_done": True,
+                        "final_output": None,
+                    }
+                },
+            }
+
+        async def ainvoke(self, initial_state, config=None):
+            return {
+                "messages": [
+                    AIMessage(content=[{"type": "text", "text": "block answer"}])
+                ],
+                "iteration_count": 1,
+                "is_done": True,
+                "final_output": None,
+            }
+
+    monkeypatch.setattr("app.agent_runtime.runner.subagent_runner.emit", fake_emit)
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_chat_model",
+        lambda _config: object(),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_react_agent",
+        lambda *_args, **_kwargs: FakeGraph(),
+    )
+
+    runner = SubagentRunner(
+        session_factory=db_session_factory,
+        model_config={
+            "provider_type": "openai",
+            "base_url": "",
+            "api_key": "key",
+            "model_id": "gpt-test",
+            "max_context_tokens": 8000,
+        },
+        project_id="project-1",
+    )
+    result = await runner.run(row.id)
+
+    assert result["assistant_content"] == "block answer"
+
+    async with db_session_factory() as session:
+        updated = await session.get(AgentChildRun, row.id)
+        requests = (
+            (
+                await session.execute(
+                    select(AgentChildRunRequest)
+                    .where(AgentChildRunRequest.child_run_id == row.id)
+                    .order_by(AgentChildRunRequest.seq.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+    assert updated is not None
+    assert updated.status == "completed"
+    assert updated.last_assistant_content == "block answer"
+    assert requests[0].status == "completed"
+    assert requests[0].assistant_content == "block answer"
