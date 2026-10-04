@@ -27,15 +27,21 @@ export function createOpenFicInstallCommand(
   };
 }
 
-/**
- * 用 venv 自带的 pip 安装本地 wheel。
- * 自带 wheel 时无需 uv，少一个首启联网依赖（uv 曾是首启失败的常见点）。
- */
+/** Compatibility fallback when the app has no usable bundled uv executable. */
 export function createBundledWheelPipInstallCommand(
   wheelPath: string,
   forceReinstall = false,
 ): string[] {
   return ["-m", "pip", "install", ...(forceReinstall ? ["--force-reinstall"] : []), wheelPath];
+}
+
+/** Use the installer bundled with the desktop app to resolve and install wheel dependencies in parallel. */
+export function createBundledWheelUvInstallCommand(
+  venvPythonPath: string,
+  wheelPath: string,
+  forceReinstall = false,
+): string[] {
+  return ["--verbose", "pip", "install", "--python", venvPythonPath, ...(forceReinstall ? ["--reinstall"] : []), wheelPath];
 }
 
 export function createOpenFicServeCommand(venvPythonPath: string, port: number): SpawnCommand {

@@ -21,7 +21,7 @@ import "./setup.css";
 
 type WizardStep = "mode" | "remote" | "local-directory" | "local-data" | "local-installing" | "local-success";
 
-type StepStatus = "pending" | "running" | "done" | "failed";
+type StepStatus = "pending" | "running" | "done" | "failed" | "skipped";
 
 interface StepEntry {
   status: StepStatus;
@@ -99,8 +99,10 @@ function applyProgress(prev: StepState, event: SetupProgressEvent): StepState {
   if (event.status === "running") {
     for (let i = 0; i < idx; i++) {
       const key = STEP_ORDER[i];
-      if (next[key].status !== "failed") {
+      if (next[key].status === "running") {
         next[key] = { ...next[key], status: "done" };
+      } else if (next[key].status === "pending") {
+        next[key] = { ...next[key], status: "skipped" };
       }
     }
     next[event.step] = { status: "running", message: event.message, progress: event.progress };
@@ -611,6 +613,7 @@ export function SetupPage({
                       data-running={entry.status === "running"}
                       data-pending={entry.status === "pending"}
                       data-failed={entry.status === "failed"}
+                      data-skipped={entry.status === "skipped"}
                       key={stepKey}
                     >
                       <div className="setup-step-marker">
@@ -620,12 +623,19 @@ export function SetupPage({
                           <span className="setup-step-spinner" />
                         ) : entry.status === "failed" ? (
                           <X size={14} strokeWidth={3} />
+                        ) : entry.status === "skipped" ? (
+                          <span aria-hidden="true">–</span>
                         ) : null}
                       </div>
                       <div className="setup-step-body">
                         <span className="setup-step-title">{t(STEP_TITLE_KEYS[stepKey])}</span>
+                        {entry.status === "skipped" ? (
+                          <span className="setup-step-detail">{t("desktop.setup.skipped")}</span>
+                        ) : null}
                         {(entry.status === "running" || entry.status === "failed") && !showProgress ? (
-                          <span className="setup-step-detail">{entry.status === "failed" ? entry.message : t(STEP_DETAIL_KEYS[stepKey])}</span>
+                          <span className="setup-step-detail">
+                            {entry.status === "failed" ? entry.message : entry.message || t(STEP_DETAIL_KEYS[stepKey])}
+                          </span>
                         ) : null}
                         {showProgress ? (
                           <div className="setup-progress">

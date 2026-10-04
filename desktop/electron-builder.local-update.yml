@@ -17,6 +17,7 @@ extraResources:
     to: backend-wheel
     filter:
       - "openfic-*.whl"
+      - "uv.exe.gz"
   - from: resources/app-update.local.yml
     to: app-update.yml
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.2](https://github.com/Knight-ask-art/OpenFix/compare/v0.11.1...v0.11.2) (2026-10-04)
+
+### 🐛 问题修复
+
+* **desktop:** 加快首次安装后端依赖，并显示依赖下载进度。
+
 ## [0.11.1](https://github.com/syrizelink/OpenFic/compare/v0.11.0...v0.11.1) (2026-09-09)
 
 

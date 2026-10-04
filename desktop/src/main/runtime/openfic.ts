@@ -1,8 +1,9 @@
 import { app, net } from "electron";
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { access, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { gunzip } from "node:zlib";
 import { findFreePort } from "../ports.js";
 import {
   abortStartingBackendProcess,
@@ -14,6 +15,7 @@ import { throwIfAborted, waitForBackend } from "../health.js";
 import type { PortablePython, RuntimeIntegrityCheck } from "./python.js";
 import {
   createBundledWheelPipInstallCommand,
+  createBundledWheelUvInstallCommand,
   createOpenFicInstallCommand,
   createOpenFicServeCommand,
   createOpenFicVersionCommand,
@@ -98,6 +100,32 @@ export async function findBundledBackendWheel(expectedVersion: string): Promise<
   }
 }
 
+/** A compressed, platform-matched uv executable is shipped beside the backend wheel. */
+export async function findBundledUvArchivePath(): Promise<string | null> {
+  if (!app.isPackaged) return null;
+  const archiveName = process.platform === "win32" ? "uv.exe.gz" : "uv.gz";
+  const candidate = path.join(process.resourcesPath, "backend-wheel", archiveName);
+  return (await pathExists(candidate)) ? candidate : null;
+}
+
+function gunzipBuffer(compressed: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    gunzip(compressed, (error, uncompressed) => {
+      if (error) reject(error);
+      else resolve(uncompressed);
+    });
+  });
+}
+
+async function extractBundledUvExecutable(runtimeDir: string, archivePath: string): Promise<string> {
+  const compressed = await readFile(archivePath);
+  const executable = await gunzipBuffer(compressed);
+  const extension = process.platform === "win32" ? ".exe" : "";
+  const executablePath = path.join(runtimeDir, `.openfix-uv-${randomUUID()}${extension}`);
+  await writeFile(executablePath, executable, { flag: "wx", mode: 0o700 });
+  return executablePath;
+}
+
 async function getBundledBackendIdentity(expectedVersion: string, wheelPath: string): Promise<string> {
   const digest = createHash("sha256").update(await readFile(wheelPath)).digest("hex");
   return `${expectedVersion}:sha256:${digest}`;
@@ -152,6 +180,25 @@ function forwardLines(
 
 function stripAnsi(value: string): string {
   return value.replace(ANSI_ESCAPE_SEQUENCE, "");
+}
+
+function describeInstallProgress(line: string): string {
+  const resolved = line.match(/^Resolved\s+(\d+)\s+packages?/i);
+  if (resolved) return `已解析 ${resolved[1]} 项依赖`;
+
+  const downloading = line.match(/^(?:Downloading|Fetching)\s+([A-Za-z0-9_.+-]+)/i);
+  if (downloading) return `正在下载依赖：${downloading[1]}`;
+
+  const collecting = line.match(/^Collecting\s+([A-Za-z0-9_.+-]+)/i);
+  if (collecting) return `正在准备依赖：${collecting[1]}`;
+
+  if (/^(?:Installing collected packages|Prepared)\b/i.test(line)) {
+    return "正在安装后端依赖…";
+  }
+  if (/^(?:Installed|Successfully installed)\b/i.test(line)) {
+    return "依赖已安装，正在完成设置…";
+  }
+  return "正在下载和安装后端依赖…";
 }
 
 async function probePypiIndex(indexUrl: string, expectedVersion: string, requireVersion = true): Promise<PypiIndexProbe | null> {
@@ -320,7 +367,7 @@ async function runUvInstallWithSystemCertsRetry(
   environment?: NodeJS.ProcessEnv,
 ): Promise<void> {
   try {
-    await run(uvPath, args, cwd, (line) => onProgress("install-openfic", line), environment);
+    await run(uvPath, args, cwd, (line) => onProgress("install-openfic", describeInstallProgress(line)), environment);
   } catch (error) {
     if (error instanceof Error && error.message.includes(UV_SYSTEM_CERTS_HINT)) {
       appendLog("runtime", "检测到 TLS 证书错误，使用 --system-certs 重试");
@@ -328,7 +375,7 @@ async function runUvInstallWithSystemCertsRetry(
         uvPath,
         ["--system-certs", ...args],
         cwd,
-        (line) => onProgress("install-openfic", line),
+        (line) => onProgress("install-openfic", describeInstallProgress(line)),
         environment,
       );
       return;
@@ -417,6 +464,7 @@ export async function ensureOpenFicRuntime(
   const venvPythonPath = getVenvPythonPath(runtimeDir);
   const uvPath = getUvPath(runtimeDir);
   const bundledWheel = await findBundledBackendWheel(expectedVersion);
+  const bundledUvArchivePath = bundledWheel ? await findBundledUvArchivePath() : null;
   const bundledBackendIdentity = bundledWheel
     ? await getBundledBackendIdentity(expectedVersion, bundledWheel)
     : null;
@@ -450,7 +498,7 @@ export async function ensureOpenFicRuntime(
   }
 
   const uvIsUsable = (await pathExists(uvPath)) && Boolean(await readOutput(uvPath, ["--version"], runtimeDir));
-  // 自带 wheel 时用 venv 自带 pip 安装，跳过 uv 这一联网步骤（uv 安装常是首启失败点）。
+  // 内置 wheel 路径优先使用随安装包提供的 uv，避免首次安装 uv 本身时额外联网。
   if (!uvIsUsable && !bundledWheel) {
     appendLog("runtime", "uv 不存在或不可用，开始安装");
     onProgress("install-uv", "安装 uv");
@@ -481,22 +529,61 @@ export async function ensureOpenFicRuntime(
           }`
         : "OpenFix 后端尚未安装",
     );
-    onProgress("install-openfic", installedVersion ? "更新 OpenFix 后端" : "安装 OpenFix 后端");
+    if (bundledWheel) {
+      onProgress(
+        "install-uv",
+        bundledUvArchivePath ? "正在准备安装包内置 uv" : "使用 Python pip 安装依赖",
+      );
+    }
     const packageIndexEnvironments = await getPypiEnvironments();
     // 版本号相同时 pip 会跳过安装，必须强制重装才能换成本地 wheel。
     const forceReinstall =
       !bundledBackendInstalled || (installedVersion === expectedVersion && !openFicCliIsUsable);
     if (bundledWheel) {
-      await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
-        run(
-          venvPythonPath,
-          createBundledWheelPipInstallCommand(bundledWheel, forceReinstall),
-          runtimeDir,
-          (message) => onProgress("install-openfic", message),
-          environment,
-        ),
-      );
+      let temporaryUvPath: string | null = null;
+      let bundledUvIsUsable = false;
+      try {
+        if (bundledUvArchivePath) {
+          try {
+            temporaryUvPath = await extractBundledUvExecutable(runtimeDir, bundledUvArchivePath);
+            bundledUvIsUsable = Boolean(await readOutput(temporaryUvPath, ["--version"], runtimeDir));
+            if (!bundledUvIsUsable) {
+              appendLog("runtime", "安装包内置 uv 无法运行，改用 Python pip");
+            }
+          } catch (error) {
+            appendLog("runtime", `安装包内置 uv 解压或校验失败，改用 Python pip：${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+
+        onProgress("install-openfic", installedVersion ? "更新 OpenFix 后端" : "安装 OpenFix 后端");
+        if (bundledUvIsUsable && temporaryUvPath) {
+          const args = createBundledWheelUvInstallCommand(venvPythonPath, bundledWheel, forceReinstall);
+          const uvPathForInstall = temporaryUvPath;
+          await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
+            runUvInstallWithSystemCertsRetry(uvPathForInstall, args, runtimeDir, onProgress, environment),
+          );
+        } else {
+          await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
+            run(
+              venvPythonPath,
+              createBundledWheelPipInstallCommand(bundledWheel, forceReinstall),
+              runtimeDir,
+              (message) => onProgress("install-openfic", describeInstallProgress(message)),
+              environment,
+            ),
+          );
+        }
+      } finally {
+        if (temporaryUvPath) {
+          try {
+            await rm(temporaryUvPath, { force: true });
+          } catch (error) {
+            appendLog("runtime", `清理临时 uv 失败：${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      }
     } else {
+      onProgress("install-openfic", installedVersion ? "更新 OpenFix 后端" : "安装 OpenFix 后端");
       const installCommand = createOpenFicInstallCommand(
         venvPythonPath,
         expectedVersion,

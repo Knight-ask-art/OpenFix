@@ -1,7 +1,7 @@
 {
   "name": "openfix-desktop",
   "private": true,
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "OpenFix is a Windows AI writing workbench for long-form fiction, based on OpenFic.",
   "author": {
     "name": "Syrize",
@@ -28,7 +28,7 @@
     "build:setup": "vp build",
     "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "lint": "eslint . --ext .js,.jsx,.mjs,.ts,.tsx,.mts",
-    "package": "node scripts/build-backend-wheel.mjs && electron-builder --config electron-builder.yml --publish never && node scripts/normalize-artifact-names.mjs",
+    "package": "node scripts/clean-package-output.mjs && node scripts/build-backend-wheel.mjs && electron-builder --config electron-builder.yml --publish never && node scripts/normalize-artifact-names.mjs",
     "verify:release": "node scripts/verify-release.mjs",
     "package:local-update": "node scripts/package-local-update.mjs",
     "serve:local-update": "node scripts/serve-local-update.mjs"

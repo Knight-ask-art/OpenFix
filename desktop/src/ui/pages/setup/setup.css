@@ -522,6 +522,16 @@
   color: var(--red-11);
 }
 
+.setup-step[data-skipped="true"] .setup-step-marker {
+  border-color: var(--gray-a4);
+  color: var(--gray-9);
+}
+
+.setup-step[data-skipped="true"] .setup-step-title {
+  color: var(--gray-9);
+  font-weight: 500;
+}
+
 .setup-step[data-failed="true"] .setup-step-title {
   color: var(--red-11);
 }

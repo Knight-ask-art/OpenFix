@@ -212,11 +212,14 @@ if (existsSync(latestYmlPath)) {
 const wheelDir = path.join(outputDir, "win-unpacked", "resources", "backend-wheel");
 if (existsSync(wheelDir)) {
   const wheels = listFiles(wheelDir).filter((name) => name.endsWith(".whl"));
+  const matchingWheels = wheels.filter((name) => name.startsWith(`openfic-${version}-`));
   check(
-    `内置后端 wheel 与版本 ${version} 匹配`,
-    wheels.some((name) => name.startsWith(`openfic-${version}-`)),
+    `内置后端只包含版本 ${version} 的 wheel`,
+    wheels.length === 1 && matchingWheels.length === 1,
     wheels.join(", ") || "无 wheel",
   );
+  const bundledUvPath = path.join(wheelDir, "uv.exe.gz");
+  check("压缩内置 uv 安装器可用于 Windows 首次安装", existsSync(bundledUvPath), "缺少 backend-wheel/uv.exe.gz");
 } else {
   check("win-unpacked 内含 backend-wheel 资源", false, "缺失 backend-wheel 目录");
 }

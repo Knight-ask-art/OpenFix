@@ -9,6 +9,7 @@ import { PassThrough, Writable } from "node:stream";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { gunzipSync, gzipSync } from "node:zlib";
 
 const VERSION = "0.11.1";
 const WHEEL_A = Buffer.from("Synthetic wheel A; not an installable Python package.\n");
@@ -47,7 +48,10 @@ async function requireUnlinkedTree(target) {
   }
 }
 
-async function withRuntimeFixture(runCase, { bundled = true, packaged = true } = {}) {
+async function withRuntimeFixture(
+  runCase,
+  { bundled = true, packaged = true, bundledUv = true, bundledUvCorrupt = false } = {},
+) {
   assert.equal(typeof vm.SourceTextModule, "function", "Use --experimental-vm-modules");
   const [runtimeCode, commandCode] = await Promise.all([
     fs.readFile(distPath, "utf8"), fs.readFile(commandDistPath, "utf8"),
@@ -67,6 +71,7 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
     const resourcesDirs = ["resources-a", "resources-b"].map((name) => path.join(scratch, name));
     const wheelDirs = resourcesDirs.map((dir) => path.join(dir, "backend-wheel"));
     const wheelPaths = wheelDirs.map((dir) => path.join(dir, `openfic-${VERSION}-py3-none-any.whl`));
+    const bundledUvPaths = wheelDirs.map((dir) => path.join(dir, process.platform === "win32" ? "uv.exe.gz" : "uv.gz"));
     let resourceIndex = 0;
     const runtimeDir = path.join(scratch, "runtime");
     const markerPath = path.join(runtimeDir, ".openfix-bundled-backend");
@@ -80,6 +85,12 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
     await fs.writeFile(cliPath, "Synthetic CLI path; never executed.\n");
     await fs.writeFile(markerPath, `${VERSION}\n`);
     if (bundled) await fs.writeFile(wheelPaths[0], WHEEL_A);
+    if (bundled && packaged && bundledUv) {
+      const archive = bundledUvCorrupt
+        ? Buffer.from("Synthetic invalid gzip archive.\n")
+        : gzipSync(Buffer.from("Synthetic bundled uv; never executed.\n"));
+      await fs.writeFile(bundledUvPaths[0], archive);
+    }
     if (!bundled || !packaged) await fs.writeFile(uvPath, "Synthetic uv path; never executed.\n");
 
     const state = {
@@ -92,6 +103,8 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
     const progress = [];
     const logs = [];
     const markerWrites = [];
+    const temporaryUvPaths = [];
+    const removedTemporaryUvPaths = [];
     const boundaryErrors = [];
     function checked(operation) {
       const record = (error) => { boundaryErrors.push(error.message); throw error; };
@@ -116,7 +129,7 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
     }
     const safeFs = {
       access: async (target) => {
-        await allowPath(target, [pythonPath, cliPath, uvPath]);
+        await allowPath(target, [pythonPath, cliPath, uvPath, ...bundledUvPaths]);
         if (!samePath(target, uvPath)) await requireUnlinked(target);
         return fs.access(target);
       },
@@ -132,21 +145,35 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
         return fs.readdir(target);
       },
       readFile: async (target, options) => {
-        await allowPath(target, [markerPath, ...wheelPaths]);
+        await allowPath(target, [markerPath, ...wheelPaths, ...bundledUvPaths]);
         await requireUnlinked(target);
-        if (!samePath(target, markerPath) && state.wheelReadFails) {
+        if (wheelPaths.some((wheelPath) => samePath(target, wheelPath)) && state.wheelReadFails) {
           throw new Error("Synthetic wheel read denied");
         }
         return fs.readFile(target, options);
       },
       writeFile: async (target, data, options) => {
-        await allowPath(target, [markerPath]);
-        await requireUnlinked(target);
-        if (state.markerWriteFails) throw new Error("Synthetic marker write denied");
+        const isMarker = samePath(target, markerPath);
+        if (isMarker) {
+          await allowPath(target, [markerPath]);
+          await requireUnlinked(target);
+          if (state.markerWriteFails) throw new Error("Synthetic marker write denied");
+        } else {
+          assert.ok(within(runtimeDir, target), `Temporary uv escaped runtime directory: ${target}`);
+          assert.match(path.basename(target), /^\.openfix-uv-[A-Za-z0-9-]+(?:\.exe)?$/);
+          assert.equal(options?.flag, "wx");
+          temporaryUvPaths.push(target);
+          await allowPath(target, temporaryUvPaths);
+        }
         await fs.writeFile(target, data, options);
-        markerWrites.push(data);
+        if (isMarker) markerWrites.push(data);
       },
-      rm: () => deny("venv or runtime removal"),
+      rm: async (target, options) => {
+        await allowPath(target, temporaryUvPaths);
+        assert.equal(options?.force, true);
+        await fs.rm(target, options);
+        removedTemporaryUvPaths.push(target);
+      },
     };
 
     function fakeSpawn(command, args, options) {
@@ -168,6 +195,15 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
           exitCode = state.cliUsable ? 0 : 1;
         } else if (samePath(command, uvPath) && JSON.stringify(argv) === '["--version"]') {
           output = "uv 0.9.0\n";
+        } else if (temporaryUvPaths.some((target) => samePath(command, target)) && JSON.stringify(argv) === '["--version"]') {
+          assert.ok(bundled && packaged && bundledUv, "Bundled uv reached without a staged executable");
+          output = "uv 0.9.0\n";
+        } else if (temporaryUvPaths.some((target) => samePath(command, target))
+          && argv.slice(0, 5).join("|") === `--verbose|pip|install|--python|${pythonPath}`
+          && argv.at(-1) === wheelPaths[resourceIndex]
+          && (argv.length === 6 || (argv.length === 7 && argv[5] === "--reinstall"))) {
+          assert.ok(bundled && packaged && bundledUv, "Bundled uv install reached without staged wheel and executable");
+          kind = "bundled-uv";
         } else if (samePath(command, pythonPath) && argv.slice(0, 3).join("|") === "-m|pip|install"
           && (argv.length === 4 || (argv.length === 5 && argv[3] === "--force-reinstall"))
           && samePath(argv.at(-1), wheelPaths[resourceIndex])) {
@@ -230,9 +266,12 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
         return { ok: true, status: 200, text: async () => `openfic-${VERSION}` };
       } } }],
       ["node:child_process", { spawn: fakeSpawn }],
-      ["node:crypto", { createHash }],
+      ["node:crypto", { createHash, randomUUID: (() => { let value = 0; return () => `synthetic-${value++}`; })() }],
       ["node:fs/promises", safeFs],
       ["node:path", { default: path }],
+      ["node:zlib", { gunzip: (compressed, callback) => {
+        try { callback(null, gunzipSync(compressed)); } catch (error) { callback(error); }
+      } }],
       ["../ports.js", { findFreePort: () => deny("findFreePort") }],
       ["../process.js", { abortStartingBackendProcess: () => deny("abortStartingBackendProcess"),
         startBackendProcess: () => deny("startBackendProcess") }],
@@ -275,7 +314,9 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
     assert.equal(typeof api.ensureOpenFicRuntime, "function");
     const python = { pythonPath, rootDir: path.join(runtimeDir, "python"), wasReplaced: false };
     await runCase({
-      state, installs, spawns, fetches, progress, logs, markerWrites, pythonPath, uvPath,
+      state, installs, spawns, fetches, progress, logs, markerWrites, temporaryUvPaths,
+      removedTemporaryUvPaths, pythonPath, uvPath,
+      get bundledUvPath() { return bundledUvPaths[resourceIndex]; },
       get wheelPath() { return wheelPaths[resourceIndex]; },
       inspect: () => api.inspectOpenFicRuntime(runtimeDir, VERSION),
       ensure: () => api.ensureOpenFicRuntime(python, runtimeDir, VERSION,
@@ -292,6 +333,9 @@ async function withRuntimeFixture(runCase, { bundled = true, packaged = true } =
         await requireUnlinked(scratch);
         await fs.mkdir(wheelDirs[1], { recursive: true });
         await fs.writeFile(wheelPaths[1], bytes);
+        if (bundled && packaged && bundledUv) {
+          await fs.writeFile(bundledUvPaths[1], await fs.readFile(bundledUvPaths[0]));
+        }
         resourceIndex = 1;
       },
     });
@@ -318,8 +362,11 @@ test("legacy version marker migrates once and repeated current identity skips re
     assert.equal(result.venvPythonPath, fixture.pythonPath);
     assert.equal(result.uvPath, fixture.uvPath);
     assert.equal(fixture.installs.length, 1);
-    assert.equal(fixture.installs[0].kind, "bundled-pip");
-    assert.deepEqual(fixture.installs[0].args, ["-m", "pip", "install", "--force-reinstall", fixture.wheelPath]);
+    assert.equal(fixture.installs[0].kind, "bundled-uv");
+    assert.deepEqual(fixture.installs[0].args, ["--verbose", "pip", "install", "--python", fixture.pythonPath, "--reinstall", fixture.wheelPath]);
+    assert.ok(fixture.progress.some((event) => event.step === "install-openfic" && event.message === "正在下载和安装后端依赖…"));
+    assert.equal(fixture.temporaryUvPaths.length, 1);
+    assert.deepEqual(fixture.removedTemporaryUvPaths, fixture.temporaryUvPaths);
     assert.equal(await fixture.readMarker(), markerFor(WHEEL_A));
     assert.equal((await fixture.inspect()).complete, true);
     await fixture.ensure();
@@ -340,7 +387,7 @@ test("same filename and version with changed wheel bytes forces reinstall and re
     assert.equal((await fixture.inspect()).complete, false);
     await fixture.ensure();
     assert.equal(fixture.installs.length, 2);
-    assert.deepEqual(fixture.installs[1].args, ["-m", "pip", "install", "--force-reinstall", wheelPath]);
+    assert.deepEqual(fixture.installs[1].args, ["--verbose", "pip", "install", "--python", fixture.pythonPath, "--reinstall", wheelPath]);
     assert.equal(await fixture.readMarker(), markerFor(WHEEL_B));
     assert.notEqual(await fixture.readMarker(), previousMarker);
     assert.equal((await fixture.inspect()).complete, true);
@@ -374,7 +421,7 @@ test("installed metadata version mismatch still reinstalls with a matching wheel
     assert.equal((await fixture.inspect()).complete, false);
     await fixture.ensure();
     assert.equal(fixture.installs.length, 2);
-    assert.deepEqual(fixture.installs[1].args, ["-m", "pip", "install", fixture.wheelPath]);
+    assert.deepEqual(fixture.installs[1].args, ["--verbose", "pip", "install", "--python", fixture.pythonPath, fixture.wheelPath]);
     assert.equal(await fixture.readMarker(), markerFor(WHEEL_A));
     assert.equal((await fixture.inspect()).complete, true);
   });
@@ -387,7 +434,7 @@ test("unusable CLI still forces reinstall with a matching version and wheel iden
     assert.equal((await fixture.inspect()).complete, false);
     await fixture.ensure();
     assert.equal(fixture.installs.length, 2);
-    assert.deepEqual(fixture.installs[1].args, ["-m", "pip", "install", "--force-reinstall", fixture.wheelPath]);
+    assert.deepEqual(fixture.installs[1].args, ["--verbose", "pip", "install", "--python", fixture.pythonPath, "--reinstall", fixture.wheelPath]);
     assert.equal((await fixture.inspect()).complete, true);
   });
 });
@@ -411,7 +458,7 @@ test("unreadable selected wheel is incomplete and ensure rejects without recordi
   });
 });
 
-test("failed bundled pip attempts retain the old identity and a later retry can update it", async () => {
+test("failed bundled uv attempts retain the old identity and a later retry can update it", async () => {
   await withRuntimeFixture(async (fixture) => {
     await fixture.ensure();
     const marker = await fixture.readMarker();
@@ -421,7 +468,7 @@ test("failed bundled pip attempts retain the old identity and a later retry can 
     await assert.rejects(fixture.ensure(), /exited with code 1/);
     assert.equal(fixture.installs.length, 3, "Both existing index fallback attempts must fail");
     for (const install of fixture.installs.slice(1)) {
-      assert.deepEqual(install.args, ["-m", "pip", "install", "--force-reinstall", fixture.wheelPath]);
+      assert.deepEqual(install.args, ["--verbose", "pip", "install", "--python", fixture.pythonPath, "--reinstall", fixture.wheelPath]);
     }
     assert.equal(await fixture.readMarker(), marker);
     assert.equal(fixture.markerWrites.length, 1);
@@ -471,3 +518,22 @@ for (const options of [{ bundled: false }, { bundled: true, packaged: false }]) 
     }, options);
   });
 }
+
+test("bundled wheel falls back to venv pip when no bundled uv is present", async () => {
+  await withRuntimeFixture(async (fixture) => {
+    await fixture.ensure();
+    assert.equal(fixture.installs.length, 1);
+    assert.equal(fixture.installs[0].kind, "bundled-pip");
+    assert.deepEqual(fixture.installs[0].args, ["-m", "pip", "install", "--force-reinstall", fixture.wheelPath]);
+  }, { bundled: true, packaged: true, bundledUv: false });
+});
+
+test("corrupt bundled uv archive falls back to venv pip and keeps runtime setup working", async () => {
+  await withRuntimeFixture(async (fixture) => {
+    await fixture.ensure();
+    assert.equal(fixture.installs.length, 1);
+    assert.equal(fixture.installs[0].kind, "bundled-pip");
+    assert.equal(fixture.temporaryUvPaths.length, 0);
+    assert.ok(fixture.logs.some((line) => line.includes("安装包内置 uv 解压或校验失败")));
+  }, { bundled: true, packaged: true, bundledUv: true, bundledUvCorrupt: true });
+});

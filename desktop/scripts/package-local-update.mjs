@@ -77,6 +77,7 @@ function runNode(args) {
 
 const versionConfig = version ? [`--config.extraMetadata.version=${version}`] : [];
 
+await runNode(["scripts/clean-package-output.mjs"]);
 await run(["build"]);
 // 与 release 打包一致：先构建并暂存版本匹配的内置后端 wheel，再交给 electron-builder 打进安装包。
 await runNode(["scripts/build-backend-wheel.mjs"]);
@@ -89,7 +90,10 @@ if (bundledWheels.length === 0) {
     `No openfic-${effectiveVersion}-*.whl staged in desktop/backend-wheel. Refusing to package a local update that would fall back to the public PyPI openfic package.`,
   );
 }
-console.log(`package-local-update: bundling ${bundledWheels.join(", ")}`);
+if (!readdirSync(wheelDir).includes("uv.exe.gz")) {
+  throw new Error("No compressed uv.exe staged in desktop/backend-wheel. Refusing to package a Windows update without the faster bundled runtime installer.");
+}
+console.log(`package-local-update: bundling ${bundledWheels.join(", ")} and compressed uv.exe`);
 
 await run([
   "exec",

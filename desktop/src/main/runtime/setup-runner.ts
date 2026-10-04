@@ -21,7 +21,7 @@ const STEP_DONE_MESSAGE: Record<SetupProgressEvent["step"], string> = {
   "download-python": "Python 已就绪",
   "extract-python": "Python 已解压",
   "create-venv": "运行环境已创建",
-  "install-uv": "uv 已安装",
+  "install-uv": "安装工具已准备",
   "install-openfic": "OpenFix 后端已安装",
 };
 
