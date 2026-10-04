@@ -64,6 +64,22 @@ async def update_outline(session: AsyncSession, outline: Outline) -> Outline:
     return outline
 
 
+async def update_sort_orders(
+    session: AsyncSession, ordered_ids: list[str]
+) -> None:
+    """按给定次序批量更新节点顺序。"""
+    if not ordered_ids:
+        return
+    await session.execute(
+        update(Outline),
+        [
+            {"id": outline_id, "sort_order": sort_order}
+            for sort_order, outline_id in enumerate(ordered_ids, start=1)
+        ],
+    )
+    await session.flush()
+
+
 async def shift_sort_orders(
     session: AsyncSession,
     project_id: str,

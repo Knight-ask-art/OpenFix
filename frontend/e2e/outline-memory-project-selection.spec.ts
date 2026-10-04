@@ -976,4 +976,166 @@ test.describe("outline 编辑器状态", () => {
     await expect(alphaChild).toBeHidden();
     await expect(page.locator(".outline-editor")).toHaveCount(0);
   });
+
+  test("搜索会展开匹配路径，层级选择只显示符合父子结构的选项", async ({ page }) => {
+    await installApiMock(page, {
+      pageOneProjects: [ALPHA],
+      resolvableProjects: [ALPHA],
+    });
+    let nodes = outlinePayloads(ALPHA.id);
+    await page.route(`**/api/v1/projects/${ALPHA.id}/outlines`, async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({ status: 200, json: { items: nodes, total: nodes.length } });
+        return;
+      }
+      if (route.request().method() === "POST") {
+        const payload = route.request().postDataJSON() as {
+          level: string;
+          title: string;
+          content?: string;
+          parent_id: string | null;
+        };
+        const created = {
+          ...nodes[0],
+          id: `${ALPHA.id}-node-3`,
+          parent_id: payload.parent_id,
+          level: payload.level,
+          title: payload.title,
+          content: payload.content ?? "",
+          sort_order: nodes.filter((node) => node.parent_id === payload.parent_id).length + 1,
+        };
+        nodes = [...nodes, created];
+        await route.fulfill({ status: 201, json: created });
+        return;
+      }
+      await route.fallback();
+    });
+    await mockSocketIo(page);
+
+    await page.goto(`/outline?projectId=${ALPHA.id}`);
+    await expect(projectSelectTrigger(page, ".outline-page__project-select")).toContainText(
+      ALPHA.title,
+      { timeout: 30000 },
+    );
+
+    await expect(page.locator(".outline-page__tree-help")).toContainText("点击节点编辑");
+    const search = page.locator(".outline-page__search input");
+    await search.fill(`${ALPHA.id} Child`);
+    await expect(
+      page.locator(".outline-tree__label", { hasText: `${ALPHA.id} Child` }),
+    ).toBeVisible();
+    await expect(page.locator(".outline-page__tree-heading")).toContainText("显示 2 / 2");
+
+    await page.getByRole("button", { name: "清除搜索", exact: true }).click();
+    const rootLabel = page.locator(".outline-tree__label", { hasText: `${ALPHA.id} Root` });
+    await rootLabel.click();
+    await expect(page.locator(".outline-tree__row").filter({ has: rootLabel })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await page.locator(".outline-editor [aria-label='层级']").click();
+    await expect(page.getByRole("option", { name: "篇章" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "卷" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "章", exact: true })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+
+    await search.fill(`${ALPHA.id} Child`);
+    const rootRow = page.locator(".outline-tree__row").filter({
+      hasText: `${ALPHA.id} Root`,
+    });
+    await rootRow.getByRole("button", { name: "新建子节点", exact: true }).click();
+    await expect(search).toHaveValue("");
+    await expect(page.locator(".outline-tree__label", { hasText: "篇章" })).toBeVisible();
+    await expect(page.locator(".outline-editor input").first()).toBeFocused();
+  });
+
+  test("编辑器可直接新增同级节点，并用回车从标题进入内容", async ({ page }) => {
+    await installApiMock(page, {
+      pageOneProjects: [ALPHA],
+      resolvableProjects: [ALPHA],
+    });
+    let nodes = outlinePayloads(ALPHA.id);
+    let createdPayload: Record<string, unknown> | null = null;
+    await page.route(`**/api/v1/projects/${ALPHA.id}/outlines`, async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({ status: 200, json: { items: nodes, total: nodes.length } });
+        return;
+      }
+      if (route.request().method() === "POST") {
+        const payload = route.request().postDataJSON() as {
+          level: string;
+          title: string;
+          content?: string;
+          parent_id: string | null;
+        };
+        createdPayload = payload;
+        const created = {
+          ...nodes[0],
+          id: `${ALPHA.id}-node-3`,
+          parent_id: payload.parent_id,
+          level: payload.level,
+          title: payload.title,
+          content: payload.content ?? "",
+          sort_order: nodes.filter((node) => node.parent_id === payload.parent_id).length + 1,
+        };
+        nodes = [...nodes, created];
+        await route.fulfill({ status: 201, json: created });
+        return;
+      }
+      await route.fallback();
+    });
+    await mockSocketIo(page);
+
+    await page.goto(`/outline?projectId=${ALPHA.id}`);
+    await expect(projectSelectTrigger(page, ".outline-page__project-select")).toContainText(
+      ALPHA.title,
+      { timeout: 30000 },
+    );
+    const root = page.locator(".outline-tree__row").filter({ hasText: `${ALPHA.id} Root` });
+    await root.locator(".outline-tree__expander").click();
+    await page.locator(".outline-tree__label", { hasText: `${ALPHA.id} Child` }).click();
+
+    await page.getByRole("button", { name: "新增同级", exact: true }).click();
+    const title = page.locator(".outline-editor input").first();
+    const content = page.locator(".outline-editor textarea").first();
+    await expect(title).toBeFocused();
+    expect(createdPayload).toMatchObject({
+      level: "chapter",
+      parent_id: `${ALPHA.id}-node-1`,
+    });
+
+    await title.fill("下一章");
+    await title.press("Enter");
+    await expect(content).toBeFocused();
+  });
+
+  test("空大纲提供明确的新建入口与分层说明", async ({ page }) => {
+    await installApiMock(page, {
+      pageOneProjects: [ALPHA],
+      resolvableProjects: [ALPHA],
+    });
+    await page.route(`**/api/v1/projects/${ALPHA.id}/outlines`, async (route) => {
+      await route.fulfill({ status: 200, json: { items: [], total: 0 } });
+    });
+    await mockSocketIo(page);
+
+    await page.goto(`/outline?projectId=${ALPHA.id}`);
+    await expect(projectSelectTrigger(page, ".outline-page__project-select")).toContainText(
+      ALPHA.title,
+      { timeout: 30000 },
+    );
+    await expect(page.locator(".outline-tree__empty-copy")).toContainText(
+      "从清晰的故事骨架开始",
+    );
+    await expect(page.locator(".outline-tree__empty-copy")).toContainText(
+      "先建全书大纲",
+    );
+    await expect(
+      page.locator(".outline-tree__empty").getByRole("button", {
+        name: "新建全书大纲",
+        exact: true,
+      }),
+    ).toBeVisible();
+  });
 });

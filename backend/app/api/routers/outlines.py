@@ -10,6 +10,8 @@ from app.api.schemas.outline import (
     OutlineCreate,
     OutlineDeleteResponse,
     OutlineListResponse,
+    OutlineReorderRequest,
+    OutlineReorderResponse,
     OutlineResponse,
     OutlineUpdate,
 )
@@ -69,6 +71,30 @@ async def create_outline(
     return _to_response(outline)
 
 
+@router.post(
+    "/projects/{project_id}/outlines/reorder",
+    response_model=OutlineReorderResponse,
+    summary="调整同级大纲节点顺序",
+)
+async def reorder_outline_siblings(
+    project_id: str,
+    data: OutlineReorderRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> OutlineReorderResponse:
+    try:
+        updated_count = await outline_service.reorder_outline_siblings(
+            session,
+            project_id=project_id,
+            parent_id=data.parent_id,
+            node_ids=data.node_ids,
+        )
+    except ValidationError as exc:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await session.commit()
+    return OutlineReorderResponse(updated_count=updated_count)
+
+
 @router.patch(
     "/projects/{project_id}/outlines/{outline_id}",
     response_model=OutlineResponse,
@@ -88,10 +114,22 @@ async def update_outline(
             title=data.title,
             content=data.content,
             level=data.level,
-            parent_id=data.parent_id,
+            parent_id=(
+                data.parent_id
+                if "parent_id" in data.model_fields_set
+                else outline_service.UNSET
+            ),
             sort_order=data.sort_order,
-            volume_id=data.volume_id,
-            chapter_id=data.chapter_id,
+            volume_id=(
+                data.volume_id
+                if "volume_id" in data.model_fields_set
+                else outline_service.UNSET
+            ),
+            chapter_id=(
+                data.chapter_id
+                if "chapter_id" in data.model_fields_set
+                else outline_service.UNSET
+            ),
         )
     except ValidationError as exc:
         await session.rollback()

@@ -8,26 +8,84 @@
 
 .outline-page__header {
   flex-shrink: 0;
-  padding: 16px 24px 12px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--gray-a4);
+  background: var(--color-panel);
+}
+
+.outline-page__heading-group,
+.outline-page__page-title,
+.outline-page__header-actions {
+  min-width: 0;
+}
+
+.outline-page__page-title p {
+  margin: 0;
+}
+
+.outline-page__page-title p + p {
+  margin-top: 2px;
 }
 
 .outline-page__project-select {
+  width: min(260px, 32vw);
   min-width: 180px;
+}
+
+.outline-page__project-select .rt-SelectTrigger {
+  width: 100%;
+  justify-content: space-between;
 }
 
 .outline-page__body {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: clamp(280px, 28vw, 360px) minmax(0, 1fr);
 }
 
 .outline-page__tree {
   min-height: 0;
-  overflow-y: auto;
-  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-right: 1px solid var(--gray-a4);
+  background: var(--gray-a2);
+}
+
+.outline-page__tree-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 14px 12px 12px;
+  border-bottom: 1px solid var(--gray-a4);
+  background: var(--color-background);
+}
+
+.outline-page__tree-heading p {
+  margin: 3px 0 0;
+}
+
+.outline-page__search {
+  width: 100%;
+}
+
+.outline-page__tree-help {
+  padding-inline: 2px;
+  line-height: 1.45;
+}
+
+.outline-page__tree-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  overscroll-behavior: contain;
+}
+
+.outline-page__tree-error {
+  padding: 16px;
 }
 
 .outline-page__editor {
@@ -36,9 +94,35 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-/* 编辑器与 AI 动作条共用一个滚动区域，避免嵌套滚动。 */
+.outline-page__editor-heading {
+  flex-shrink: 0;
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--gray-a4);
+  background: var(--gray-a2);
+}
+
+.outline-page__editor-heading p {
+  margin: 0;
+}
+
+.outline-page__editor-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.outline-page__node-actions {
+  flex-shrink: 0;
+}
+
+.outline-page__editor-title p:first-child {
+  margin-bottom: 5px;
+  line-height: 1.5;
+}
+
+/* Keep one scroll container for the editor and its AI actions. */
 .outline-page__editor .outline-editor {
   flex: 0 0 auto;
   height: auto;
@@ -46,22 +130,85 @@
 }
 
 .outline-page__editor-empty {
-  height: 100%;
+  flex: 1;
+  min-height: 260px;
+  padding: 24px;
+  text-align: center;
+}
+
+.outline-page__editor-empty-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid var(--gray-a5);
+  border-radius: 12px;
+  background: var(--gray-a2);
+  color: var(--gray-10);
+}
+
+.outline-page__editor-empty-copy {
+  max-width: 360px;
+}
+
+.outline-page__editor-empty-copy p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.outline-page__editor-empty-copy p + p {
+  margin-top: 6px;
 }
 
 .outline-page__empty {
   flex: 1;
   min-height: 0;
+  padding: 24px;
+}
+
+@media (max-width: 900px) {
+  .outline-page__header {
+    padding-inline: 16px;
+  }
+
+  .outline-page__body {
+    grid-template-columns: minmax(250px, 38%) minmax(0, 1fr);
+  }
+
+  .outline-page__editor-heading {
+    padding-inline: 18px;
+  }
 }
 
 @media (max-width: 767px) {
+  .outline-page__header {
+    padding: 12px;
+  }
+
+  .outline-page__heading-group {
+    flex: 1 1 100%;
+  }
+
+  .outline-page__header-actions {
+    width: 100%;
+  }
+
+  .outline-page__project-select {
+    flex: 1;
+    width: auto;
+  }
+
   .outline-page__body {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(140px, 30%) 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(200px, 40%) minmax(0, 1fr);
   }
 
   .outline-page__tree {
     border-right: 0;
     border-bottom: 1px solid var(--gray-a4);
+  }
+
+  .outline-page__editor-heading {
+    padding: 14px 16px 12px;
   }
 }

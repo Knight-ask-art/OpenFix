@@ -36,6 +36,8 @@ export interface OutlineUpdatePayload {
   level?: OutlineLevel;
   parent_id?: string | null;
   sort_order?: number;
+  volume_id?: string | null;
+  chapter_id?: string | null;
 }
 
 export async function fetchOutlines(projectId: string): Promise<OutlineNode[]> {
@@ -66,6 +68,17 @@ export async function updateOutline(
     payload,
   );
   return response.data;
+}
+
+export async function reorderOutlineSiblings(
+  projectId: string,
+  parentId: string | null,
+  nodeIds: string[],
+): Promise<void> {
+  await apiClient.post(
+    "/projects/" + projectId + "/outlines/reorder",
+    { parent_id: parentId, node_ids: nodeIds },
+  );
 }
 
 export async function deleteOutline(

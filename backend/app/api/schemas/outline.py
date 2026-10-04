@@ -32,6 +32,19 @@ class OutlineUpdate(BaseModel):
     chapter_id: str | None = None
 
 
+class OutlineReorderRequest(BaseModel):
+    """同级大纲节点的新顺序。"""
+
+    parent_id: str | None = None
+    node_ids: list[str] = Field(min_length=1, max_length=5000)
+
+
+class OutlineReorderResponse(BaseModel):
+    """大纲同级排序结果。"""
+
+    updated_count: int
+
+
 class OutlineResponse(BaseModel):
     """大纲节点。"""
 
