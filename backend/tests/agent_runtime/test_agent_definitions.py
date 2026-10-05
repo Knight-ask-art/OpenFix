@@ -75,6 +75,7 @@ async def test_load_agent_definition_prefers_db_record():
                     kind="subagent",
                     prompt_agent_name="reviewer",
                     model_id="model-reviewer",
+                    reasoning_effort="high",
                     enabled_tool_categories=["finish"],
                     enabled_skills=["skill-review"],
                     metadata_json={"scope": "custom"},
@@ -88,6 +89,7 @@ async def test_load_agent_definition_prefers_db_record():
 
         assert definition.display_name == "Custom Reviewer"
         assert definition.model_id == "model-reviewer"
+        assert definition.reasoning_effort == "high"
         assert definition.enabled_tool_categories == ("finish",)
         assert definition.enabled_skills == ("skill-review",)
         assert definition.metadata == {"scope": "custom"}
@@ -132,6 +134,7 @@ async def test_load_custom_agent_definition_has_source_custom():
         assert definition.source == "custom"
         assert definition.enabled_skills == ("skill-custom",)
         assert definition.delegatable_agents == ("explore",)
+        assert definition.reasoning_effort == "inherit"
     finally:
         await engine.dispose()
 

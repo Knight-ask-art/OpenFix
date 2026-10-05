@@ -4,10 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.agent_runtime.context.compaction.tokens import count_text_tokens
+from app.agent_runtime.context.errors import ContextBuildError
 from app.agent_runtime.context.types import ContextMessage
+from app.storage.repos import setting_repo
 
 
+SETTING_KEY_SOFT_GC_TOOL_RESULTS = "context_soft_gc_tool_results"
+DEFAULT_SOFT_GC_TOOL_RESULTS_ENABLED = True
 MIN_DUPLICATE_RESULT_TOKENS = 256
 MIN_SAVED_TOKENS = 128
 _DUPLICATE_REFERENCE = "此工具结果与前文中的同工具结果完全一致，请参考前文结果。"
@@ -18,6 +24,21 @@ class SoftGcResult:
     messages: list[ContextMessage]
     tokens_pruned: int
     results_replaced: int
+
+
+async def is_soft_gc_tool_results_enabled(db_session: AsyncSession) -> bool:
+    """Read the opt-out setting; old installations keep the conservative default."""
+    try:
+        row = await setting_repo.get_by_key(db_session, SETTING_KEY_SOFT_GC_TOOL_RESULTS)
+    except Exception as e:
+        raise ContextBuildError(
+            "settings",
+            "failed to load tool_result_soft_gc setting",
+            cause=e,
+        ) from e
+    if row is None or row.value == "":
+        return DEFAULT_SOFT_GC_TOOL_RESULTS_ENABLED
+    return row.value.strip().lower() not in {"false", "0", "no", "off"}
 
 
 def soft_prune_duplicate_tool_results(

@@ -48,6 +48,7 @@ async def test_list_agent_definitions(client: AsyncClient):
     assert build["color"] == "blue"
     assert build["icon"] == "pen-tool"
     assert plan["color"] == "green"
+    assert build["reasoning_effort"] == "inherit"
 
     ordered_keys = [d["key"] for d in data["definitions"]]
     builtin_order = ("build", "plan", "explore", "composer", "auditor", "writer", "reviewer", "actor")
@@ -130,6 +131,7 @@ async def test_create_custom_agent_definition(
         "kind": "primary",
         "prompt_agent_name": "custom-bot",
         "model_id": None,
+        "reasoning_effort": "low",
         "enabled_tool_categories": ["chapter_read"],
         "enabled_skills": ["skill-a", "skill-b"],
         "metadata": {},
@@ -147,6 +149,7 @@ async def test_create_custom_agent_definition(
     assert data["color"] == "green"
     assert data["icon"] == "sparkles"
     assert data["delegatable_agents"] == ["explore"]
+    assert data["reasoning_effort"] == "low"
 
     assert not (isolated_prompts_dir / "custom-agents" / "custom-bot.yaml").exists()
 
@@ -217,6 +220,7 @@ async def test_update_custom_agent_definition(client: AsyncClient):
         "display_name": "Edited Bot",
         "description": "After update",
         "enabled_skills": ["skill-z"],
+        "reasoning_effort": "high",
         "color": "orange",
         "icon": "wand",
         "delegatable_agents": ["explore", "writer"],
@@ -230,6 +234,7 @@ async def test_update_custom_agent_definition(client: AsyncClient):
     assert data["color"] == "orange"
     assert data["icon"] == "wand"
     assert data["delegatable_agents"] == ["explore", "writer"]
+    assert data["reasoning_effort"] == "high"
 
 
 @pytest.mark.asyncio

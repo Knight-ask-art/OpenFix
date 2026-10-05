@@ -112,6 +112,11 @@ def test_migration_chain_is_continuous_with_a_single_head() -> None:
     )
     assert token_metrics_migration.revision == "1029"
     assert token_metrics_migration.down_revision == "1028"
+    agent_reasoning_migration = importlib.import_module(
+        "app.storage.migrations.versions.1030_add_agent_reasoning_effort"
+    )
+    assert agent_reasoning_migration.revision == "1030"
+    assert agent_reasoning_migration.down_revision == "1029"
 
     config = Config()
     config.set_main_option(
@@ -119,16 +124,16 @@ def test_migration_chain_is_continuous_with_a_single_head() -> None:
     )
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["1029"]
+    assert script.get_heads() == ["1030"]
 
     # 从最新迁移沿 down_revision 回溯，每一步都必须能在仓库里找到对应迁移。
     revisions = {revision.revision: revision for revision in script.walk_revisions()}
-    current: str | None = "1029"
+    current: str | None = "1030"
     visited: list[str] = []
     while current is not None:
         assert current in revisions, f"缺失迁移版本: {current}"
         visited.append(current)
         down = revisions[current].down_revision
         current = down if isinstance(down, str) else None
-    assert visited[0] == "1029"
+    assert visited[0] == "1030"
     assert visited[-1] == "1001"

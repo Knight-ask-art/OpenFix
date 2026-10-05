@@ -55,6 +55,7 @@ import {
   deleteAgentDefinition,
 } from "../lib/agent-definitions-api";
 import type {
+  AgentReasoningEffort,
   AgentToolCategoryResponse,
   AgentDefinitionResponse,
   AgentDefinitionCreateRequest,
@@ -159,6 +160,9 @@ function AgentForm({
   const [formColor, setFormColor] = useState<string | null>(def.color ?? DEFAULT_AGENT_COLOR);
   const [formIcon, setFormIcon] = useState<string | null>(def.icon ?? DEFAULT_AGENT_ICON);
   const [formModelId, setFormModelId] = useState(getEffectiveModelSelection(def.model_id));
+  const [formReasoningEffort, setFormReasoningEffort] = useState<AgentReasoningEffort>(
+    def.reasoning_effort ?? "inherit",
+  );
   const [formEnabledToolCategories, setFormEnabledToolCategories] = useState<string[]>([
     ...getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories),
   ]);
@@ -194,6 +198,7 @@ function AgentForm({
       formColor !== (def.color ?? DEFAULT_AGENT_COLOR) ||
       formIcon !== (def.icon ?? DEFAULT_AGENT_ICON) ||
       formModelId !== getEffectiveModelSelection(def.model_id) ||
+      formReasoningEffort !== (def.reasoning_effort ?? "inherit") ||
       JSON.stringify(formEnabledToolCategories) !==
         JSON.stringify(getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories)) ||
       JSON.stringify(formEnabledSkills) !== JSON.stringify(def.enabled_skills) ||
@@ -207,6 +212,7 @@ function AgentForm({
     formColor,
     formIcon,
     formModelId,
+    formReasoningEffort,
     formEnabledToolCategories,
     formEnabledSkills,
     formDelegatableAgents,
@@ -230,6 +236,7 @@ function AgentForm({
         description: formDescription,
         ...(canChangeKind ? { kind: formKind } : {}),
         model_id: formModelId,
+        reasoning_effort: formReasoningEffort,
         color: formColor,
         icon: formIcon,
         enabled_tool_categories: getEnabledToolCategoriesForAgent(
@@ -430,6 +437,25 @@ function AgentForm({
           contentClassName="settings-background-panel"
         />
       </Flex>
+
+      <LabeledSelect
+        label={t("settings.agentsReasoningEffort")}
+        value={formReasoningEffort}
+        options={[
+          { value: "inherit", label: t("settings.agentsReasoningEffortInherit") },
+          { value: "off", label: t("settings.agentsReasoningEffortOff") },
+          { value: "low", label: t("settings.agentsReasoningEffortLow") },
+          { value: "medium", label: t("settings.agentsReasoningEffortMedium") },
+          { value: "high", label: t("settings.agentsReasoningEffortHigh") },
+          { value: "xhigh", label: t("settings.agentsReasoningEffortXhigh") },
+          { value: "max", label: t("settings.agentsReasoningEffortMax") },
+        ]}
+        onChange={(value) => setFormReasoningEffort(value as AgentReasoningEffort)}
+        disabled={isAgentSettingsLocked}
+        triggerStyle={{ width: "100%" }}
+        triggerClassName="select-trigger--background"
+        contentClassName="settings-background-panel"
+      />
 
       <Flex
         direction="column"

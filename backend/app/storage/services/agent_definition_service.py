@@ -94,6 +94,7 @@ async def create_definition(
     delegatable_agents: list[str] | None,
     color: str | None = None,
     icon: str | None = None,
+    reasoning_effort: str = "inherit",
 ) -> AgentDefinitionRecord:
     existing = await agent_definition_repo.get_by_key(session, key)
     if existing is not None:
@@ -112,6 +113,7 @@ async def create_definition(
         kind=kind,
         prompt_agent_name=prompt_agent_name,
         model_id=model_id,
+        reasoning_effort=reasoning_effort,
         enabled_tool_categories=normalized_tool_categories,
         enabled_skills=normalized_enabled_skills,
         metadata_json=metadata or {},
@@ -135,6 +137,7 @@ def _build_record(
         kind=default.kind,
         prompt_agent_name=default.prompt_agent_name,
         model_id=default.model_id,
+        reasoning_effort=default.reasoning_effort,
         enabled_tool_categories=list(default.enabled_tool_categories),
         enabled_skills=list(default.enabled_skills),
         metadata_json=dict(default.metadata),
@@ -161,6 +164,7 @@ async def update_definition(
     delegatable_agents: list[str] | None = None,
     color: str | None = None,
     icon: str | None = None,
+    reasoning_effort: str | None = None,
 ) -> AgentDefinitionRecord:
     if kind is not None and key in _BUILTIN_KEYS:
         default = get_default_agent_definition(key)
@@ -185,6 +189,8 @@ async def update_definition(
         record.prompt_agent_name = prompt_agent_name
     if model_id is not None:
         record.model_id = model_id
+    if reasoning_effort is not None:
+        record.reasoning_effort = reasoning_effort
     if enabled_tool_categories is not None:
         record.enabled_tool_categories = _normalize_enabled_tool_categories(
             record.kind,

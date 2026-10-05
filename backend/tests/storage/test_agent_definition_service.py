@@ -61,6 +61,7 @@ async def test_create_custom_definition():
                 delegatable_agents=[],
                 color="green",
                 icon="sparkles",
+                reasoning_effort="medium",
             )
             await session.commit()
 
@@ -71,6 +72,7 @@ async def test_create_custom_definition():
             assert record.color == "green"
             assert record.icon == "sparkles"
             assert record.delegatable_agents == []
+            assert record.reasoning_effort == "medium"
     finally:
         await engine.dispose()
 
@@ -183,6 +185,7 @@ async def test_update_custom_definition():
                 description="After update",
                 enabled_skills=["skill-c"],
                 delegatable_agents=["explore", "writer"],
+                reasoning_effort="high",
             )
             await session.commit()
 
@@ -190,6 +193,7 @@ async def test_update_custom_definition():
             assert record.description == "After update"
             assert record.enabled_skills == ["skill-c"]
             assert record.delegatable_agents == ["explore", "writer"]
+            assert record.reasoning_effort == "high"
     finally:
         await engine.dispose()
 

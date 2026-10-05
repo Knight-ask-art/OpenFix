@@ -1052,6 +1052,60 @@ test.describe("outline 编辑器状态", () => {
     await expect(page.locator(".outline-editor input").first()).toBeFocused();
   });
 
+  test("新建子节点后切回全书节点不会重复渲染 AI 操作栏", async ({ page }) => {
+    await installApiMock(page, {
+      pageOneProjects: [ALPHA],
+      resolvableProjects: [ALPHA],
+    });
+    let nodes = [outlinePayloads(ALPHA.id)[0]];
+    await page.route(`**/api/v1/projects/${ALPHA.id}/outlines`, async (route) => {
+      if (route.request().method() === "GET") {
+        await route.fulfill({ status: 200, json: { items: nodes, total: nodes.length } });
+        return;
+      }
+      if (route.request().method() === "POST") {
+        const payload = route.request().postDataJSON() as {
+          level: string;
+          title: string;
+          content?: string;
+          parent_id: string | null;
+        };
+        const created = {
+          ...nodes[0],
+          id: `${ALPHA.id}-child-1`,
+          parent_id: payload.parent_id,
+          level: payload.level,
+          title: payload.title,
+          content: payload.content ?? "",
+          sort_order: 1,
+        };
+        nodes = [...nodes, created];
+        await route.fulfill({ status: 201, json: created });
+        return;
+      }
+      await route.fallback();
+    });
+    await mockSocketIo(page);
+
+    await page.goto(`/outline?projectId=${ALPHA.id}`);
+    await expect(projectSelectTrigger(page, ".outline-page__project-select")).toContainText(
+      ALPHA.title,
+      { timeout: 30000 },
+    );
+
+    const rootRow = page.locator(".outline-tree__row").filter({ hasText: `${ALPHA.id} Root` });
+    await rootRow.getByRole("button", { name: "新建子节点", exact: true }).click();
+    await expect(page.locator(".outline-tree__label", { hasText: "篇章" })).toBeVisible();
+    await expect(page.locator(".outline-page__editor .outline-ai")).toHaveCount(1);
+
+    await rootRow.locator(".outline-tree__label").click();
+    const aiActions = page.locator(".outline-page__editor .outline-ai");
+    await expect(aiActions).toHaveCount(1);
+    await expect(aiActions.getByRole("button", { name: "AI 完善大纲", exact: true })).toHaveCount(1);
+    await expect(aiActions.getByText("请先选择一个卷节点再拆分章节。", { exact: true }))
+      .toHaveCount(1);
+  });
+
   test("编辑器可直接新增同级节点，并用回车从标题进入内容", async ({ page }) => {
     await installApiMock(page, {
       pageOneProjects: [ALPHA],

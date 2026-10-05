@@ -117,6 +117,7 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["agent_tool_permissions"] == EXPECTED_AGENT_TOOL_PERMISSIONS
     assert data["audit_persist_details"] is False
     assert data["compress_system_prompts"] is False
+    assert data["context_soft_gc_tool_results"] is True
     assert data["editor_auto_indent"] is True
     assert data["editor_auto_convert_punctuation"] is False
     assert data["editor_auto_pair_symbols"] is False
@@ -585,6 +586,25 @@ async def test_update_settings_compress_system_prompts(client: AsyncClient) -> N
     enabled_follow_up = await client.get("/api/v1/settings")
     assert enabled_follow_up.status_code == 200
     assert enabled_follow_up.json()["compress_system_prompts"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_settings_context_soft_gc_tool_results(client: AsyncClient) -> None:
+    """重复工具结果软裁剪开关应可保存并默认开启。"""
+    initial = await client.get("/api/v1/settings")
+    assert initial.status_code == 200
+    assert initial.json()["context_soft_gc_tool_results"] is True
+
+    disabled = await client.put(
+        "/api/v1/settings",
+        json={"context_soft_gc_tool_results": False},
+    )
+    assert disabled.status_code == 200
+    assert disabled.json()["context_soft_gc_tool_results"] is False
+
+    follow_up = await client.get("/api/v1/settings")
+    assert follow_up.status_code == 200
+    assert follow_up.json()["context_soft_gc_tool_results"] is False
 
 
 @pytest.mark.asyncio

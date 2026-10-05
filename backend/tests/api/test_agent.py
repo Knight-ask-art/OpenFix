@@ -459,6 +459,31 @@ class TestAgentAPI:
         created_task = await task_service.get_task(session, data["task_id"])
         assert created_task.title == data["task_title"]
 
+    async def test_create_agent_session_uses_primary_agent_reasoning_effort(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        updated = await client.put(
+            "/api/v1/agent-definitions/build",
+            json={"reasoning_effort": "high"},
+        )
+        assert updated.status_code == status.HTTP_200_OK
+
+        resolved_config = {"max_context_tokens": 8_000, "model_id": "selected-model"}
+        with patch(
+            "app.api.routers.agent_runtime._resolve_model_config",
+            AsyncMock(return_value=resolved_config),
+        ) as resolve_model_config:
+            response = await client.post(
+                "/api/v1/agent/sessions",
+                json={"project_id": target["project_id"], "model_id": target["model_id"]},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        resolve_model_config.assert_awaited_once_with(session, target["model_id"], "high")
+
     async def test_send_agent_message_uses_requested_model_for_next_run(
         self,
         client: AsyncClient,

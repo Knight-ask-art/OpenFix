@@ -28,6 +28,10 @@ from app.agent_runtime.tools.impls.web_search.providers import (
 from app.agent_runtime.context.processors.compress import (
     SETTING_KEY_COMPRESS_SYSTEM_PROMPTS,
 )
+from app.agent_runtime.context.processors.soft_gc import (
+    DEFAULT_SOFT_GC_TOOL_RESULTS_ENABLED,
+    SETTING_KEY_SOFT_GC_TOOL_RESULTS,
+)
 from app.agent_runtime.session_activity import has_active_agent_sessions
 from app.telemetry import SETTING_KEY_TELEMETRY_ENABLED, set_telemetry_enabled
 from app.api.agent_settings_lock import require_agent_settings_unlocked
@@ -158,6 +162,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_AGENT_TOOL_PERMISSIONS: "[]",
     SETTING_KEY_AUDIT_PERSIST_DETAILS: "false",
     SETTING_KEY_COMPRESS_SYSTEM_PROMPTS: "false",
+    SETTING_KEY_SOFT_GC_TOOL_RESULTS: json.dumps(DEFAULT_SOFT_GC_TOOL_RESULTS_ENABLED),
     SETTING_KEY_TELEMETRY_ENABLED: "true",
     SETTING_KEY_EDITOR_AUTO_INDENT: "true",
     SETTING_KEY_EDITOR_AUTO_CONVERT_PUNCTUATION: "false",
@@ -436,6 +441,13 @@ code_font_family=settings_dict.get(
             ),
             default=False,
         ),
+        context_soft_gc_tool_results=_parse_bool_setting(
+            settings_dict.get(
+                SETTING_KEY_SOFT_GC_TOOL_RESULTS,
+                DEFAULT_SETTINGS[SETTING_KEY_SOFT_GC_TOOL_RESULTS],
+            ),
+            default=DEFAULT_SOFT_GC_TOOL_RESULTS_ENABLED,
+        ),
         telemetry_enabled=_parse_bool_setting(
             settings_dict.get(
                 SETTING_KEY_TELEMETRY_ENABLED,
@@ -687,6 +699,11 @@ async def update_settings(
     if request.compress_system_prompts is not None:
         settings_to_update[SETTING_KEY_COMPRESS_SYSTEM_PROMPTS] = json.dumps(
             request.compress_system_prompts,
+            ensure_ascii=False,
+        )
+    if request.context_soft_gc_tool_results is not None:
+        settings_to_update[SETTING_KEY_SOFT_GC_TOOL_RESULTS] = json.dumps(
+            request.context_soft_gc_tool_results,
             ensure_ascii=False,
         )
     if request.telemetry_enabled is not None:

@@ -173,6 +173,36 @@ async def test_resolve_agent_model_config_falls_back_to_inherited_when_unconfigu
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("effort", "expected"),
+    [("inherit", "high"), ("low", "low"), ("off", None)],
+)
+async def test_resolve_agent_model_config_applies_agent_reasoning_effort(
+    db_session_factory,
+    effort: str,
+    expected: str | None,
+):
+    from app.agent_runtime.runner.subagent_runner import _resolve_agent_model_config
+
+    async with db_session_factory() as session:
+        resolved = await _resolve_agent_model_config(
+            session,
+            configured_model_id=None,
+            inherited_config={
+                "provider_type": "openai",
+                "model_id": "parent-model",
+                "reasoning_effort": "high",
+            },
+            reasoning_effort_override=effort,
+        )
+
+    if expected is None:
+        assert "reasoning_effort" not in resolved
+    else:
+        assert resolved["reasoning_effort"] == expected
+
+
+@pytest.mark.asyncio
 async def test_subagent_runner_excludes_restricted_tools_from_definition(
     db_session_factory,
     monkeypatch,

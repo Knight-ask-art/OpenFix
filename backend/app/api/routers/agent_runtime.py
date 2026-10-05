@@ -831,8 +831,11 @@ async def create_agent_session(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"智能体 '{request.agent_key}' 不是主智能体 (kind != primary)",
             )
+        reasoning_effort = request.reasoning_effort
+        if reasoning_effort is None and definition.reasoning_effort != "inherit":
+            reasoning_effort = definition.reasoning_effort
         model_config = await _resolve_model_config(
-            session, request.model_id, request.reasoning_effort
+            session, request.model_id, reasoning_effort
         )
         session_id = f"agent_{generate_id()}"
         task = await task_service.create_task(

@@ -67,6 +67,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     })),
     auditPersistDetails: raw.audit_persist_details ?? false,
     compressSystemPrompts: raw.compress_system_prompts ?? false,
+    contextSoftGcToolResults: raw.context_soft_gc_tool_results ?? true,
     telemetryEnabled: raw.telemetry_enabled ?? true,
     editorAutoIndent: raw.editor_auto_indent ?? true,
     editorAutoConvertPunctuation: raw.editor_auto_convert_punctuation ?? false,

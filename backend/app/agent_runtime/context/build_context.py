@@ -16,6 +16,7 @@ from app.agent_runtime.context.processors.filter import (
     filter_tool_result_metadata,
 )
 from app.agent_runtime.context.processors.soft_gc import (
+    is_soft_gc_tool_results_enabled,
     soft_prune_duplicate_tool_results,
 )
 from app.agent_runtime.context.processors.sanitize import sanitize_surrogates
@@ -75,7 +76,8 @@ async def build_context_parts(
             cause=e,
         ) from e
     overlaid_history = apply_compaction_overlay(history, compactions)
-    overlaid_history = soft_prune_duplicate_tool_results(overlaid_history).messages
+    if await is_soft_gc_tool_results_enabled(db_session):
+        overlaid_history = soft_prune_duplicate_tool_results(overlaid_history).messages
     result = static + overlaid_history
     result = await compress_system_prompts_if_enabled(result, db_session)
     return result

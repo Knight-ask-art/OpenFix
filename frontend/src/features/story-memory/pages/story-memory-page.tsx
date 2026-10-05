@@ -7,6 +7,7 @@ import {
   Globe,
   Layers,
   RefreshCw,
+  Settings2,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -102,7 +103,7 @@ function statusBadge(status: StoryMemoryStatus, t: (key: string) => string) {
 export function StoryMemoryPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const { closeSidebar, isMobile, isSidebarOpen, openSidebar } = useAppShell();
+  const { closeSidebar, isMobile, isSidebarOpen, openSidebar, openSettings } = useAppShell();
   const queryClient = useQueryClient();
   const mobileSidebarSwipeHandlers = useMobileSidebarSwipe({
     isEnabled: isMobile,
@@ -228,24 +229,6 @@ export function StoryMemoryPage() {
               </Select.Root>
             )}
           </Box>
-          {status ? (
-            <Flex
-              align="center"
-              gap="2"
-            >
-              {statusBadge(status, t)}
-              {status.last_ready_at ? (
-                <Text
-                  size="1"
-                  color="gray"
-                >
-                  {t("storyMemory.lastUpdated", {
-                    time: new Date(status.last_ready_at).toLocaleString(),
-                  })}
-                </Text>
-              ) : null}
-            </Flex>
-          ) : null}
         </Flex>
       </Box>
 
@@ -270,16 +253,6 @@ export function StoryMemoryPage() {
             >
               {t("storyMemory.description")}
             </Text>
-            {!status.embedding_configured ? (
-              <Box className="story-memory-page__notice">
-                <Text
-                  size="2"
-                  color="amber"
-                >
-                  {t("storyMemory.embeddingMissing")}
-                </Text>
-              </Box>
-            ) : null}
             {status.index_status === "failed" && status.last_error ? (
               <Box className="story-memory-page__notice">
                 <Text
@@ -290,11 +263,7 @@ export function StoryMemoryPage() {
                 </Text>
               </Box>
             ) : null}
-            <Flex
-              wrap="wrap"
-              gap="3"
-              mt="2"
-            >
+            <Box className="story-memory-page__sources">
               <SourceCard
                 icon={BookOpenText}
                 label={t("storyMemory.sources.chapters")}
@@ -320,34 +289,104 @@ export function StoryMemoryPage() {
                 label={t("storyMemory.sources.notes")}
                 count={status.counts.notes}
               />
-            </Flex>
-            <Flex
-              align="center"
-              gap="3"
-              mt="4"
+            </Box>
+            <section
+              className="story-memory-page__index-panel"
+              aria-labelledby="story-memory-index-heading"
             >
-              <Button
-                size="2"
-                disabled={!projectId || isRebuilding || !status.embedding_configured}
-                loading={rebuildMutation.isPending || isRebuilding}
-                onClick={() => rebuildMutation.mutate()}
+              <Flex
+                align="center"
+                justify="between"
+                gap="4"
+                wrap="wrap"
               >
-                <RefreshCw size={14} />
-                {t("storyMemory.rebuild")}
-              </Button>
-              {isRebuilding ? (
-                <Text
-                  size="1"
-                  color="gray"
+                <Box>
+                  <Flex
+                    align="center"
+                    gap="2"
+                    wrap="wrap"
+                  >
+                    <Text
+                      id="story-memory-index-heading"
+                      as="div"
+                      role="heading"
+                      aria-level={2}
+                      size="2"
+                      weight="medium"
+                    >
+                      {t("storyMemory.indexTitle")}
+                    </Text>
+                    {statusBadge(status, t)}
+                  </Flex>
+                  {status.last_ready_at ? (
+                    <Text
+                      as="p"
+                      size="1"
+                      color="gray"
+                      className="story-memory-page__last-updated"
+                    >
+                      {t("storyMemory.lastUpdated", {
+                        time: new Date(status.last_ready_at).toLocaleString(),
+                      })}
+                    </Text>
+                  ) : null}
+                </Box>
+                <Flex
+                  align="center"
+                  gap="3"
+                  wrap="wrap"
                 >
-                  {t("storyMemory.rebuilding")}
-                </Text>
+                  {isRebuilding ? (
+                    <Text
+                      size="1"
+                      color="gray"
+                    >
+                      {t("storyMemory.rebuilding")}
+                    </Text>
+                  ) : null}
+                  <Button
+                    size="2"
+                    disabled={!projectId || isRebuilding || !status.embedding_configured}
+                    loading={rebuildMutation.isPending || isRebuilding}
+                    onClick={() => rebuildMutation.mutate()}
+                  >
+                    <RefreshCw size={14} />
+                    {t("storyMemory.rebuild")}
+                  </Button>
+                </Flex>
+              </Flex>
+              {!status.embedding_configured ? (
+                <Box className="story-memory-page__embedding-notice">
+                  <Flex
+                    align="center"
+                    justify="between"
+                    gap="3"
+                    wrap="wrap"
+                  >
+                    <Text
+                      size="2"
+                      className="story-memory-page__embedding-copy"
+                    >
+                      {t("storyMemory.embeddingMissing")}
+                    </Text>
+                    <Button
+                      size="2"
+                      variant="soft"
+                      onClick={() =>
+                        openSettings({ category: "models", modelTab: "embedding" })
+                      }
+                    >
+                      <Settings2 size={14} />
+                      {t("storyMemory.configureEmbedding")}
+                    </Button>
+                  </Flex>
+                </Box>
               ) : null}
-            </Flex>
+            </section>
             <Flex
               align="center"
               gap="2"
-              mt="5"
+              mt="4"
             >
               <Brain
                 size={14}

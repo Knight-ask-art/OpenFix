@@ -2,6 +2,7 @@
 
 import pytest
 from pydantic import BaseModel, ConfigDict
+from unittest.mock import AsyncMock
 
 from app.agent_runtime.context.budget import (
     calculate_context_budget,
@@ -12,6 +13,8 @@ from app.agent_runtime.context.metrics import (
     stable_context_fingerprint,
 )
 from app.agent_runtime.context.processors.soft_gc import (
+    SETTING_KEY_SOFT_GC_TOOL_RESULTS,
+    is_soft_gc_tool_results_enabled,
     soft_prune_duplicate_tool_results,
 )
 from app.agent_runtime.context.types import ContextMessage
@@ -82,6 +85,23 @@ def test_duplicate_gc_replaces_only_exact_same_tool_results() -> None:
     assert result.messages[2].content == large
     assert result.messages[3].content == large + "后来"
     assert result.messages[4].content == large
+
+
+@pytest.mark.asyncio
+async def test_duplicate_gc_setting_defaults_on_and_can_be_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.storage.repos import setting_repo
+
+    lookup = AsyncMock(return_value=None)
+    session = object()
+    monkeypatch.setattr(setting_repo, "get_by_key", lookup)
+
+    assert await is_soft_gc_tool_results_enabled(session) is True
+    lookup.assert_awaited_once_with(session, SETTING_KEY_SOFT_GC_TOOL_RESULTS)
+
+    lookup.return_value = type("Setting", (), {"value": "false"})()
+    assert await is_soft_gc_tool_results_enabled(session) is False
 
 
 def test_context_metrics_are_content_free_and_stable() -> None:

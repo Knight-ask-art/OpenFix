@@ -85,6 +85,7 @@ const APP_SETTINGS = {
   agent_tool_permissions: [],
   audit_persist_details: false,
   compress_system_prompts: false,
+  context_soft_gc_tool_results: true,
   telemetry_enabled: false,
   editor_auto_indent: true,
   editor_auto_convert_punctuation: false,

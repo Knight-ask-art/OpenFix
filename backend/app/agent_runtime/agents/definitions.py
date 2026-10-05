@@ -11,6 +11,11 @@ from sqlmodel import col
 
 from app.agent_runtime.persistence.model import AgentDefinitionRecord
 
+AgentReasoningEffort = Literal["inherit", "off", "low", "medium", "high", "xhigh", "max"]
+_AGENT_REASONING_EFFORTS = frozenset(
+    {"inherit", "off", "low", "medium", "high", "xhigh", "max"}
+)
+
 
 @dataclass(frozen=True)
 class AgentDefinition:
@@ -28,6 +33,7 @@ class AgentDefinition:
     color: str | None = None
     icon: str | None = None
     delegatable_agents: tuple[str, ...] = ()
+    reasoning_effort: AgentReasoningEffort = "inherit"
 
 
 DEFAULT_AGENT_KEYS: tuple[str, ...] = (
@@ -269,6 +275,9 @@ def get_default_agent_definition(key: str) -> AgentDefinition:
 
 
 def agent_definition_from_record(record: AgentDefinitionRecord) -> AgentDefinition:
+    reasoning_effort = record.reasoning_effort
+    if reasoning_effort not in _AGENT_REASONING_EFFORTS:
+        reasoning_effort = "inherit"
     return AgentDefinition(
         key=record.key,
         display_name=record.display_name,
@@ -284,6 +293,7 @@ def agent_definition_from_record(record: AgentDefinitionRecord) -> AgentDefiniti
         color=record.color,
         icon=record.icon,
         delegatable_agents=tuple(record.delegatable_agents or ()),
+        reasoning_effort=cast(AgentReasoningEffort, reasoning_effort),
     )
 
 

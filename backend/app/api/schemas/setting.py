@@ -134,6 +134,10 @@ class SettingsResponse(BaseModel):
         default=False,
         description="是否将连续的 system 消息合并为一条",
     )
+    context_soft_gc_tool_results: bool = Field(
+        default=True,
+        description="是否折叠模型历史中的大型重复工具结果",
+    )
     telemetry_enabled: bool = Field(
         default=True,
         description="是否启用 PostHog 错误遥测",
@@ -240,6 +244,10 @@ class SettingsUpdateRequest(BaseModel):
     compress_system_prompts: bool | None = Field(
         default=None,
         description="是否将连续的 system 消息合并为一条",
+    )
+    context_soft_gc_tool_results: bool | None = Field(
+        default=None,
+        description="是否折叠模型历史中的大型重复工具结果",
     )
     telemetry_enabled: bool | None = Field(
         default=None,

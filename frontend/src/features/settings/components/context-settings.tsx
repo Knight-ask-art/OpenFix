@@ -20,10 +20,15 @@ export function ContextSettings() {
       await queryClient.cancelQueries({ queryKey: ["settings"] });
       const previousSettings = queryClient.getQueryData<Settings>(["settings"]);
 
-      if (previousSettings && patch.compress_system_prompts !== undefined) {
+      if (previousSettings) {
         queryClient.setQueryData<Settings>(["settings"], {
           ...previousSettings,
-          compressSystemPrompts: patch.compress_system_prompts,
+          ...(patch.compress_system_prompts !== undefined
+            ? { compressSystemPrompts: patch.compress_system_prompts }
+            : {}),
+          ...(patch.context_soft_gc_tool_results !== undefined
+            ? { contextSoftGcToolResults: patch.context_soft_gc_tool_results }
+            : {}),
         });
       }
 
@@ -82,6 +87,37 @@ export function ContextSettings() {
           aria-label={t("settings.contextCompressSystemPrompts")}
           onCheckedChange={(checked) => {
             updateMutation.mutate({ compress_system_prompts: checked });
+          }}
+        />
+      </Flex>
+      <Flex
+        align="center"
+        justify="between"
+        gap="4"
+        mt="5"
+      >
+        <Flex
+          direction="column"
+          gap="1"
+        >
+          <Text
+            size="2"
+            weight="medium"
+          >
+            {t("settings.contextSoftGcToolResults")}
+          </Text>
+          <Text
+            size="1"
+            color="gray"
+          >
+            {t("settings.contextSoftGcToolResultsHint")}
+          </Text>
+        </Flex>
+        <Switch
+          checked={settings.contextSoftGcToolResults}
+          aria-label={t("settings.contextSoftGcToolResults")}
+          onCheckedChange={(checked) => {
+            updateMutation.mutate({ context_soft_gc_tool_results: checked });
           }}
         />
       </Flex>

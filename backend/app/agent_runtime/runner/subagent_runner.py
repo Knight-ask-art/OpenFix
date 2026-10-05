@@ -206,6 +206,7 @@ async def _resolve_agent_model_config(
     *,
     configured_model_id: str | None,
     inherited_config: dict[str, Any],
+    reasoning_effort_override: str = "inherit",
 ) -> dict[str, Any]:
     """Resolve the model config a subagent should use.
 
@@ -218,14 +219,21 @@ async def _resolve_agent_model_config(
         session,
         configured_model_id=configured_model_id,
     )
+    resolved: dict[str, Any] | None = None
     if record_id:
         resolved = await _build_model_config_from_record(session, record_id)
         if resolved is not None:
             reasoning_effort = inherited_config.get("reasoning_effort")
             if isinstance(reasoning_effort, str):
                 resolved["reasoning_effort"] = reasoning_effort
-            return resolved
-    return dict(inherited_config)
+    if resolved is None:
+        resolved = dict(inherited_config)
+
+    if reasoning_effort_override == "off":
+        resolved.pop("reasoning_effort", None)
+    elif reasoning_effort_override != "inherit":
+        resolved["reasoning_effort"] = reasoning_effort_override
+    return resolved
 
 
 def _extract_interrupts(result_state: dict[str, Any]) -> list[Any]:
@@ -420,6 +428,7 @@ class SubagentRunner:
                 session,
                 configured_model_id=definition.model_id,
                 inherited_config=model_config,
+                reasoning_effort_override=definition.reasoning_effort,
             )
         finally:
             await _close_session(session)

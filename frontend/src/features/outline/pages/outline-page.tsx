@@ -718,7 +718,7 @@ export function OutlinePage() {
                   </Flex>
                 </Box>
                 <OutlineAiActions
-                  key={selectedNode.id}
+                  key={`outline-ai-${selectedNode.id}`}
                   projectId={projectId ?? ""}
                   node={selectedNode}
                   chapters={chapters}
@@ -736,7 +736,7 @@ export function OutlinePage() {
                   }}
                 />
                 <OutlineEditor
-                  key={selectedNode.id}
+                  key={`outline-editor-${selectedNode.id}`}
                   node={selectedNode}
                   isSaving={updateMutation.isPending}
                   onDirtyChange={handleDirtyChange}
