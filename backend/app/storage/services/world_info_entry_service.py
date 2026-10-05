@@ -290,7 +290,7 @@ async def create_entry(
         name=unique_name,
         order=max_order + 1,
         content=content,
-        token_count=token_count,
+        token_count=_calculate_token_count(content),
         is_enabled=is_enabled,
     )
     return await world_info_entry_repo.create(session, entry)
@@ -375,8 +375,8 @@ async def update_entry(
     if content is not None:
         validate_editor_content(content)
         entry.content = content
-    if token_count is not None:
-        entry.token_count = token_count
+    if content is not None or token_count is not None:
+        entry.token_count = _calculate_token_count(entry.content)
     if is_enabled is not None:
         entry.is_enabled = is_enabled
 

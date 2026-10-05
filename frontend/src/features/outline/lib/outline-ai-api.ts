@@ -46,11 +46,12 @@ export async function improveOutline(
   projectId: string,
   outlineId: string,
   instruction?: string,
+  signal?: AbortSignal,
 ): Promise<OutlineAiDraftSuggestion> {
   const response = await apiClient.post<OutlineAiDraftSuggestion>(
     `/projects/${projectId}/outlines/ai/improve`,
     { outline_id: outlineId, instruction: instruction ?? null },
-    { timeout: OUTLINE_AI_TIMEOUT_MS },
+    { timeout: OUTLINE_AI_TIMEOUT_MS, signal },
   );
   return response.data;
 }
@@ -58,11 +59,12 @@ export async function improveOutline(
 export async function checkOutlinePacing(
   projectId: string,
   outlineId: string,
+  signal?: AbortSignal,
 ): Promise<OutlineAiPacingSuggestion> {
   const response = await apiClient.post<OutlineAiPacingSuggestion>(
     `/projects/${projectId}/outlines/ai/check-pacing`,
     { scope: "node", outline_id: outlineId },
-    { timeout: OUTLINE_AI_TIMEOUT_MS },
+    { timeout: OUTLINE_AI_TIMEOUT_MS, signal },
   );
   return response.data;
 }
@@ -71,11 +73,13 @@ export async function splitOutlineIntoChapters(
   projectId: string,
   outlineId: string,
   maxChapters = 8,
+  instruction?: string,
+  signal?: AbortSignal,
 ): Promise<OutlineAiSplitSuggestion> {
   const response = await apiClient.post<OutlineAiSplitSuggestion>(
     `/projects/${projectId}/outlines/ai/split-chapters`,
-    { outline_id: outlineId, max_chapters: maxChapters },
-    { timeout: OUTLINE_AI_TIMEOUT_MS },
+    { outline_id: outlineId, max_chapters: maxChapters, instruction: instruction ?? null },
+    { timeout: OUTLINE_AI_TIMEOUT_MS, signal },
   );
   return response.data;
 }
@@ -84,11 +88,12 @@ export async function updateOutlineFromChapter(
   projectId: string,
   outlineId: string,
   chapterId?: string,
+  signal?: AbortSignal,
 ): Promise<OutlineAiDraftSuggestion> {
   const response = await apiClient.post<OutlineAiDraftSuggestion>(
     `/projects/${projectId}/outlines/ai/update-from-chapter`,
     { outline_id: outlineId, chapter_id: chapterId ?? null },
-    { timeout: OUTLINE_AI_TIMEOUT_MS },
+    { timeout: OUTLINE_AI_TIMEOUT_MS, signal },
   );
   return response.data;
 }

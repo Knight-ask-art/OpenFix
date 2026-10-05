@@ -26,7 +26,7 @@ from app.agent_runtime.tools.impls.chapter.refs import (
     resolve_volume_from_list,
 )
 from app.agent_runtime.tools.registry import ToolRegistry
-from app.agent_runtime.tools.text_match import fuzzy_replace
+from app.agent_runtime.tools.impls.chapter.content_edit import edit_chapter_content
 from app.storage.database import create_session
 from app.storage.repos import chapter_repo, volume_repo
 from app.storage.services.version_control_service import refresh_project_stats
@@ -50,7 +50,7 @@ class EditChapterInput(BaseModel):
     )
     old_content: str | None = Field(
         default=None,
-        description="要查找并替换的原始文本；仅在修改正文时填写",
+        description="要查找并替换的原始文本；仅在修改正文时填写。已有空白章节首次填正文时传空字符串；非空章节必须提供原文锚点，禁止删除重建章节",
     )
     new_content: str | None = Field(
         default=None,
@@ -60,13 +60,6 @@ class EditChapterInput(BaseModel):
         default=False,
         description="是否替换命中的全部old_content，指定为false时只替换首个匹配项",
     )
-
-    @field_validator("old_content", mode="after")
-    @classmethod
-    def reject_empty_old_content(cls, v):
-        if v is not None and v == "":
-            raise ValueError("old_content 不能为空字符串")
-        return v
 
     @field_validator("new_content", mode="after")
     @classmethod
@@ -146,12 +139,12 @@ class EditChapterTool(AgentTool):
             if new_title is not None:
                 match.title = new_title
             if old_content is not None and new_content is not None:
-                replace_result = fuzzy_replace(
+                edited_content = edit_chapter_content(
                     match.content, old_content, new_content, replace_all=replace_all
                 )
-                if replace_result is None:
+                if edited_content is None:
                     raise ToolExecutionError("未在章节内容中找到要替换的文本")
-                match.content = replace_result.new_content
+                match.content = edited_content
                 try:
                     validate_editor_content(match.content)
                 except EditorContentLimitError as exc:

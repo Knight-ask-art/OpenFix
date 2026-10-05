@@ -12,6 +12,37 @@ from app.core.errors import ProviderAuthError, ProviderError
 from app.models.entities.model import Model
 
 
+@pytest.mark.asyncio
+async def test_improve_accepts_long_book_outline_without_truncation(
+    client, monkeypatch
+):
+    project_id = await _create_project(client)
+    content = "长篇剧情事实。" * 1800
+    outline = await _create_outline(client, project_id, content=content)
+    fake = _patch_outline_ai_model(
+        monkeypatch,
+        json.dumps({"title": "全书主线", "content": content}, ensure_ascii=False),
+    )
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/outlines/ai/improve",
+        json={"outline_id": outline["id"]},
+    )
+    assert response.status_code == 200
+    assert response.json()["content"] == content
+    assert content in "\n".join(x["content"] for x in fake.messages)
+
+
+def test_outline_candidate_overflow_is_rejected_not_silently_truncated():
+    from app.core.errors import ValidationError
+    from app.core.outline_ai.service import parse_outline_draft
+    from app.api.schemas.outline_ai import MAX_OUTLINE_AI_CONTENT_CHARS
+
+    with pytest.raises(ValidationError, match="未被截断"):
+        parse_outline_draft(
+            json.dumps({"content": "x" * (MAX_OUTLINE_AI_CONTENT_CHARS + 1)})
+        )
+
+
 @dataclass
 class _FakeLLMResponse:
     content: str
@@ -44,7 +75,9 @@ def _patch_outline_ai_model(
 ) -> _FakeLLMClient:
     """把大纲 AI 的模型解析替换为固定输出的假客户端。"""
     fake_client = _FakeLLMClient(content)
-    fake_model = Model(name="大纲模型", provider_id="provider-1", model_id="outline-model")
+    fake_model = Model(
+        name="大纲模型", provider_id="provider-1", model_id="outline-model"
+    )
 
     async def _fake_resolve(session, *, model_policy: str, model_id: str | None = None):
         return _FakeResolved(client=fake_client, model=fake_model)
@@ -322,7 +355,8 @@ async def test_check_pacing_node_scope_reports_subtree(
     )
 
     fake_client = _patch_outline_ai_model(
-        monkeypatch, json.dumps({"summary": "节奏正常", "issues": []}, ensure_ascii=False)
+        monkeypatch,
+        json.dumps({"summary": "节奏正常", "issues": []}, ensure_ascii=False),
     )
 
     response = await client.post(
@@ -410,16 +444,15 @@ async def test_split_success_truncates_to_max_chapters_and_persists_nothing(
 ) -> None:
     project_id = await _create_project(client)
     book = await _create_outline(client, project_id, level="book")
-    arc = await _create_outline(
-        client, project_id, level="arc", parent_id=book["id"]
-    )
+    arc = await _create_outline(client, project_id, level="arc", parent_id=book["id"])
     outline = await _create_outline(
         client, project_id, level="volume", parent_id=arc["id"]
     )
     before = (await client.get(f"/api/v1/projects/{project_id}/outlines")).json()
 
     items = [
-        {"title": f"第{index}章", "content": f"剧情节点 {index}"} for index in range(1, 8)
+        {"title": f"第{index}章", "content": f"剧情节点 {index}"}
+        for index in range(1, 8)
     ]
     _patch_outline_ai_model(
         monkeypatch, json.dumps({"items": items}, ensure_ascii=False)

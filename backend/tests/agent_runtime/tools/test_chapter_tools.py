@@ -983,18 +983,21 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
     assert list_by_volume_from_order.await_count == 2
 
 
-def test_edit_chapter_input_rejects_empty_old_content() -> None:
-    # Regression: an empty old_content previously passed model validation but
-    # made fuzzy_replace raise / corrupt content. It must be rejected early.
-    import pytest
-    from pydantic import ValidationError
-
+def test_edit_chapter_empty_anchor_only_initializes_empty_content() -> None:
+    # Empty anchors must never reach fuzzy_replace or modify existing prose.
+    from app.agent_runtime.tools.impls.chapter.content_edit import edit_chapter_content
     from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterInput
 
-    with pytest.raises(ValidationError):
-        EditChapterInput.model_validate({
+    args = EditChapterInput.model_validate(
+        {
             "volume_ref": {"type": "order", "value": 1},
             "chapter_ref": {"type": "order", "value": 1},
             "old_content": "",
             "new_content": "x",
-        })
+        }
+    )
+    assert edit_chapter_content("", args.old_content, args.new_content) == "x"
+    assert (
+        edit_chapter_content("existing draft", args.old_content, args.new_content)
+        is None
+    )

@@ -4,9 +4,34 @@ from unittest.mock import AsyncMock
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 import pytest
 
-from app.core.errors import LLMTimeoutError
-from app.models.clients.llm_client import LLMClient, LLMConfig, _patch_deepseek_reasoning_payload
+from app.core.errors import LLMTimeoutError, ProviderError
+from app.models.clients.llm_client import (
+    LLMClient,
+    LLMConfig,
+    _patch_deepseek_reasoning_payload,
+)
 from app.models.clients.model_factory import ModelConfig, create_chat_model
+
+
+@pytest.mark.asyncio
+async def test_generate_normalizes_upstream_failure_without_exposing_payload(
+    monkeypatch,
+):
+    client = LLMClient(
+        LLMConfig(
+            provider_type="openai-compatible",
+            base_url="https://example.com/v1",
+            api_key="test",
+            model_id="test",
+        )
+    )
+    fake = AsyncMock()
+    fake.ainvoke.side_effect = RuntimeError("upstream aborted with private payload")
+    monkeypatch.setattr(client, "_get_llm", lambda: fake)
+    with pytest.raises(ProviderError) as caught:
+        await client.generate([{"role": "user", "content": "fixture"}])
+    assert "private payload" not in str(caught.value)
+    assert isinstance(caught.value.__cause__, RuntimeError)
 
 
 def test_patch_deepseek_reasoning_payload_adds_reasoning_content() -> None:

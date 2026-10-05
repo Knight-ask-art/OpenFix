@@ -10,6 +10,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.storage.models.world_info_entry import WorldInfoEntry
+from app.storage.services.world_info_entry_service import _calculate_token_count
 
 
 @pytest.fixture
@@ -40,7 +41,7 @@ async def test_create_entry(client: AsyncClient, world_info_id: str) -> None:
     data = response.json()
     assert data["name"] == "测试条目"
     assert data["content"] == "条目内容"
-    assert data["token_count"] == 10
+    assert data["token_count"] == _calculate_token_count("条目内容")
     assert data["is_enabled"] is True
     assert data["uid"] == 1
     assert data["order"] == 1

@@ -53,6 +53,7 @@ def _normalize_severity(value: Any) -> OutlineAiSeverity:
         return "high"
     return "warning"
 
+
 _FENCE_PATTERN = re.compile(r"^```[a-zA-Z0-9_-]*\n?([\s\S]*?)\n?```$")
 
 
@@ -129,7 +130,9 @@ def _text(value: Any, limit: int) -> str | None:
     return text[:limit]
 
 
-async def _require_project_outline(session: AsyncSession, project_id: str, outline_id: str):
+async def _require_project_outline(
+    session: AsyncSession, project_id: str, outline_id: str
+):
     outline = await outline_repo.get_by_id(session, outline_id)
     if outline is None or outline.project_id != project_id:
         raise NotFoundError(f"大纲节点不存在: {outline_id}")
@@ -183,6 +186,14 @@ def _outline_tree_text(nodes: list[Any], *, root_id: str | None = None) -> str:
 def parse_outline_draft(content: str) -> tuple[str | None, str | None, str | None]:
     """解析候选大纲内容，返回（标题、内容、说明）。"""
     parsed = _parse_json_object(content)
+    draft_content = parsed.get("content")
+    if (
+        isinstance(draft_content, str)
+        and len(draft_content.strip()) > MAX_OUTLINE_AI_CONTENT_CHARS
+    ):
+        raise ValidationError(
+            "模型返回的大纲过长，请按卷或章节分批完善；候选未被截断或保存"
+        )
     return (
         _text(parsed.get("title"), MAX_OUTLINE_AI_TITLE_CHARS),
         _text(parsed.get("content"), MAX_OUTLINE_AI_CONTENT_CHARS),
@@ -210,10 +221,14 @@ def parse_outline_pacing(content: str) -> tuple[str, list[OutlineAiIssue]]:
             continue
         severity = _normalize_severity(raw.get("severity"))
         evidence_raw = raw.get("evidence")
-        evidence_list = evidence_raw if isinstance(evidence_raw, list) else [evidence_raw]
+        evidence_list = (
+            evidence_raw if isinstance(evidence_raw, list) else [evidence_raw]
+        )
         evidence = [
             entry[:MAX_OUTLINE_AI_EVIDENCE_CHARS]
-            for entry in (_text(item, MAX_OUTLINE_AI_EVIDENCE_CHARS) for item in evidence_list)
+            for entry in (
+                _text(item, MAX_OUTLINE_AI_EVIDENCE_CHARS) for item in evidence_list
+            )
             if entry is not None
         ][:MAX_OUTLINE_AI_EVIDENCE_PER_ISSUE]
         issues.append(
@@ -221,7 +236,10 @@ def parse_outline_pacing(content: str) -> tuple[str, list[OutlineAiIssue]]:
                 severity=severity,
                 message=message,
                 evidence=evidence,
-                suggestion=_text(raw.get("suggestion"), MAX_OUTLINE_AI_ISSUE_SUGGESTION_CHARS) or "",
+                suggestion=_text(
+                    raw.get("suggestion"), MAX_OUTLINE_AI_ISSUE_SUGGESTION_CHARS
+                )
+                or "",
             )
         )
 
@@ -342,7 +360,9 @@ async def check_pacing(
         session, model_policy="light_model", model_id=model_id
     )
     response = await resolved.client.generate(
-        build_outline_pacing_messages(scope_label=scope_label, outline_text=outline_text)
+        build_outline_pacing_messages(
+            scope_label=scope_label, outline_text=outline_text
+        )
     )
     summary, issues = parse_outline_pacing(response.content)
     return OutlineAiPacing(

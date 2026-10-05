@@ -403,6 +403,24 @@ const TOOL_REGISTRY = {
         : i18n.t("assistant.tools.matchedChapters", { count: results.length });
     },
   },
+  search_story_memory: {
+    toolName: "search_story_memory",
+    group: "context",
+    tag: "story-memory-search",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: BookSearch,
+    getTitle: () => i18n.t("assistant.tools.searchStoryMemory"),
+    getDetail: (message) => {
+      const data = getToolResultData(message);
+      const query = asString(getStreamingData(message).query);
+      if (!isRecord(data)) return query;
+      const results = Array.isArray(data.results) ? data.results : [];
+      return results.length > 0
+        ? `${query ?? ""} · ${i18n.t("assistant.tools.matchCount", { count: results.length })}`
+        : query;
+    },
+  },
   web_search: {
     toolName: "web_search",
     group: "context",

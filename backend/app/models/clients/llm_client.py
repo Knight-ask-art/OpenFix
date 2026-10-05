@@ -23,7 +23,7 @@ from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 from loguru import logger
 
-from app.core.errors import LLMTimeoutError
+from app.core.errors import LLMTimeoutError, ProviderError
 from app.models.clients.deepseek_payload import patch_deepseek_reasoning_payload
 from app.models.clients.model_factory import ModelConfig, ReasoningEffort, create_chat_model
 
@@ -179,11 +179,11 @@ class LLMClient:
             )
         except asyncio.TimeoutError:
             raise LLMTimeoutError(f"LLM调用超时 ({effective_timeout}s)")
-        except LLMTimeoutError:
+        except ProviderError:
             raise
         except Exception as e:
-            logger.error(f"LLM调用失败: {e}")
-            raise
+            logger.error("LLM调用失败: {}", type(e).__name__)
+            raise ProviderError("模型服务调用失败，请稍后重试") from e
 
     async def generate_stream(
         self, messages: list[dict[str, str]]

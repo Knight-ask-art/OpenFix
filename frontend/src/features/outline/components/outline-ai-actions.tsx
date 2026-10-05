@@ -9,7 +9,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { readHttpErrorDetail, resolveAiErrorMessage } from "@/lib/ai-error";
@@ -81,23 +81,34 @@ export function OutlineAiActions({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<OutlineAiResult | null>(null);
   const [chapterId, setChapterId] = useState<string>(node.chapter_id ?? "");
+  const [splitCount, setSplitCount] = useState("8");
+  const [instruction, setInstruction] = useState("");
+  const requestRef = useRef<AbortController | null>(null);
 
   // 切换大纲节点时清空上一次的候选结果，避免误采纳到别的节点。
   useEffect(() => {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setIsLoading(false);
     setAction(null);
     setResult(null);
     setError(null);
     setChapterId(node.chapter_id ?? "");
+    setInstruction("");
+    return () => {
+      requestRef.current?.abort();
+    };
   }, [node.id, node.chapter_id]);
 
   const chapterOptions = useMemo(
-    () => chapters.map((chapter) => ({
-      id: chapter.id,
-      label: t("outline.ai.chapterOption", {
-        order: chapter.order,
-        title: chapter.title || t("outline.untitled"),
-      }),
-    })),
+    () =>
+      chapters.map((chapter) => ({
+        id: chapter.id,
+        label: t("outline.ai.chapterOption", {
+          order: chapter.order,
+          title: chapter.title || t("outline.untitled"),
+        }),
+      })),
     [chapters, t],
   );
 
@@ -116,23 +127,51 @@ export function OutlineAiActions({
     }
 
     setIsLoading(true);
+    const request = new AbortController();
+    requestRef.current = request;
     try {
+      let nextResult: OutlineAiResult;
       if (next === "improve") {
-        setResult({ kind: "draft", data: await improveOutline(projectId, node.id) });
-      } else if (next === "pacing") {
-        setResult({ kind: "pacing", data: await checkOutlinePacing(projectId, node.id) });
-      } else if (next === "split") {
-        setResult({ kind: "split", data: await splitOutlineIntoChapters(projectId, node.id) });
-      } else {
-        setResult({
+        nextResult = {
           kind: "draft",
-          data: await updateOutlineFromChapter(projectId, node.id, fallbackChapterId),
-        });
+          data: await improveOutline(projectId, node.id, instruction, request.signal),
+        };
+      } else if (next === "pacing") {
+        nextResult = {
+          kind: "pacing",
+          data: await checkOutlinePacing(projectId, node.id, request.signal),
+        };
+      } else if (next === "split") {
+        nextResult = {
+          kind: "split",
+          data: await splitOutlineIntoChapters(
+            projectId,
+            node.id,
+            Number(splitCount),
+            instruction,
+            request.signal,
+          ),
+        };
+      } else {
+        nextResult = {
+          kind: "draft",
+          data: await updateOutlineFromChapter(
+            projectId,
+            node.id,
+            fallbackChapterId,
+            request.signal,
+          ),
+        };
       }
+      if (!request.signal.aborted && requestRef.current === request) setResult(nextResult);
     } catch (caught) {
-      setError(resolveAiErrorMessage(caught, t, t("outline.ai.failed")));
+      if (!request.signal.aborted && requestRef.current === request)
+        setError(resolveAiErrorMessage(caught, t, t("outline.ai.failed")));
     } finally {
-      setIsLoading(false);
+      if (requestRef.current === request) {
+        requestRef.current = null;
+        setIsLoading(false);
+      }
     }
   };
 
@@ -158,10 +197,7 @@ export function OutlineAiActions({
       setResult(null);
       setAction(null);
     } catch (caught) {
-      const completedCount = Math.min(
-        result.data.items.length,
-        readCompletedSplitCount(caught),
-      );
+      const completedCount = Math.min(result.data.items.length, readCompletedSplitCount(caught));
       if (completedCount > 0) {
         setResult((current) =>
           current?.kind === "split"
@@ -194,12 +230,20 @@ export function OutlineAiActions({
   return (
     <Box className="outline-ai">
       {hasUnsavedChanges ? (
-        <Text size="1" color="orange" role="status">
+        <Text
+          size="1"
+          color="orange"
+          role="status"
+        >
           {t("outline.ai.saveBeforeUsing")}
         </Text>
       ) : null}
       {node.level !== "volume" ? (
-        <Text size="1" color="gray" role="status">
+        <Text
+          size="1"
+          color="gray"
+          role="status"
+        >
           {t("outline.ai.splitRequiresVolume")}
         </Text>
       ) : null}
@@ -244,7 +288,67 @@ export function OutlineAiActions({
           <FileText size={14} />
           {t("outline.ai.updateFromChapter")}
         </Button>
-        {isLoading ? <Spinner size="1" /> : null}
+        {isLoading ? (
+          <>
+            <Spinner size="1" />
+            <Text
+              size="1"
+              role="status"
+            >
+              {t("outline.ai.generatingHint")}
+            </Text>
+            <Button
+              size="1"
+              variant="ghost"
+              onClick={() => {
+                requestRef.current?.abort();
+                requestRef.current = null;
+                setIsLoading(false);
+              }}
+            >
+              {t("outline.ai.cancelRequest")}
+            </Button>
+          </>
+        ) : null}
+      </Flex>
+      <Flex
+        direction="column"
+        gap="2"
+        mt="2"
+      >
+        {node.level === "volume" ? (
+          <Flex
+            align="center"
+            gap="2"
+          >
+            <Text size="1">{t("outline.ai.splitCount")}</Text>
+            <Select.Root
+              value={splitCount}
+              onValueChange={setSplitCount}
+              disabled={isLoading || isApplying}
+            >
+              <Select.Trigger aria-label={t("outline.ai.splitCount")} />
+              <Select.Content>
+                {[3, 5, 8, 10, 15, 20].map((count) => (
+                  <Select.Item
+                    key={count}
+                    value={String(count)}
+                  >
+                    {count}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Flex>
+        ) : null}
+        <TextArea
+          value={instruction}
+          onChange={(event) => setInstruction(event.target.value)}
+          disabled={isLoading || isApplying}
+          maxLength={2000}
+          aria-label={t("outline.ai.instruction")}
+          placeholder={t("outline.ai.instruction")}
+        />
       </Flex>
 
       {needsChapterPicker ? (

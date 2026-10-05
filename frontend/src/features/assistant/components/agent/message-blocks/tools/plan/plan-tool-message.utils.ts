@@ -1,4 +1,12 @@
+import type { AgentMessage } from "@/lib/agent.types";
+
 import type { PlanStatus, ToolMessageContentMode } from "../shared/tool-message-utils";
+
+export function canReportEmptyPlan(message: Pick<AgentMessage, "status" | "toolResult">): boolean {
+  return (
+    Boolean(message.toolResult) || message.status === "completed" || message.status === "error"
+  );
+}
 
 export interface PlanToolDisplayConfig {
   contentMode: ToolMessageContentMode;

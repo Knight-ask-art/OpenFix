@@ -13,7 +13,7 @@ OutlineAiLevel = Literal["book", "arc", "volume", "chapter"]
 OutlineAiSeverity = Literal["info", "warning", "high"]
 
 MAX_OUTLINE_AI_TITLE_CHARS = 200
-MAX_OUTLINE_AI_CONTENT_CHARS = 8_000
+MAX_OUTLINE_AI_CONTENT_CHARS = 48_000
 MAX_OUTLINE_AI_INSTRUCTION_CHARS = 2_000
 MAX_OUTLINE_AI_NOTE_CHARS = 600
 MAX_OUTLINE_AI_SUMMARY_CHARS = 1_200

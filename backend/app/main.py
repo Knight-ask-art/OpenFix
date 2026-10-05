@@ -137,11 +137,22 @@ class SPAStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except StarletteHTTPException as exc:
             if exc.status_code != 404:
                 raise
             return await super().get_response("index.html", scope)
+        # Windows registry MIME associations can classify .js as text/plain.
+        # Browser module loading requires an explicit JavaScript content type.
+        media_type = {
+            ".js": "text/javascript; charset=utf-8",
+            ".mjs": "text/javascript; charset=utf-8",
+            ".css": "text/css; charset=utf-8",
+            ".wasm": "application/wasm",
+        }.get(Path(path).suffix.lower())
+        if media_type and response.status_code == 200:
+            response.headers["content-type"] = media_type
+        return response
 
 
 async def _reset_task_running_state() -> int:

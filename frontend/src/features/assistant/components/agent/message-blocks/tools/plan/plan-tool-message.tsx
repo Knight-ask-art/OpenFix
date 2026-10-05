@@ -8,7 +8,7 @@ import "./plan-tool-message.css";
 
 import { ToolBody, ToolNotice } from "../shared/tool-message-shared";
 import { getPlanTodos, getToolResultMessage } from "../shared/tool-message-utils";
-import { getPlanTodoMarker } from "./plan-tool-message.utils";
+import { canReportEmptyPlan, getPlanTodoMarker } from "./plan-tool-message.utils";
 
 interface PlanToolMessageProps {
   message: AgentMessage;
@@ -47,6 +47,9 @@ export function PlanToolMessage({ message }: PlanToolMessageProps) {
   const todos = getPlanTodos(message);
 
   if (todos.length === 0) {
+    if (!canReportEmptyPlan(message)) {
+      return null;
+    }
     return (
       <ToolBody>
         <ToolNotice title={i18n.t("assistant.tools.noPlanContent")}>
