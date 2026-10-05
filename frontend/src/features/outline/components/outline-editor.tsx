@@ -3,11 +3,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 import type { VolumeWithChapters } from "@/lib/chapter.types";
 
-import {
-  type OutlineLevel,
-  type OutlineNode,
-  type OutlineUpdatePayload,
-} from "../lib/outline-api";
+import { type OutlineLevel, type OutlineNode, type OutlineUpdatePayload } from "../lib/outline-api";
 
 import "./outline-editor.css";
 
@@ -130,6 +126,7 @@ export function OutlineEditor({
   return (
     <Box className="outline-editor">
       <Flex
+        className="outline-editor__fields"
         direction="column"
         gap="3"
       >
@@ -152,9 +149,9 @@ export function OutlineEditor({
               disabled={isSaving}
               aria-label={labels.title}
               placeholder={labels.untitled}
-                autoFocus={!node.title.trim()}
+              autoFocus={!node.title.trim()}
               onChange={(event) => setTitle(event.target.value)}
-                onKeyDown={handleTitleKeyDown}
+              onKeyDown={handleTitleKeyDown}
             />
           </Box>
           <Box>
@@ -169,7 +166,10 @@ export function OutlineEditor({
               disabled={isSaving || selectableLevels.length <= 1}
               onValueChange={(value) => setLevel(value as OutlineLevel)}
             >
-              <Select.Trigger variant="soft" aria-label={labels.level} />
+              <Select.Trigger
+                variant="soft"
+                aria-label={labels.level}
+              />
               <Select.Content>
                 {selectableLevels.map((item) => (
                   <Select.Item
@@ -182,7 +182,11 @@ export function OutlineEditor({
               </Select.Content>
             </Select.Root>
             {selectableLevels.length <= 1 ? (
-              <Text size="1" color="gray" className="outline-editor__level-hint">
+              <Text
+                size="1"
+                color="gray"
+                className="outline-editor__level-hint"
+              >
                 {labels.levelHint}
               </Text>
             ) : null}
@@ -198,7 +202,12 @@ export function OutlineEditor({
           >
             {labels.content}
           </Text>
-          <Text size="1" color="gray" as="p" className="outline-editor__content-hint">
+          <Text
+            size="1"
+            color="gray"
+            as="p"
+            className="outline-editor__content-hint"
+          >
             {labels.contentHint}
           </Text>
           <TextArea
@@ -207,7 +216,7 @@ export function OutlineEditor({
             value={content}
             disabled={isSaving}
             aria-label={labels.content}
-            rows={12}
+            rows={8}
             resize="vertical"
             onChange={(event) => setContent(event.target.value)}
             onKeyDown={handleShortcut}
@@ -215,12 +224,22 @@ export function OutlineEditor({
         </Box>
 
         <Box className="outline-editor__associations">
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             {labels.associations}
           </Text>
-          <Flex gap="3" wrap="wrap" mt="1">
+          <Flex
+            gap="3"
+            wrap="wrap"
+            mt="1"
+          >
             <Box className="outline-editor__association-field">
-              <Text size="1" color="gray">
+              <Text
+                size="1"
+                color="gray"
+              >
                 {labels.volume}
               </Text>
               <Select.Root
@@ -230,7 +249,8 @@ export function OutlineEditor({
                   const nextVolumeId = value === "__openfix_unlinked__" ? null : value;
                   setVolumeId(nextVolumeId);
                   setChapterId((current) =>
-                    current && volumes.some(
+                    current &&
+                    volumes.some(
                       (volume) =>
                         volume.id === nextVolumeId &&
                         volume.chapters.some((chapter) => chapter.id === current),
@@ -247,7 +267,10 @@ export function OutlineEditor({
                 <Select.Content>
                   <Select.Item value="__openfix_unlinked__">{labels.notLinked}</Select.Item>
                   {volumes.map((volume) => (
-                    <Select.Item key={volume.id} value={volume.id}>
+                    <Select.Item
+                      key={volume.id}
+                      value={volume.id}
+                    >
                       {labels.volumeOption(volume.order, volume.title || labels.untitled)}
                     </Select.Item>
                   ))}
@@ -255,7 +278,10 @@ export function OutlineEditor({
               </Select.Root>
             </Box>
             <Box className="outline-editor__association-field">
-              <Text size="1" color="gray">
+              <Text
+                size="1"
+                color="gray"
+              >
                 {labels.chapter}
               </Text>
               <Select.Root
@@ -279,7 +305,10 @@ export function OutlineEditor({
                 <Select.Content>
                   <Select.Item value="__openfix_unlinked__">{labels.notLinked}</Select.Item>
                   {chapterChoices.map((chapter) => (
-                    <Select.Item key={chapter.id} value={chapter.id}>
+                    <Select.Item
+                      key={chapter.id}
+                      value={chapter.id}
+                    >
                       {chapter.label}
                     </Select.Item>
                   ))}
@@ -295,8 +324,15 @@ export function OutlineEditor({
           align="center"
           gap="3"
         >
-          <Flex align="center" gap="3">
-            <Text size="1" color="gray" className="outline-editor__shortcut-hint">
+          <Flex
+            align="center"
+            gap="3"
+          >
+            <Text
+              size="1"
+              color="gray"
+              className="outline-editor__shortcut-hint"
+            >
               {labels.saveShortcut}
             </Text>
             <Button

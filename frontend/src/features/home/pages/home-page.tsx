@@ -139,15 +139,17 @@ export function HomePage() {
 
           <RecentProjectsList projects={recentProjects} />
 
-          <div className="home-page__footer">
-            <Button
-              asChild
-              variant="soft"
-              size="2"
-            >
-              <Link to="/projects">{t("home.goToProjects")}</Link>
-            </Button>
-          </div>
+          {recentProjects.length > 0 ? (
+            <div className="home-page__footer">
+              <Button
+                asChild
+                variant="soft"
+                size="2"
+              >
+                <Link to="/projects">{t("home.goToProjects")}</Link>
+              </Button>
+            </div>
+          ) : null}
         </main>
       </div>
 

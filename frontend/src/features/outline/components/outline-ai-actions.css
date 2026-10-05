@@ -1,11 +1,11 @@
-.outline-ai {
+.rt-Box.outline-ai {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: 0 16px 8px;
+  padding: 0 var(--outline-editor-gutter, 16px) 8px;
 }
 
-.outline-ai__picker {
+.rt-Box.outline-ai__picker {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -20,7 +20,7 @@
   color: var(--red-11);
 }
 
-.outline-ai__result {
+.rt-Box.outline-ai__result {
   padding: var(--space-3);
   border: 1px solid var(--gray-a4);
   border-radius: 8px;
@@ -32,7 +32,7 @@
   line-height: 1.7;
 }
 
-.outline-ai__issue {
+.rt-Box.outline-ai__issue {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);

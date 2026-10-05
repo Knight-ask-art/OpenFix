@@ -109,15 +109,6 @@
   outline-offset: 3px;
 }
 
-.home-page .rt-BaseButton {
-  min-height: 36px;
-}
-
-.home-page :is(.rt-BaseButton, .rt-IconButton):focus-visible {
-  outline: 2px solid var(--focus-8);
-  outline-offset: 3px;
-}
-
 @media (max-width: 960px) {
   .home-page__overview {
     grid-template-columns: minmax(0, 1fr);

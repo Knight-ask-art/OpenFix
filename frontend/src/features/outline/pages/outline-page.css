@@ -1,8 +1,11 @@
-.outline-page {
+.rt-Box.outline-page {
+  --outline-editor-gutter: 24px;
+
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--color-background);
 }
 
@@ -37,14 +40,18 @@
   justify-content: space-between;
 }
 
-.outline-page__body {
-  flex: 1;
+.rt-Box.outline-page__body {
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: clamp(280px, 28vw, 360px) minmax(0, 1fr);
+  grid-template-columns: clamp(300px, 25vw, 360px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
 }
 
-.outline-page__tree {
+.rt-Box.outline-page__tree {
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -53,7 +60,7 @@
   background: var(--gray-a2);
 }
 
-.outline-page__tree-toolbar {
+.rt-Box.outline-page__tree-toolbar {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -82,26 +89,39 @@
   overflow: auto;
   padding: 8px;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .outline-page__tree-error {
+  overflow: auto;
   padding: 16px;
 }
 
-.outline-page__editor {
+.outline-page__tree-loading {
+  flex: 1;
+  min-height: 0;
+}
+
+.rt-Box.outline-page__editor {
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: var(--color-background);
 }
 
 .outline-page__editor-heading {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   flex-shrink: 0;
   padding: 18px 24px 14px;
   border-bottom: 1px solid var(--gray-a4);
-  background: var(--gray-a2);
+  background: var(--color-panel);
 }
 
 .outline-page__editor-heading p {
@@ -122,7 +142,7 @@
   line-height: 1.5;
 }
 
-/* Keep one scroll container for the editor and its AI actions. */
+/* The editor pane owns scrolling; its form and AI actions share that scroll. */
 .outline-page__editor .outline-editor {
   flex: 0 0 auto;
   height: auto;
@@ -167,12 +187,16 @@
 }
 
 @media (max-width: 900px) {
+  .outline-page {
+    --outline-editor-gutter: 18px;
+  }
+
   .outline-page__header {
     padding-inline: 16px;
   }
 
-  .outline-page__body {
-    grid-template-columns: minmax(250px, 38%) minmax(0, 1fr);
+  .rt-Box.outline-page__body {
+    grid-template-columns: minmax(250px, 34%) minmax(0, 1fr);
   }
 
   .outline-page__editor-heading {
@@ -181,6 +205,10 @@
 }
 
 @media (max-width: 767px) {
+  .outline-page {
+    --outline-editor-gutter: 16px;
+  }
+
   .outline-page__header {
     padding: 12px;
   }
@@ -198,9 +226,9 @@
     width: auto;
   }
 
-  .outline-page__body {
+  .rt-Box.outline-page__body {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(200px, 40%) minmax(0, 1fr);
+    grid-template-rows: minmax(150px, 32%) minmax(0, 1fr);
   }
 
   .outline-page__tree {

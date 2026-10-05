@@ -5,15 +5,18 @@
  * 都能按自身可用宽度决定列数，而不是按视口宽度猜测。
  */
 .writing-stat-cards {
+  display: flex;
+  flex-direction: column;
   container-name: home-writing-stats;
   container-type: inline-size;
   min-width: 0;
 }
 
 .writing-stat-cards__grid {
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
+  align-content: stretch;
   gap: 12px;
 }
 

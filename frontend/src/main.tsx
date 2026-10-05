@@ -264,7 +264,7 @@ function AppContent({
           <Route
             path="/dashboard"
             element={
-              <Suspense fallback={null}>
+              <Suspense fallback={<GlobalLoading />}>
                 <DashboardPage />
               </Suspense>
             }

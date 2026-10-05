@@ -1,4 +1,4 @@
-.ai-tasks-page {
+.rt-Box.ai-tasks-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 440px;
   grid-template-rows: auto minmax(0, 1fr);
@@ -7,7 +7,7 @@
   overflow: hidden;
 }
 
-.ai-tasks-page__header {
+.rt-Box.ai-tasks-page__header {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -21,7 +21,7 @@
   min-width: 200px;
 }
 
-.ai-tasks-page__body {
+.rt-Box.ai-tasks-page__body {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -74,7 +74,7 @@
 }
 
 @media (max-width: 767px) {
-  .ai-tasks-page {
+  .rt-Box.ai-tasks-page {
     grid-template-columns: minmax(0, 1fr);
   }
 

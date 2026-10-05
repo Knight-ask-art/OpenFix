@@ -31,6 +31,8 @@ import {
 } from "../hooks/use-projects";
 import { useProjectsStore } from "../store/use-projects-store";
 
+import "./projects-page.css";
+
 const MotionBox = motion.create(Box);
 const PROJECTS_PAGE_SIZE = 40;
 
@@ -221,6 +223,9 @@ export function ProjectsPage() {
         size="4"
         px="5"
       >
+        <div className="projects-page__heading">
+          <h1 className="projects-page__title">{t("topbar.projects")}</h1>
+        </div>
         <Box style={{ borderBottom: "1px solid var(--gray-a5)" }}>
           <ProjectsToolbar
             leadingSlot={<MobileAppSidebarTrigger />}

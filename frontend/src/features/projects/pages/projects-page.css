@@ -1,0 +1,15 @@
+.projects-page__heading {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding-top: 8px;
+}
+
+.projects-page__title {
+  margin: 0;
+  color: var(--gray-12);
+  font-size: clamp(24px, 2.2vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
