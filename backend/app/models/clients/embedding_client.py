@@ -143,7 +143,16 @@ class EmbeddingClient:
                 }
             elif config.custom_headers:
                 openai_kwargs["default_headers"] = config.custom_headers
-            if config.dimensions is not None:
+            # dimensions also describes the index schema for fixed-size models.
+            # Only send it as a request parameter where the API supports it.
+            supports_dimension_parameter = config.provider_type in {
+                "openai", "openrouter", "openai-compatible", "ollama",
+                "nvidia-ai-endpoints",
+            } or (
+                config.provider_type in {"siliconflow", "siliconflow-cn"}
+                and config.model_id.startswith("Qwen/Qwen3-Embedding-")
+            )
+            if config.dimensions is not None and supports_dimension_parameter:
                 openai_kwargs["dimensions"] = config.dimensions
 
             self._embeddings = OpenAIEmbeddings(**openai_kwargs)

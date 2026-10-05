@@ -12,6 +12,7 @@ const OVERVIEW_GRID_STYLE = {
 
 interface IndexSettingsOverviewProps {
   embeddingConfigured: boolean;
+  embeddingDimensionsMissing?: boolean;
   enabledProjects: number;
   indexUnits: number;
   indexed: number;
@@ -21,6 +22,7 @@ interface IndexSettingsOverviewProps {
 
 export function IndexSettingsOverview({
   embeddingConfigured,
+  embeddingDimensionsMissing = false,
   enabledProjects,
   indexUnits,
   indexed,
@@ -51,7 +53,9 @@ export function IndexSettingsOverview({
                   size="1"
                   color="amber"
                 >
-                  {t("index.infoNotConfigured")}
+                  {embeddingDimensionsMissing
+                    ? t("models.dimensionsRequired")
+                    : t("index.infoNotConfigured")}
                 </Text>
               </Flex>
             ) : null

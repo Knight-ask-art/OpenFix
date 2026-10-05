@@ -28,34 +28,43 @@ import {
   isCustomProviderType,
   resolveProviderCatalogType,
   resolveProviderDisplayName,
-  supportsEmbeddingDimensions,
 } from "../lib/provider-utils";
 import { AdvancedParamsSection } from "./advanced-params-section";
 import { ModelMetadataSection } from "./model-metadata-section";
 
 // 先定义 schema 和类型，以便在 ModelParamField 中使用
-const modelSchema = z.object({
-  name: z.string().min(1, "nameRequired"),
-  taskType: z.enum(["llm", "embedding", "rerank"]),
-  providerId: z.string().min(1, "providerRequired"),
-  modelId: z.string().min(1, "modelIdRequired"),
-  remark: z.string().optional(),
-  temperature: z.number().min(0).max(2),
-  topP: z.number().min(0).max(1),
-  topK: z.number().int().min(0).max(128),
-  minP: z.number().min(0).max(1),
-  topA: z.number().min(0).max(1),
-  frequencyPenalty: z.number().min(-2).max(2),
-  presencePenalty: z.number().min(-2).max(2),
-  repetitionPenalty: z.number().min(0).max(2),
-  maxTokens: z.number().min(1).nullable().optional(),
-  contextLength: z.number().int().min(0).max(2000000),
-  inputPrice: z.number().min(0),
-  outputPrice: z.number().min(0),
-  cacheReadPrice: z.number().min(0),
-  cacheWritePrice: z.number().min(0),
-  dimensions: z.number().min(1).max(4096).nullable().optional(),
-});
+const modelSchema = z
+  .object({
+    name: z.string().min(1, "nameRequired"),
+    taskType: z.enum(["llm", "embedding", "rerank"]),
+    providerId: z.string().min(1, "providerRequired"),
+    modelId: z.string().min(1, "modelIdRequired"),
+    remark: z.string().optional(),
+    temperature: z.number().min(0).max(2),
+    topP: z.number().min(0).max(1),
+    topK: z.number().int().min(0).max(128),
+    minP: z.number().min(0).max(1),
+    topA: z.number().min(0).max(1),
+    frequencyPenalty: z.number().min(-2).max(2),
+    presencePenalty: z.number().min(-2).max(2),
+    repetitionPenalty: z.number().min(0).max(2),
+    maxTokens: z.number().min(1).nullable().optional(),
+    contextLength: z.number().int().min(0).max(2000000),
+    inputPrice: z.number().min(0),
+    outputPrice: z.number().min(0),
+    cacheReadPrice: z.number().min(0),
+    cacheWritePrice: z.number().min(0),
+    dimensions: z.number().int().min(1).nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.taskType === "embedding" && data.dimensions == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["dimensions"],
+        message: "dimensionsRequired",
+      });
+    }
+  });
 
 type ModelFormData = z.infer<typeof modelSchema>;
 
@@ -207,10 +216,6 @@ export function ModelFormDialog({
     () => (selectedProvider ? resolveProviderCatalogType(selectedProvider) : null),
     [selectedProvider],
   );
-  const selectedProviderSupportsEmbeddingDimensions = useMemo(
-    () => (selectedProvider ? supportsEmbeddingDimensions(selectedProvider.providerType) : false),
-    [selectedProvider],
-  );
   const isModelSelectionDisabled = !providerId;
 
   const getProviderOptionLabel = useCallback((provider: ModelProvider) => {
@@ -326,10 +331,10 @@ export function ModelFormDialog({
   );
 
   useEffect(() => {
-    if (taskType !== "embedding" || !selectedProviderSupportsEmbeddingDimensions) {
+    if (taskType !== "embedding") {
       setValue("dimensions", null);
     }
-  }, [selectedProviderSupportsEmbeddingDimensions, setValue, taskType]);
+  }, [setValue, taskType]);
 
   // 处理模型ID选择
   const handleModelIdChange = useCallback(
@@ -388,10 +393,7 @@ export function ModelFormDialog({
         output_price: data.taskType === "llm" ? data.outputPrice : 0,
         cache_read_price: data.taskType === "llm" ? data.cacheReadPrice : 0,
         cache_write_price: data.taskType === "llm" ? data.cacheWritePrice : 0,
-        dimensions:
-          data.taskType === "embedding" && selectedProviderSupportsEmbeddingDimensions
-            ? data.dimensions
-            : null,
+        dimensions: data.taskType === "embedding" ? data.dimensions : null,
       };
 
       try {
@@ -402,7 +404,7 @@ export function ModelFormDialog({
         throw error;
       }
     },
-    [onSubmit, reset, selectedProviderSupportsEmbeddingDimensions],
+    [onSubmit, reset],
   );
 
   const handleOpenChange = useCallback(
@@ -664,7 +666,7 @@ export function ModelFormDialog({
                   )}
               </Flex>
 
-              {taskType === "embedding" && selectedProviderSupportsEmbeddingDimensions && (
+              {taskType === "embedding" && (
                 <Flex
                   direction="column"
                   gap="2"
@@ -683,7 +685,6 @@ export function ModelFormDialog({
                       <TextField.Root
                         type="number"
                         min={1}
-                        max={4096}
                         value={field.value?.toString() || ""}
                         onChange={(e) => {
                           const val = e.target.value;

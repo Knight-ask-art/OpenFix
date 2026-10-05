@@ -316,7 +316,11 @@ export function IndexSettings({
   const embeddingModelIds = useMemo(
     () =>
       new Set(
-        (models?.filter((model) => model.taskType === "embedding") ?? []).map((model) => model.id),
+        (
+          models?.filter(
+            (model) => model.taskType === "embedding" && (model.dimensions ?? 0) > 0,
+          ) ?? []
+        ).map((model) => model.id),
       ),
     [models],
   );
@@ -535,6 +539,14 @@ export function IndexSettings({
       >
         <IndexSettingsOverview
           embeddingConfigured={overall.data?.embedding_model_configured ?? false}
+          embeddingDimensionsMissing={Boolean(
+            models?.some(
+              (model) =>
+                model.id === settings.defaultEmbeddingModel &&
+                model.taskType === "embedding" &&
+                model.dimensions == null,
+            ),
+          )}
           enabledProjects={overall.data?.total_projects ?? 0}
           indexUnits={totalIndexUnits}
           indexed={overall.data?.indexed_count ?? 0}

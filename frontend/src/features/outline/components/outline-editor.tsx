@@ -192,7 +192,7 @@ export function OutlineEditor({
               </Text>
             ) : null}
           </Box>
-        </Flex>
+        </Box>
 
         <Box>
           <Text
