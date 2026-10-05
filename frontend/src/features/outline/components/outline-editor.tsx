@@ -130,11 +130,8 @@ export function OutlineEditor({
         direction="column"
         gap="3"
       >
-        <Flex
-          gap="3"
-          wrap="wrap"
-        >
-          <Box style={{ flex: 1, minWidth: 200 }}>
+        <Box className="outline-editor__primary-fields">
+          <Box className="outline-editor__field">
             <Text
               size="1"
               color="gray"
@@ -154,10 +151,12 @@ export function OutlineEditor({
               onKeyDown={handleTitleKeyDown}
             />
           </Box>
-          <Box>
+          <Box className="outline-editor__field">
             <Text
               size="1"
               color="gray"
+              as="label"
+              htmlFor={`outline-level-${node.id}`}
             >
               {labels.level}
             </Text>
@@ -167,6 +166,8 @@ export function OutlineEditor({
               onValueChange={(value) => setLevel(value as OutlineLevel)}
             >
               <Select.Trigger
+                id={`outline-level-${node.id}`}
+                className="outline-editor__level-trigger"
                 variant="soft"
                 aria-label={labels.level}
               />

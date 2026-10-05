@@ -10,6 +10,30 @@
   max-width: 1120px;
 }
 
+.outline-editor__primary-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 240px);
+  align-items: start;
+  gap: 12px;
+}
+
+.rt-Box.outline-editor__field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.outline-editor__level-trigger {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.outline-editor__level-hint {
+  display: block;
+  line-height: 1.4;
+}
+
 .outline-editor input,
 .outline-editor textarea {
   width: 100%;
@@ -64,6 +88,10 @@
 @media (max-width: 767px) {
   .outline-editor {
     padding-top: 16px;
+  }
+
+  .outline-editor__primary-fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .outline-editor__footer {
