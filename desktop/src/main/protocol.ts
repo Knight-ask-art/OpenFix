@@ -163,7 +163,19 @@ async function handleAppRequest(request: Request): Promise<Response> {
     url.hostname === "setup"
       ? resolveSetupStaticPath(getSetupDistDir(), url.pathname)
       : resolveStaticPath(getFrontendDistDir(), url.pathname);
-  return net.fetch(pathToFileURL(filePath).toString());
+  const response = await net.fetch(pathToFileURL(filePath).toString());
+  if (path.extname(filePath).toLowerCase() !== ".html") return response;
+
+  // The SPA document is served from a stable app:// URL while each release
+  // contains new content-hashed bundles. Never let a persistent webview
+  // partition reuse an old index.html that points at a previous UI bundle.
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "no-store");
+  return new Response(response.body, {
+    headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
 }
 
 export function handleAppProtocol(): void {

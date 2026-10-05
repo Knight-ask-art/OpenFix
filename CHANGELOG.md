@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.4](https://github.com/Knight-ask-art/OpenFix/compare/v0.11.3...v0.11.4) (2026-10-05)
+
+### 问题修复
+
+* 修复桌面端可能复用旧前端入口文档的问题，避免更新后继续加载过期的大纲界面。
+* 将大纲节点删除入口移到选中节点标题旁，并保留未保存修改保护和删除确认。
+
 ## [0.11.3](https://github.com/Knight-ask-art/OpenFix/compare/v0.11.2...v0.11.3) (2026-10-05)
 
 ### 大纲体验

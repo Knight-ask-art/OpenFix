@@ -960,6 +960,8 @@ test.describe("outline 编辑器状态", () => {
 
     // 真正切换项目：节点选中、草稿与展开状态按既有语义被清空，并加载新项目的大纲。
     await changeUrlInApp(page, `/outline?projectId=${BETA.id}`, 3);
+    await expect(page.getByRole("alertdialog")).toContainText("放弃未保存的修改？");
+    await page.getByRole("button", { name: "放弃修改", exact: true }).click();
     await expect(trigger).toContainText(BETA.title);
     await expect(page.locator(".outline-editor")).toHaveCount(0);
     await expect(
@@ -1095,6 +1097,12 @@ test.describe("outline 编辑器状态", () => {
     const root = page.locator(".outline-tree__row").filter({ hasText: `${ALPHA.id} Root` });
     await root.locator(".outline-tree__expander").click();
     await page.locator(".outline-tree__label", { hasText: `${ALPHA.id} Child` }).click();
+    await expect(page.locator(".outline-ai")).toHaveCount(1);
+    const deleteButton = page.getByRole("button", { name: "删除", exact: true });
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
+    await expect(page.getByRole("alertdialog")).toContainText(`${ALPHA.id} Child`);
+    await page.getByRole("button", { name: "取消", exact: true }).click();
 
     await page.getByRole("button", { name: "新增同级", exact: true }).click();
     const title = page.locator(".outline-editor input").first();

@@ -1,7 +1,7 @@
 {
   "name": "openfix-desktop",
   "private": true,
-  "version": "0.11.3",
+  "version": "0.11.4",
   "description": "OpenFix is a Windows AI writing workbench for long-form fiction, based on OpenFic.",
   "author": {
     "name": "Syrize",

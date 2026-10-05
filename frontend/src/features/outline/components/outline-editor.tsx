@@ -1,5 +1,4 @@
 import { Box, Button, Flex, Select, TextArea, Text, TextField } from "@radix-ui/themes";
-import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import type { VolumeWithChapters } from "@/lib/chapter.types";
@@ -34,17 +33,13 @@ interface OutlineEditorProps {
     ) => string;
     save: string;
     saveShortcut: string;
-    deleteNode: string;
-    deleteWithChildren: (count: number) => string;
     untitled: string;
   };
   levelLabels: Record<OutlineLevel, string>;
   allowedLevels: OutlineLevel[];
   volumes: VolumeWithChapters[];
-  childCount: number;
   onDirtyChange: (dirty: boolean) => void;
   onSave: (payload: OutlineUpdatePayload) => void;
-  onDelete: () => void;
 }
 
 export function OutlineEditor({
@@ -54,10 +49,8 @@ export function OutlineEditor({
   levelLabels,
   allowedLevels,
   volumes,
-  childCount,
   onDirtyChange,
   onSave,
-  onDelete,
 }: OutlineEditorProps) {
   const [title, setTitle] = useState(node.title);
   const [content, setContent] = useState(node.content);
@@ -298,22 +291,10 @@ export function OutlineEditor({
 
         <Flex
           className="outline-editor__footer"
-          justify="between"
+          justify="end"
           align="center"
           gap="3"
         >
-          <Button
-            variant="soft"
-            color="gray"
-            size="2"
-            disabled={isSaving}
-            aria-label={labels.deleteNode}
-            onClick={onDelete}
-          >
-            <Trash2 size={14} />
-            {labels.deleteNode}
-            {childCount > 0 ? ` (${labels.deleteWithChildren(childCount)})` : ""}
-          </Button>
           <Flex align="center" gap="3">
             <Text size="1" color="gray" className="outline-editor__shortcut-hint">
               {labels.saveShortcut}

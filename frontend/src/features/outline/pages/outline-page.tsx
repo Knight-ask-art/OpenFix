@@ -1,6 +1,6 @@
 import { Badge, Box, Button, Flex, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpenText, ChevronDown, ChevronUp, Plus, Search, X } from "lucide-react";
+import { BookOpenText, ChevronDown, ChevronUp, Plus, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router";
@@ -451,8 +451,6 @@ export function OutlinePage() {
     ) => t("outline.chapterOption", { volumeOrder, volumeTitle, chapterOrder, chapterTitle }),
     save: t("outline.save"),
     saveShortcut: t("outline.saveShortcut"),
-    deleteNode: t("outline.delete"),
-    deleteWithChildren: (count: number) => t("outline.deleteWithChildren", { count }),
     untitled: t("outline.untitled"),
   };
 
@@ -684,6 +682,21 @@ export function OutlinePage() {
                       <Button
                         size="1"
                         variant="soft"
+                        color="red"
+                        disabled={deleteMutation.isPending}
+                        onClick={() =>
+                          requestDiscardableAction(() => setDeleteTarget(selectedNode))
+                        }
+                      >
+                        <Trash2 size={13} />
+                        {t("outline.delete")}
+                        {childCount > 0
+                          ? ` (${t("outline.deleteWithChildren", { count: childCount })})`
+                          : ""}
+                      </Button>
+                      <Button
+                        size="1"
+                        variant="soft"
                         disabled={createMutation.isPending}
                         onClick={() => handleAddSibling(selectedNode)}
                       >
@@ -731,14 +744,10 @@ export function OutlinePage() {
                   levelLabels={levelLabels}
                   allowedLevels={allowedLevels}
                   volumes={volumes}
-                  childCount={childCount}
                   onSave={(payload) =>
                     updateMutation.mutate(
                       { outlineId: selectedNode.id, payload },
                     )
-                  }
-                  onDelete={() =>
-                    requestDiscardableAction(() => setDeleteTarget(selectedNode))
                   }
                 />
               </>
