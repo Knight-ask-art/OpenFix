@@ -15,6 +15,7 @@ from app.storage.models.agent_memory import AgentMemory
 from app.storage.models.agent_rule import AgentRule
 from app.agent_runtime.persistence.model import AgentAttachment, AgentContextCompaction, AgentRunMessage
 from app.storage.models.character import Character
+from app.storage.models.character_belief import CharacterBelief
 from app.storage.models.character_profile import CharacterProfile
 from app.storage.models.character_state import CharacterState
 from app.storage.models.chapter import Chapter
@@ -46,6 +47,9 @@ from app.storage.models.volume import Volume
 from app.storage.models.writing_activity_event import WritingActivityEvent
 from app.storage.models.note import Note, NoteCategory
 from app.storage.models.outline import Outline
+from app.storage.models.plotline import Plotline
+from app.storage.models.scene_plan import ScenePlan
+from app.storage.models.world_fact import WorldFact
 from app.storage.models.world_info import WorldInfo
 from app.storage.models.world_entry_meta import WorldEntryMeta
 from app.storage.models.world_info_entry import WorldInfoEntry
@@ -61,6 +65,7 @@ __all__ = [
     "BackgroundJobEvent",
     "BackgroundJobItem",
     "Character",
+    "CharacterBelief",
     "CharacterProfile",
     "CharacterState",
     "Chapter",
@@ -72,6 +77,7 @@ __all__ = [
     "Note",
     "NoteCategory",
     "Outline",
+    "Plotline",
     "Project",
     "ProjectProfile",
     "PromptChainVersion",
@@ -86,6 +92,7 @@ __all__ = [
     "RevisionWorldEntrySnapshot",
     "RetrievalIndex",
     "RetrievalChapterIndexState",
+    "ScenePlan",
     "Skill",
     "SkillReferenceDoc",
     "Setting",
@@ -94,6 +101,7 @@ __all__ = [
     "Volume",
     "WritingActivityEvent",
     "WorldEntryMeta",
+    "WorldFact",
     "WorldInfo",
     "WorldInfoEntry",
 ]

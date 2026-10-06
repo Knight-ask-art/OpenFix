@@ -41,6 +41,7 @@ from app.api.routers import (
     model_provider_catalog,
     model_providers,
     models,
+    narrative,
     notes,
     outline_ai,
     outlines,
@@ -129,6 +130,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(chapter_exports.router, prefix="/api/v1")
     test_app.include_router(project_profile.router, prefix="/api/v1")
     test_app.include_router(chapter_meta.router, prefix="/api/v1")
+    test_app.include_router(narrative.router, prefix="/api/v1")
     test_app.include_router(tasks.router, prefix="/api/v1")
     test_app.include_router(agent_runtime.router, prefix="/api/v1/agent")
     test_app.include_router(background.router, prefix="/api/v1")

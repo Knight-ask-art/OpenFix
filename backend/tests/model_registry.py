@@ -23,6 +23,7 @@ def register_sqlmodel_models() -> None:
     from app.storage.models.agent_memory import AgentMemory
     from app.storage.models.agent_rule import AgentRule
     from app.storage.models.character import Character
+    from app.storage.models.character_belief import CharacterBelief
     from app.storage.models.character_profile import CharacterProfile
     from app.storage.models.character_state import CharacterState
     from app.storage.models.chapter import Chapter
@@ -53,6 +54,9 @@ def register_sqlmodel_models() -> None:
     from app.storage.models.volume import Volume
     from app.storage.models.note import Note, NoteCategory
     from app.storage.models.outline import Outline
+    from app.storage.models.plotline import Plotline
+    from app.storage.models.scene_plan import ScenePlan
+    from app.storage.models.world_fact import WorldFact
     from app.storage.models.world_info import WorldInfo
     from app.storage.models.world_entry_meta import WorldEntryMeta
     from app.storage.models.world_info_entry import WorldInfoEntry
@@ -68,6 +72,7 @@ def register_sqlmodel_models() -> None:
         BackgroundJobEvent,
         BackgroundJobItem,
         Character,
+        CharacterBelief,
         CharacterProfile,
         CharacterState,
         Chapter,
@@ -97,8 +102,11 @@ def register_sqlmodel_models() -> None:
         TaskMessage,
         Volume,
         WorldEntryMeta,
+        WorldFact,
         WorldInfo,
         WorldInfoEntry,
         Outline,
+        Plotline,
+        ScenePlan,
         WritingActivityEvent,
     )

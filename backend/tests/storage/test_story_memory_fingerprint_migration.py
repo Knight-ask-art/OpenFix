@@ -122,6 +122,11 @@ def test_migration_chain_is_continuous_with_a_single_head() -> None:
     )
     assert word_count_migration.revision == "1031"
     assert word_count_migration.down_revision == "1030"
+    narrative_migration = importlib.import_module(
+        "app.storage.migrations.versions.1032_create_narrative_engine_tables"
+    )
+    assert narrative_migration.revision == "1032"
+    assert narrative_migration.down_revision == "1031"
 
     config = Config()
     config.set_main_option(
@@ -129,16 +134,16 @@ def test_migration_chain_is_continuous_with_a_single_head() -> None:
     )
     script = ScriptDirectory.from_config(config)
 
-    assert script.get_heads() == ["1031"]
+    assert script.get_heads() == ["1032"]
 
     # 从最新迁移沿 down_revision 回溯，每一步都必须能在仓库里找到对应迁移。
     revisions = {revision.revision: revision for revision in script.walk_revisions()}
-    current: str | None = "1031"
+    current: str | None = "1032"
     visited: list[str] = []
     while current is not None:
         assert current in revisions, f"缺失迁移版本: {current}"
         visited.append(current)
         down = revisions[current].down_revision
         current = down if isinstance(down, str) else None
-    assert visited[0] == "1031"
+    assert visited[0] == "1032"
     assert visited[-1] == "1001"

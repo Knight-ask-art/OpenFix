@@ -24,6 +24,7 @@ from app.storage.repos import (
     chapter_repo,
     chapter_summary_repo,
     llm_audit_log_repo,
+    narrative_repo,
     note_category_repo,
     note_repo,
     outline_repo,
@@ -212,6 +213,7 @@ async def delete_project(session: AsyncSession, project_id: str) -> None:
     await delete_revision_data_by_project(session, project_id)
 
     # 先删除扩展数据，避免外键与孤立记录
+    await narrative_repo.delete_by_project(session, project_id)
     await character_extension_repo.delete_states_by_project(session, project_id)
     await character_extension_repo.delete_profiles_by_project(session, project_id)
     await world_entry_meta_repo.delete_by_project(session, project_id)
