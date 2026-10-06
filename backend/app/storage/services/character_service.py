@@ -21,6 +21,7 @@ from app.storage.repos import (
     project_repo,
     world_entry_meta_repo,
 )
+from app.storage.services import narrative_service
 
 
 @dataclass
@@ -201,6 +202,9 @@ async def delete_character(session: AsyncSession, character_id: str) -> None:
     await world_entry_meta_repo.remove_character_links(
         session, character.project_id, [character.id]
     )
+    await narrative_service.delete_character_narrative_data(
+        session, character.project_id, [character.id]
+    )
     await character_repo.delete(session, character)
     if image_path:
         delete_character_image(image_path)
@@ -235,6 +239,9 @@ async def batch_delete_characters(
         await character_extension_repo.delete_states_for_character(session, character.id)
         await character_extension_repo.delete_profile(session, character.id)
     await world_entry_meta_repo.remove_character_links(session, project_id, deleted_ids)
+    await narrative_service.delete_character_narrative_data(
+        session, project_id, deleted_ids
+    )
     deleted_count = await character_repo.batch_delete(session, project_id, character_ids)
     for character in characters:
         if character.image_path:

@@ -37,6 +37,7 @@ from app.storage.repos import (
     character_extension_repo,
     world_entry_meta_repo,
 )
+from app.storage.services import narrative_service
 
 PAYLOAD_VERSION = 1
 
@@ -295,10 +296,13 @@ async def delete_chapter_extensions(
     project_id: str,
     chapter_id: str,
 ) -> None:
-    """删除章节时同步清理其扩展行与条目关联（与章节 service 的级联一致）。"""
+    """删除章节时同步清理其扩展行、条目关联与叙事状态（与章节 service 的级联一致）。"""
     await chapter_meta_repo.delete_by_chapter(session, chapter_id)
     await character_extension_repo.delete_states_for_chapters(session, [chapter_id])
     await world_entry_meta_repo.remove_chapter_links(session, project_id, [chapter_id])
+    await narrative_service.delete_chapter_narrative_data(
+        session, project_id, [chapter_id]
+    )
 
 
 async def delete_character_extensions(
@@ -307,10 +311,13 @@ async def delete_character_extensions(
     project_id: str,
     character_id: str,
 ) -> None:
-    """删除人物时同步清理其扩展字段、状态与条目关联。"""
+    """删除人物时同步清理其扩展字段、状态、条目关联与叙事状态。"""
     await character_extension_repo.delete_states_for_character(session, character_id)
     await character_extension_repo.delete_profile(session, character_id)
     await world_entry_meta_repo.remove_character_links(session, project_id, [character_id])
+    await narrative_service.delete_character_narrative_data(
+        session, project_id, [character_id]
+    )
 
 
 async def delete_world_entry_extensions(

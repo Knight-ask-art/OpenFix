@@ -1708,6 +1708,35 @@ async def confirm_scene_plan(
     return _to_scene_plan_view(plan)
 
 
+# --- 章节 / 人物级清理 -------------------------------------------------------
+
+
+async def delete_chapter_narrative_data(
+    session: AsyncSession, project_id: str, chapter_ids: list[str]
+) -> None:
+    """章节删除时的叙事状态级联。
+
+    必需章节引用（场景计划）随章节删除；可选章节引用（信念的得知章节、情节线的
+    引入 / 推进章节、四张表的溯源来源章节）置空，行本身保留。调用方必须在章节
+    父行删除之前执行。
+    """
+    await narrative_repo.delete_by_chapter_ids(session, project_id, chapter_ids)
+    await narrative_repo.clear_chapter_links(session, project_id, chapter_ids)
+
+
+async def delete_character_narrative_data(
+    session: AsyncSession, project_id: str, character_ids: list[str]
+) -> None:
+    """人物删除时的叙事状态级联。
+
+    必需人物引用（人物信念）随人物删除；可选人物引用（场景计划的视角人物与
+    参与者 / 人物目标、情节线的关联人物）解除，行本身保留。调用方必须在人物
+    父行删除之前执行。
+    """
+    await narrative_repo.delete_by_character_ids(session, project_id, character_ids)
+    await narrative_repo.remove_character_links(session, project_id, character_ids)
+
+
 # --- 项目级清理 -------------------------------------------------------------
 
 

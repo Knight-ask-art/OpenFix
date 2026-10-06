@@ -461,6 +461,196 @@ async def delete_scene_plan(session: AsyncSession, project_id: str, plan_id: str
     await session.flush()
 
 
+# --- 章节 / 人物级清理 -------------------------------------------------------
+
+
+def _dedupe_ids(ids: list[str]) -> set[str]:
+    """去掉空值与重复项，得到受影响的父行 ID 集合。"""
+    return {item for item in ids if item}
+
+
+async def _list_all(session: AsyncSession, model: Any, project_id: str) -> list[Any]:
+    """翻页读取项目内全部行，避开单页上限。
+
+    只用于级联解除关联：项目级全量读取本身是有界操作，但仍按页取回，避免在
+    长篇小说项目上一次性把整张表读进内存。
+    """
+    collected: list[Any] = []
+    offset = 0
+    while True:
+        rows, total = await _list_page(
+            session,
+            model,
+            project_id,
+            conditions=[],
+            order_by=_default_order(model),
+            limit=MAX_PAGE_SIZE,
+            offset=offset,
+        )
+        collected.extend(rows)
+        offset += len(rows)
+        if not rows or offset >= total:
+            return collected
+
+
+async def _clear_optional_column(
+    session: AsyncSession,
+    model: Any,
+    column: Any,
+    project_id: str,
+    removed: set[str],
+) -> None:
+    """把仍指向已删除行的单个可选引用列置空。"""
+    # sync='fetch' 让 session 中已加载的同名行一起更新，避免级联后内存里还留着旧引用。
+    await session.execute(
+        update(model)
+        .where(
+            col(model.project_id) == project_id,
+            col(column).in_(removed),
+        )
+        .values(**{column.key: None, "updated_at": datetime.now(UTC)})
+        .execution_options(synchronize_session="fetch")
+    )
+
+
+async def _clear_provenance_source(
+    session: AsyncSession,
+    project_id: str,
+    *,
+    source_type: str,
+    removed: set[str],
+) -> None:
+    """Clear provenance IDs that point at deleted project entities."""
+    now = datetime.now(UTC)
+    for model in (WorldFact, CharacterBelief, Plotline, ScenePlan):
+        await session.execute(
+            update(model)
+            .where(
+                col(model.project_id) == project_id,
+                col(model.source_type) == source_type,
+                col(model.source_id).in_(removed),
+            )
+            .values(source_id=None, updated_at=now)
+            .execution_options(synchronize_session="fetch")
+        )
+
+
+async def delete_by_chapter_ids(
+    session: AsyncSession, project_id: str, chapter_ids: list[str]
+) -> None:
+    """删除以章节为必需父行的叙事行（场景计划）。
+
+    `scene_plans.chapter_id` 是必需引用：章节不存在时该计划既无法定位也无法排序，
+    因此随父行删除。可选的章节引用由 `clear_chapter_links` 解除。
+    """
+    removed = _dedupe_ids(chapter_ids)
+    if not removed:
+        return
+    await session.execute(
+        sql_delete(ScenePlan).where(
+            col(ScenePlan.project_id) == project_id,
+            col(ScenePlan.chapter_id).in_(removed),
+        )
+    )
+    await session.flush()
+
+
+async def clear_chapter_links(
+    session: AsyncSession, project_id: str, chapter_ids: list[str]
+) -> None:
+    """解除已删除章节在叙事表中的可选引用（置空列，不删除行）。"""
+    removed = _dedupe_ids(chapter_ids)
+    if not removed:
+        return
+    for model, column in (
+        (WorldFact, WorldFact.source_chapter_id),
+        (CharacterBelief, CharacterBelief.source_chapter_id),
+        (CharacterBelief, CharacterBelief.learned_at_chapter_id),
+        (Plotline, Plotline.source_chapter_id),
+        (Plotline, Plotline.introduced_chapter_id),
+        (Plotline, Plotline.advanced_chapter_id),
+        (ScenePlan, ScenePlan.source_chapter_id),
+    ):
+        await _clear_optional_column(session, model, column, project_id, removed)
+    await _clear_provenance_source(
+        session, project_id, source_type="chapter", removed=removed
+    )
+    await session.flush()
+
+
+async def delete_by_character_ids(
+    session: AsyncSession, project_id: str, character_ids: list[str]
+) -> None:
+    """删除以人物为必需父行的叙事行（人物信念）。
+
+    `character_beliefs.character_id` 是必需引用：持有者不存在时这条信念既无法渲染
+    也无法归属，因此随父行删除。可选的人物引用由 `remove_character_links` 解除。
+    """
+    removed = _dedupe_ids(character_ids)
+    if not removed:
+        return
+    await session.execute(
+        sql_delete(CharacterBelief).where(
+            col(CharacterBelief.project_id) == project_id,
+            col(CharacterBelief.character_id).in_(removed),
+        )
+    )
+    await session.flush()
+
+
+async def remove_character_links(
+    session: AsyncSession, project_id: str, character_ids: list[str]
+) -> None:
+    """解除已删除人物在叙事表中的可选引用（置空列与 JSON 关系列表项）。
+
+    场景计划的视角人物、情节线的关联人物是独立列与 JSON 列表，人物消失后必须
+    解除引用，否则一致性上下文会把已删除人物渲染成「（未命名人物）」。
+    """
+    removed = _dedupe_ids(character_ids)
+    if not removed:
+        return
+    await _clear_optional_column(
+        session, ScenePlan, ScenePlan.pov_character_id, project_id, removed
+    )
+    await _clear_provenance_source(
+        session, project_id, source_type="character_profile", removed=removed
+    )
+
+    now = datetime.now(UTC)
+    for plan in await _list_all(session, ScenePlan, project_id):
+        participants = load_str_list(plan.participants_json)
+        remaining_participants = [
+            item for item in participants if item not in removed
+        ]
+        goals = load_character_goals(plan.character_goals_json)
+        remaining_goals = [
+            goal for goal in goals if goal["character_id"] not in removed
+        ]
+        participants_changed = len(remaining_participants) != len(participants)
+        goals_changed = len(remaining_goals) != len(goals)
+        if not participants_changed and not goals_changed:
+            continue
+        # Write only the column whose references changed. If the sibling JSON
+        # column is malformed, this cleanup must not silently normalize it.
+        if participants_changed:
+            plan.participants_json = dump_str_list(remaining_participants)
+        if goals_changed:
+            plan.character_goals_json = dump_character_goals(remaining_goals)
+        plan.updated_at = now
+        session.add(plan)
+
+    for plotline in await _list_all(session, Plotline, project_id):
+        related = load_str_list(plotline.related_character_ids_json)
+        remaining = [item for item in related if item not in removed]
+        if len(remaining) == len(related):
+            continue
+        plotline.related_character_ids_json = dump_str_list(remaining)
+        plotline.updated_at = now
+        session.add(plotline)
+
+    await session.flush()
+
+
 # --- 项目级清理 -------------------------------------------------------------
 
 
