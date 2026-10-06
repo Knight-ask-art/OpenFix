@@ -211,6 +211,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             enabled_skills=(
                 "builtin-skill--style-profile",
                 "builtin-skill--deslop-writing",
+                "builtin-skill--prose-polish",
             ),
             metadata=MappingProxyType({}),
         ),
