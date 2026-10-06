@@ -19,3 +19,5 @@ class ReactAgentConfig:
     tools: list[BaseTool]
     termination: TerminationCondition
     max_iterations: int = DEFAULT_AGENT_MAX_ITERATIONS
+    # Zero disables this narrow safeguard for a deliberately extended workflow.
+    max_writing_repetitions: int = 6

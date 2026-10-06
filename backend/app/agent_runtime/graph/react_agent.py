@@ -32,6 +32,7 @@ from langgraph.types import Overwrite, RetryPolicy, Send
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.content_blocks import extract_text_content
+from app.agent_runtime.graph.writing_loop_guard import writing_loop_stop_reason
 from app.agent_runtime.attachments import build_image_content_blocks
 from app.agent_runtime.types import ReactAgentConfig
 from app.agent_runtime.context import build_context, build_context_parts
@@ -98,6 +99,7 @@ def _add_messages(
 class ReactState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], _add_messages]
     iteration_count: int
+    writing_loop_start: int
     is_done: bool
     final_output: Any
     tool_index: int
@@ -701,6 +703,26 @@ def create_react_agent(
     ) -> dict:
         """Call the LLM with bound tools."""
         nonlocal active_audit
+        # Finish only after tool results exist, preserving every protocol pair.
+        # Pending human input gets consumed below and starts a fresh allowance.
+        if (
+            termination.mode == "no_tool_call"
+            and react_config.max_writing_repetitions > 0
+            and (inject_queue is None or inject_queue.empty())
+        ):
+            stop_reason = writing_loop_stop_reason(
+                state["messages"][state.get("writing_loop_start", 0) :],
+                limit=react_config.max_writing_repetitions,
+            )
+            if stop_reason is not None:
+                return {
+                    "messages": [AIMessage(content=stop_reason)],
+                    "is_done": True,
+                    "final_output": stop_reason,
+                    "tool_outcomes": Overwrite([]),
+                    "tool_prepared_outcomes": Overwrite([]),
+                    "tool_phase": "prepare",
+                }
         configurable = cast(
             dict[str, Any],
             (config or {}).get("configurable", {}) if config else {},
@@ -1007,6 +1029,7 @@ def create_react_agent(
             "tool_phase": "prepare",
         }
         if drained_injected_user_message:
+            update["writing_loop_start"] = len(state["messages"])
             update["is_done"] = False
             update["final_output"] = None
         return update
