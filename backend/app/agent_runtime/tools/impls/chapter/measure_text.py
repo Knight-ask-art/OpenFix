@@ -37,11 +37,19 @@ class MeasureTextRange(BaseModel):
     max_words: int | None
 
 
+class MeasureTextRevision(BaseModel):
+    target_words: int
+    word_delta: int
+    minimum_change_words: int
+    guidance: str
+
+
 class MeasureTextOutput(BaseModel):
     word_count: int
     range: MeasureTextRange | None
     within_range: bool | None
     counting_method: str
+    revision: MeasureTextRevision | None = None
 
 
 @ToolRegistry.register
@@ -86,6 +94,31 @@ class MeasureTextTool(AgentTool):
                 max_words is None or word_count <= max_words
             )
 
+        revision = None
+        if within_range is False:
+            if min_words is not None and max_words is not None:
+                target = (min_words + max_words) // 2
+            else:
+                target = min_words if min_words is not None else max_words
+            assert target is not None
+            boundary = (
+                min_words
+                if min_words is not None and word_count < min_words
+                else max_words
+            )
+            assert boundary is not None
+            revision = MeasureTextRevision(
+                target_words=target,
+                word_delta=target - word_count,
+                minimum_change_words=abs(boundary - word_count),
+                guidance=(
+                    "word_delta 为达到目标需要增减的实测字数（负数表示删减）。"
+                    "按差额集中修订，避免每次只改几字反复调用；"
+                    "保留事实、认知边界、声线与必要因果，不能机械截断。"
+                    "修订后测量完整候选，片段达标不代表整章达标。"
+                ),
+            )
+
         return MeasureTextOutput(
             word_count=word_count,
             range=(
@@ -95,4 +128,5 @@ class MeasureTextTool(AgentTool):
             ),
             within_range=within_range,
             counting_method=COUNTING_METHOD,
-        ).model_dump_json()
+            revision=revision,
+        ).model_dump_json(exclude={"revision"} if revision is None else set())

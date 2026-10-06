@@ -27,7 +27,7 @@ class ListCharactersInput(BaseModel):
 
 
 class ReadCharacterInput(BaseModel):
-    name: str = Field(description="要读取的角色名称")
+    name: str = Field(description="要读取的角色完整名称，须与 list_characters 返回名称一致；不要省略姓氏")
 
 
 class CreateCharacterInput(BaseModel):
@@ -147,7 +147,17 @@ async def _resolve_character_by_name(session, project_id: str, name: str) -> Cha
     characters = await _list_project_characters(session, project_id)
     matches = [character for character in characters if character.name == normalized_name]
     if not matches:
-        raise ToolExecutionError(f"角色不存在: {normalized_name}")
+        candidates = [
+            character.name[:120]
+            for character in characters
+            if normalized_name.casefold() in character.name.casefold()
+        ][:5]
+        hint = (
+            "。请使用完整名称：" + json.dumps(candidates, ensure_ascii=False)
+            if candidates
+            else "。请先调用 list_characters 查询当前项目的完整角色名称。"
+        )
+        raise ToolExecutionError(f"角色不存在: {normalized_name}{hint}")
     if len(matches) > 1:
         raise ToolExecutionError(f"角色名称不唯一: {normalized_name}")
     return matches[0]
@@ -205,7 +215,7 @@ class ListCharactersTool(AgentTool):
 @ToolRegistry.register
 class ReadCharacterTool(AgentTool):
     name: str = "read_character"
-    description: str = "根据名称读取当前项目中的单个角色描述。"
+    description: str = "根据完整名称读取当前项目中的单个角色描述；名称须与 list_characters 返回值一致。"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadCharacterInput
 

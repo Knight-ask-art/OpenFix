@@ -105,6 +105,27 @@ async def test_measure_text_counts_chinese_characters_without_range() -> None:
 
     assert data["word_count"] == 4
     assert data["within_range"] is None
+    assert "revision" not in data
+
+
+async def test_measure_text_guides_one_bounded_length_revision() -> None:
+    data = await _measure(text="字" * 3479, min_words=2800, max_words=3200)
+    assert data["revision"]["target_words"] == 3000
+    assert data["revision"]["word_delta"] == -479
+    assert data["revision"]["minimum_change_words"] == 279
+    assert "不能机械截断" in data["revision"]["guidance"]
+    assert "片段达标不代表整章达标" in data["revision"]["guidance"]
+
+
+async def test_measure_text_revision_supports_single_bound_and_empty_text() -> None:
+    short = await _measure(text="", min_words=10)
+    assert short["revision"]["word_delta"] == 10
+    assert short["revision"]["minimum_change_words"] == 10
+    long = await _measure(text="字" * 12, max_words=10)
+    assert long["revision"]["target_words"] == 10
+    assert long["revision"]["word_delta"] == -2
+    valid = await _measure(text="字" * 10, min_words=10, max_words=10)
+    assert "revision" not in valid
 
 
 async def test_measure_text_treats_empty_text_as_zero() -> None:
