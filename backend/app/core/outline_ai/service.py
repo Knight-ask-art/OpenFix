@@ -5,6 +5,10 @@
 
 全部只读取项目已有数据并返回候选内容，不写入任何大纲节点；
 用户在前端确认后才通过既有大纲 API 落库（PRD §14、AGENTS 第 10 条）。
+
+完善大纲与检查节奏会额外附带一段有界的「已确认叙事状态」（世界事实、人物信念、
+情节线，以及节点已关联章节时的场景计划）作为参考线索；该段落只是资料，
+提示词明确要求不得据此断言冲突或写入确定结论，输出仍只是候选建议。
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ from app.api.schemas.outline_ai import (
 )
 from app.background.llm.resolver import resolve_background_llm
 from app.core.errors import NotFoundError, ValidationError
+from app.core.narrative_context import build_narrative_state_context
 from app.core.outline_ai.prompts import (
     build_outline_from_chapter_messages,
     build_outline_improve_messages,
@@ -128,6 +133,20 @@ def _text(value: Any, limit: int) -> str | None:
     if not text:
         return None
     return text[:limit]
+
+
+async def _narrative_state(
+    session: AsyncSession, *, project_id: str, chapter_id: str | None
+) -> str:
+    """读取有界的「已确认叙事状态」（世界事实 / 人物信念 / 情节线 / 场景计划）。
+
+    只做本地只读查询，不产生额外的模型调用；`chapter_id` 只在明确关联到章节时
+    传入（例如大纲节点上已保存的 chapter_id），不从大纲正文里猜章节。
+    没有可用记录时返回空串，提示词里不会出现这一段。
+    """
+    return await build_narrative_state_context(
+        session, project_id=project_id, scene_plan_chapter_id=chapter_id
+    )
 
 
 async def _require_project_outline(
@@ -293,10 +312,13 @@ async def improve_outline(
         effective_level = outline.level
         effective_title = outline.title or ""
         effective_content = outline.content or ""
+        # 只使用节点上已保存的章节关联；关联为空就不附带任何章节场景计划。
+        scene_plan_chapter_id = outline.chapter_id
     else:
         effective_level = level if level in OUTLINE_LEVELS else "book"
         effective_title = title
         effective_content = content
+        scene_plan_chapter_id = None
 
     if not (effective_title.strip() or effective_content.strip()):
         raise ValidationError("请先填写大纲标题或内容")
@@ -309,12 +331,16 @@ async def improve_outline(
     resolved = await resolve_background_llm(
         session, model_policy="light_model", model_id=model_id
     )
+    narrative_state = await _narrative_state(
+        session, project_id=project_id, chapter_id=scene_plan_chapter_id
+    )
     response = await resolved.client.generate(
         build_outline_improve_messages(
             level=effective_level,
             title=effective_title,
             content=effective_content,
             instruction=instruction,
+            narrative_state=narrative_state,
         )
     )
     result_title, result_content, notes = parse_outline_draft(response.content)
@@ -340,6 +366,8 @@ async def check_pacing(
 ) -> OutlineAiPacing:
     """AI 检查节奏。仅返回审慎表述的节奏提示，不写入任何数据。"""
     nodes = await outline_repo.list_by_project(session, project_id)
+    # 只有节点级检查且该节点已关联章节时才附带场景计划；全书范围不逐章查询。
+    scene_plan_chapter_id: str | None = None
 
     if scope == "node":
         if not outline_id:
@@ -347,6 +375,7 @@ async def check_pacing(
         node = await _require_project_outline(session, project_id, outline_id)
         scope_label = f"{outline_level_label(node.level)}：{(node.title or '').strip() or '（未命名）'}"
         outline_text = _outline_tree_text(nodes, root_id=node.id)
+        scene_plan_chapter_id = node.chapter_id
     else:
         if not nodes:
             raise ValidationError("项目暂无大纲，无法检查节奏")
@@ -359,9 +388,14 @@ async def check_pacing(
     resolved = await resolve_background_llm(
         session, model_policy="light_model", model_id=model_id
     )
+    narrative_state = await _narrative_state(
+        session, project_id=project_id, chapter_id=scene_plan_chapter_id
+    )
     response = await resolved.client.generate(
         build_outline_pacing_messages(
-            scope_label=scope_label, outline_text=outline_text
+            scope_label=scope_label,
+            outline_text=outline_text,
+            narrative_state=narrative_state,
         )
     )
     summary, issues = parse_outline_pacing(response.content)

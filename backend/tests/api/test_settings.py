@@ -50,6 +50,7 @@ EXPECTED_AGENT_TOOL_PERMISSIONS = [
     {"tool_name": "read_chapter", "mode": "allow"},
     {"tool_name": "read_chapter_summaries", "mode": "allow"},
     {"tool_name": "read_character", "mode": "allow"},
+    {"tool_name": "read_narrative_state", "mode": "allow"},
     {"tool_name": "read_note", "mode": "allow"},
     {"tool_name": "read_range_summaries", "mode": "allow"},
     {"tool_name": "read_world_entry", "mode": "allow"},

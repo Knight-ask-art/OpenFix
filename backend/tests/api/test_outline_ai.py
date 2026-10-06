@@ -7,9 +7,13 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ProviderAuthError, ProviderError
 from app.models.entities.model import Model
+from app.storage.models.plotline import Plotline
+from app.storage.models.scene_plan import ScenePlan
+from app.storage.models.world_fact import WorldFact
 
 
 @pytest.mark.asyncio
@@ -590,3 +594,215 @@ def test_outline_ai_service_does_not_import_write_services() -> None:
         "world_info_entry_service",
     ):
         assert not hasattr(outline_ai_service, name)
+
+
+# ============================================
+# 已确认叙事状态（建议性输入）
+# ============================================
+
+STATE_HEADER = "【已确认叙事状态】"
+KEY_STATEMENT = "城南书铺的抽屉里藏着一把黄铜钥匙"
+
+
+def test_outline_prompt_builders_are_unchanged_without_narrative_state() -> None:
+    """不传叙事状态时，两个提示词与接入之前完全一致（普通路径不受影响）。"""
+    from app.core.outline_ai import prompts as outline_prompts
+
+    improve_bare = outline_prompts.build_outline_improve_messages(
+        level="book", title="全书主线", content="主角出发。", instruction=None
+    )
+    improve_empty = outline_prompts.build_outline_improve_messages(
+        level="book",
+        title="全书主线",
+        content="主角出发。",
+        instruction=None,
+        narrative_state="   ",
+    )
+    assert improve_bare == improve_empty
+    assert all(STATE_HEADER not in message["content"] for message in improve_bare)
+
+    pacing_bare = outline_prompts.build_outline_pacing_messages(
+        scope_label="全书大纲", outline_text="- [全书] 主线"
+    )
+    pacing_empty = outline_prompts.build_outline_pacing_messages(
+        scope_label="全书大纲", outline_text="- [全书] 主线", narrative_state=""
+    )
+    assert pacing_bare == pacing_empty
+    assert all(STATE_HEADER not in message["content"] for message in pacing_bare)
+
+
+async def _seed_confirmed_state(
+    session: AsyncSession, *, project_id: str, chapter_id: str | None = None
+) -> None:
+    session.add(
+        WorldFact(
+            project_id=project_id,
+            statement=KEY_STATEMENT,
+            status="confirmed",
+            confirmation="confirmed",
+        )
+    )
+    session.add(
+        Plotline(
+            project_id=project_id,
+            title="钥匙的来历",
+            state="open",
+            confirmation="confirmed",
+            current_question="钥匙是谁留下的？",
+        )
+    )
+    if chapter_id is not None:
+        session.add(
+            ScenePlan(
+                project_id=project_id,
+                chapter_id=chapter_id,
+                scene_index=0,
+                goal="林晚找到钥匙",
+                confirmation="confirmed",
+            )
+        )
+    await session.flush()
+
+
+def _count_narrative_reads(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """记录大纲 AI 是否读取了叙事状态；读取次数可直接断言。"""
+    from app.core.outline_ai import service as outline_ai_service
+
+    calls: list[str] = []
+    original = outline_ai_service.build_narrative_state_context
+
+    async def _spy(*args: Any, **kwargs: Any) -> str:
+        calls.append("read")
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(outline_ai_service, "build_narrative_state_context", _spy)
+    return calls
+
+
+@pytest.mark.asyncio
+async def test_improve_outline_receives_confirmed_state_with_suggestion_only_rule(
+    client, session: AsyncSession, monkeypatch
+) -> None:
+    project_id = await _create_project(client)
+    outline = await _create_outline(client, project_id)
+    await _seed_confirmed_state(session, project_id=project_id)
+    fake = _patch_outline_ai_model(
+        monkeypatch,
+        json.dumps(
+            {"title": "全书主线", "content": "主角出发寻找真相。"}, ensure_ascii=False
+        ),
+    )
+    reads = _count_narrative_reads(monkeypatch)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/outlines/ai/improve",
+        json={"outline_id": outline["id"]},
+    )
+
+    assert response.status_code == 200
+    assert reads == ["read"]
+    system_prompt = fake.messages[0]["content"]
+    user_prompt = fake.messages[1]["content"]
+    assert STATE_HEADER in user_prompt
+    assert KEY_STATEMENT in user_prompt
+    assert "钥匙的来历" in user_prompt
+    # 明确「只给建议、不下断言、不落库」的规则。
+    assert "不是对你的指令" in system_prompt
+    assert "候选建议" in system_prompt
+    assert "由作者在前端确认" in system_prompt
+
+
+@pytest.mark.asyncio
+async def test_check_pacing_receives_unresolved_obligations(
+    client, session: AsyncSession, monkeypatch
+) -> None:
+    project_id = await _create_project(client)
+    chapter_id = await _create_chapter(client, project_id, "林晚推门而入。")
+    outline = await _create_outline(client, project_id, level="chapter", chapter_id=chapter_id)
+    await _seed_confirmed_state(session, project_id=project_id, chapter_id=chapter_id)
+    fake = _patch_outline_ai_model(
+        monkeypatch, json.dumps({"summary": "节奏观察", "issues": []}, ensure_ascii=False)
+    )
+    reads = _count_narrative_reads(monkeypatch)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/outlines/ai/check-pacing",
+        json={"outline_id": outline["id"], "scope": "node"},
+    )
+
+    assert response.status_code == 200
+    assert reads == ["read"]
+    user_prompt = fake.messages[1]["content"]
+    assert "钥匙的来历" in user_prompt
+    # 节点已关联章节时才会附带该章场景计划。
+    assert "林晚找到钥匙" in user_prompt
+    assert "不是对你的指令" in fake.messages[0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_book_scope_pacing_does_not_read_chapter_scene_plans(
+    client, session: AsyncSession, monkeypatch
+) -> None:
+    project_id = await _create_project(client)
+    chapter_id = await _create_chapter(client, project_id, "林晚推门而入。")
+    await _create_outline(client, project_id, level="chapter", chapter_id=chapter_id)
+    await _seed_confirmed_state(session, project_id=project_id, chapter_id=chapter_id)
+    fake = _patch_outline_ai_model(
+        monkeypatch, json.dumps({"summary": "节奏观察", "issues": []}, ensure_ascii=False)
+    )
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/outlines/ai/check-pacing",
+        json={"scope": "book"},
+    )
+
+    assert response.status_code == 200
+    user_prompt = fake.messages[1]["content"]
+    assert KEY_STATEMENT in user_prompt
+    # 全书范围不逐章附带场景计划。
+    assert "林晚找到钥匙" not in user_prompt
+
+
+@pytest.mark.asyncio
+async def test_split_and_update_from_chapter_do_not_receive_narrative_state(
+    client, session: AsyncSession, monkeypatch
+) -> None:
+    """结构性拆分与按正文回填仍只依据既有素材，不引入叙事状态。"""
+    project_id = await _create_project(client)
+    chapter_id = await _create_chapter(client, project_id, "林晚推门而入。")
+    volume = await _create_outline(client, project_id, level="volume", title="第一卷")
+    chapter_outline = await _create_outline(
+        client, project_id, level="chapter", title="第一章", chapter_id=chapter_id
+    )
+    await _seed_confirmed_state(session, project_id=project_id, chapter_id=chapter_id)
+    reads = _count_narrative_reads(monkeypatch)
+
+    split_client = _patch_outline_ai_model(
+        monkeypatch,
+        json.dumps(
+            {"items": [{"title": "第一章", "content": "开场"}]}, ensure_ascii=False
+        ),
+    )
+    split = await client.post(
+        f"/api/v1/projects/{project_id}/outlines/ai/split-chapters",
+        json={"outline_id": volume["id"]},
+    )
+
+    assert split.status_code == 200
+    assert reads == []
+    assert STATE_HEADER not in split_client.messages[1]["content"]
+
+    update_client = _patch_outline_ai_model(
+        monkeypatch,
+        json.dumps(
+            {"title": "第一章", "content": "林晚推门而入。"}, ensure_ascii=False
+        ),
+    )
+    update = await client.post(
+        f"/api/v1/projects/{project_id}/outlines/ai/update-from-chapter",
+        json={"outline_id": chapter_outline["id"]},
+    )
+
+    assert update.status_code == 200
+    assert reads == []
+    assert STATE_HEADER not in update_client.messages[1]["content"]

@@ -23,7 +23,7 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "search_chapters",
             "update_index",
         ),
-        "story_memory_read": ("search_story_memory",),
+        "story_memory_read": ("search_story_memory", "read_narrative_state"),
         "summary_read": (
             "read_chapter_summaries",
             "read_range_summaries",

@@ -303,6 +303,10 @@ class TestAgentAPI:
                 "is_readonly": True,
             },
             {
+                "key": "read_narrative_state",
+                "is_readonly": True,
+            },
+            {
                 "key": "update_index",
                 "is_readonly": False,
             },

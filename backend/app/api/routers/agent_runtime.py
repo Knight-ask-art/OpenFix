@@ -113,6 +113,7 @@ TOOL_DISPLAY_ORDER = {
     "measure_text": 8.5,
     "search_chapters": 9,
     "search_story_memory": 9.5,
+    "read_narrative_state": 9.6,
     "update_index": 10,
     "read_chapter_summaries": 11,
     "read_range_summaries": 12,

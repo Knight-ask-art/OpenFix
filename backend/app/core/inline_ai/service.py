@@ -15,10 +15,33 @@ from app.audit.context import AuditContext
 from app.background.llm.resolver import resolve_background_llm
 from app.core.errors import NotFoundError, ValidationError
 from app.core.inline_ai.prompts import build_inline_ai_messages
+from app.core.narrative_context import build_narrative_state_context
 from app.storage.repos import chapter_repo
 
 _CODE_FENCE_PATTERN = re.compile(r"^```[a-zA-Z0-9_-]*\n?([\s\S]*?)\n?```$", re.MULTILINE)
 _QUOTE_PAIRS = (("“", "”"), ("‘", "’"), ("\"", "\""), ("'", "'"))
+
+# 需要参考已确认叙事状态的改写动作：对话与扩写最容易与人物信念、场景计划失配。
+# 语法修复等表层动作一律不读取叙事状态，避免无谓的本地查询与上下文占用。
+NARRATIVE_STATE_ACTIONS: frozenset[InlineAiAction] = frozenset({"dialogue", "expand"})
+
+
+async def _narrative_state_for_action(
+    session: AsyncSession,
+    *,
+    project_id: str,
+    chapter_id: str,
+    action: InlineAiAction,
+) -> str:
+    """按动作策略返回有界的已确认叙事状态；不需要时返回空串。
+
+    只做本地只读查询，不产生额外的模型调用。
+    """
+    if action not in NARRATIVE_STATE_ACTIONS:
+        return ""
+    return await build_narrative_state_context(
+        session, project_id=project_id, scene_plan_chapter_id=chapter_id
+    )
 
 
 @dataclass(frozen=True)
@@ -72,10 +95,17 @@ async def transform(
         model_policy="light_model",
         model_id=model_id,
     )
+    narrative_state = await _narrative_state_for_action(
+        session,
+        project_id=project_id,
+        chapter_id=chapter_id,
+        action=action,
+    )
     messages = build_inline_ai_messages(
         action=action,
         selected_text=selected_text,
         instruction=effective_instruction,
+        narrative_state=narrative_state,
     )
     audit_context = AuditContext(
         project_id=project_id,

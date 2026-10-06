@@ -15,6 +15,7 @@ import app.agent_runtime.tools.impls.context.read_chapter_summaries  # noqa: F40
 import app.agent_runtime.tools.impls.context.read_range_summaries  # noqa: F401
 import app.agent_runtime.tools.impls.context.character  # noqa: F401
 import app.agent_runtime.tools.impls.context.world_entry  # noqa: F401
+import app.agent_runtime.tools.impls.context.narrative_state  # noqa: F401
 import app.agent_runtime.tools.impls.interaction.ask_user  # noqa: F401
 import app.agent_runtime.tools.impls.orchestration  # noqa: F401
 import app.agent_runtime.tools.impls.plan  # noqa: F401
