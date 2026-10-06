@@ -2,7 +2,8 @@
 """Consistency service - 章节一致性检查。
 
 流程：读取章节正文 → 优先用 story memory 检索相关设定/前文（不可用时退回
-人物与大纲清单）→ LLM 审慎分析 → 解析为结构化 Issue 列表。
+人物与大纲清单）→ 追加已确认的结构化叙事状态（世界事实 / 人物信念 / 情节线 /
+场景计划，见 app/core/narrative_context.py）→ LLM 审慎分析 → 解析为结构化 Issue 列表。
 仅返回建议，不修改任何正文；结果不做持久化（v1）。
 """
 
@@ -20,8 +21,10 @@ from app.background.llm.resolver import resolve_background_llm
 from app.core.consistency.prompts import (
     build_consistency_analysis_messages,
     build_consistency_messages,
+    is_knowledge_boundary_issue,
 )
 from app.core.errors import NotFoundError, ValidationError
+from app.core.narrative_context import build_narrative_state_context
 from app.retrieval.chapter_index import (
     get_index_settings,
     resolve_index_embedding_model,
@@ -183,6 +186,24 @@ def _resolve_issue_sources(
             if len(sources) >= MAX_ISSUE_SOURCES:
                 return sources
     return sources
+
+
+def _bind_issue_sources(
+    issues: list[ConsistencyIssue], chapters: list[Any]
+) -> list[ConsistencyIssue]:
+    """Bind verbatim evidence to chapters, and drop unverifiable boundary claims.
+
+    知识边界类问题断言的是「某个人物不可能知道这条信息」，这属于语义判断，服务端
+    不做关键词裁决；服务端只做一件确定性的事：这条问题必须能在本次检查的正文里
+    定位到逐字原文。定位不到就按证据不足丢弃，不展示无法核实的指控。
+    """
+    bound: list[ConsistencyIssue] = []
+    for issue in issues:
+        sources = _resolve_issue_sources(issue, chapters)
+        if not sources and is_knowledge_boundary_issue(issue.type):
+            continue
+        bound.append(replace(issue, sources=sources))
+    return bound
 
 
 async def _story_memory_context(
@@ -394,6 +415,10 @@ async def run_consistency_check(
     if context is None:
         context = await _inventory_context(session, project_id)
         context_source = "inventory"
+    # 已确认的结构化叙事状态是独立的、有界的本地读取，与检索是否可用无关。
+    narrative_state = await build_narrative_state_context(
+        session, project_id=project_id, scene_plan_chapter_id=anchor_for_query.id
+    )
 
     resolved = await resolve_background_llm(
         session,
@@ -410,6 +435,7 @@ async def run_consistency_check(
             scope_label=label,
             segment_index=index,
             segment_total=segment_total,
+            narrative_state=narrative_state,
         )
         async with segment_semaphore:
             response = await resolved.client.generate(messages)
@@ -435,10 +461,7 @@ async def run_consistency_check(
     for segment_issues in segment_results:
         if segment_issues is not None:
             issues.extend(segment_issues)
-    issues = [
-        replace(issue, sources=_resolve_issue_sources(issue, chapters))
-        for issue in issues
-    ]
+    issues = _bind_issue_sources(issues, chapters)
 
     if scope == "chapter" and anchor_for_query is not None and not failed_segments:
         from app.storage.services import chapter_meta_service
@@ -503,6 +526,9 @@ async def analyze_consistency_issue(
     context = await _story_memory_context(session, project_id, query_text)
     if context is None:
         context = await _inventory_context(session, project_id)
+    narrative_state = await build_narrative_state_context(
+        session, project_id=project_id, scene_plan_chapter_id=anchor_for_query.id
+    )
 
     resolved = await resolve_background_llm(session, model_policy="light_model")
     response = await resolved.client.generate(
@@ -515,6 +541,7 @@ async def analyze_consistency_issue(
             suggestion=issue.suggestion,
             source_text=source_text,
             context_text=context,
+            narrative_state=narrative_state,
         )
     )
     analysis = response.content.strip()[:MAX_ANALYSIS_CHARS]
