@@ -16,9 +16,11 @@ from app.background.jobs.states import JOB_STATUS_RUNNING
 from app.background.runtime.context import JobContext
 from app.retrieval.story_memory import (
     build_story_memory_documents,
+    collect_story_memory_source_tokens,
     compute_story_memory_status,
     delete_project_story_memory_documents,
     fingerprint_story_memory_documents,
+    fingerprint_story_memory_sources,
     story_document_id,
     story_memory_index_is_fresh,
     story_memory_index_key,
@@ -37,6 +39,13 @@ from app.storage.repos import (
 from app.storage.services import world_entry_meta_service, world_info_entry_service
 
 MODEL_REF_ID = "model-ref-story-memory"
+
+
+async def _current_source_fingerprint(session, project_id: str) -> str:
+    """当前源数据快照指纹（ID + updated_at + 可见性 / 确认状态，不读正文）。"""
+    return fingerprint_story_memory_sources(
+        await collect_story_memory_source_tokens(session, project_id)
+    )
 
 
 def test_index_key_and_document_id() -> None:
@@ -218,7 +227,7 @@ async def test_hidden_note_excluded_from_story_memory_and_invalidates_fingerprin
     # 用当前快照认证索引，模拟“隐藏之前已经成功重建”。
     index_row = SimpleNamespace(
         status="ready",
-        source_fingerprint=fingerprint_story_memory_documents(documents),
+        source_fingerprint=await _current_source_fingerprint(session, project_id),
         last_error=None,
         last_ready_at=None,
     )
@@ -250,10 +259,7 @@ async def test_hidden_note_excluded_from_story_memory_and_invalidates_fingerprin
     status_after = await compute_story_memory_status(session, project_id=project_id)
     assert status_after.counts.notes == 0
     # 旧索引仍含隐藏笔记，指纹必须变化，使该索引被判为 stale。
-    assert (
-        fingerprint_story_memory_documents(documents_after)
-        != index_row.source_fingerprint
-    )
+    assert await _current_source_fingerprint(session, project_id) != index_row.source_fingerprint
     assert status_after.index_status == "stale"
 
 
@@ -284,8 +290,9 @@ async def test_story_memory_status_marks_changed_sources_stale(
         ).index_status
 
     async def _certify_current_snapshot() -> None:
-        documents = await build_story_memory_documents(session, project_id)
-        index_row.source_fingerprint = fingerprint_story_memory_documents(documents)
+        index_row.source_fingerprint = await _current_source_fingerprint(
+            session, project_id
+        )
 
     # 早于源快照指纹的旧索引行无法证明自己是最新的，必须先报 stale。
     assert await _status() == "stale"
@@ -392,8 +399,9 @@ async def test_story_memory_status_marks_character_extension_changes_stale(
         ).index_status
 
     async def _certify_current_snapshot() -> None:
-        documents = await build_story_memory_documents(session, project_id)
-        index_row.source_fingerprint = fingerprint_story_memory_documents(documents)
+        index_row.source_fingerprint = await _current_source_fingerprint(
+            session, project_id
+        )
 
     await _certify_current_snapshot()
     assert await _status() == "ready"
@@ -522,9 +530,8 @@ async def test_story_memory_rebuild_records_source_fingerprint_on_success(
         session, story_memory_index_key(project_id)
     )
     assert row is not None
-    expected = fingerprint_story_memory_documents(
-        await build_story_memory_documents(session, project_id)
-    )
+    # 认证快照是「来源令牌」指纹：ID + updated_at + 可见性 / 确认状态。
+    expected = await _current_source_fingerprint(session, project_id)
     assert row.source_fingerprint == expected
     assert row.source_fingerprint != "0" * 64
     assert await story_memory_index_is_fresh(session, project_id=project_id) is True
@@ -559,9 +566,7 @@ async def test_story_memory_rebuild_reports_stale_when_source_changes_during_bui
     project_id = await _create_project_with_entities(client)
     world_info = await world_info_repo.get_by_project_id(session, project_id)
     assert world_info is not None
-    snapshot_at_build_start = fingerprint_story_memory_documents(
-        await build_story_memory_documents(session, project_id)
-    )
+    snapshot_at_build_start = await _current_source_fingerprint(session, project_id)
 
     async def _add_entry_during_build(session_) -> None:
         session_.add(

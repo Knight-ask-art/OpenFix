@@ -21,8 +21,8 @@ from app.core.errors import ProviderError
 from app.models.repos import model_provider_repo, model_repo
 from app.retrieval.chapter_index import compute_chapter_source_hash
 from app.retrieval.story_memory import (
-    build_story_memory_documents,
-    fingerprint_story_memory_documents,
+    collect_story_memory_source_tokens,
+    fingerprint_story_memory_sources,
 )
 from app.retrieval.types import ChunkSearchResult
 from app.settings import settings
@@ -414,8 +414,9 @@ async def _seed_project(
     await session.flush()
     story_memory_fingerprint = None
     if story_memory_index:
-        documents = await build_story_memory_documents(session, PROJECT_ID)
-        story_memory_fingerprint = fingerprint_story_memory_documents(documents)
+        story_memory_fingerprint = fingerprint_story_memory_sources(
+            await collect_story_memory_source_tokens(session, PROJECT_ID)
+        )
     if chapter_index:
         session.add(_index_row(CHAPTER_INDEX_KEY, model=model))
         session.add(
@@ -497,7 +498,7 @@ def test_search_story_memory_is_registered_with_schema_and_default_permission() 
 
     assert tool.name == "search_story_memory"
     assert tool.access_level == "readonly"
-    assert set(schema["properties"].keys()) == {"query", "sources", "limit"}
+    assert set(schema["properties"].keys()) == {"query", "sources", "profile", "limit"}
     assert schema["required"] == ["query"]
     assert get_default_tool_permission_mode("search_story_memory") == "allow"
     assert {"tool_name": "search_story_memory", "mode": "allow"} in (

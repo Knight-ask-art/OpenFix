@@ -2,10 +2,14 @@
 
 把章节索引（chapters:<project_id>）与 Story Memory 索引（story_memory:<project_id>）
 的检索结果合并为一份带来源标注的结果列表，供 Agent 一次性取到
-正文、人物、世界设定、大纲与笔记上下文。
+正文、人物、世界设定、大纲、笔记与叙事状态上下文。
 
 复用既有 OpenFicRetrievalService 与索引 contract，不新建第二套 RAG；
 只读，不写入任何数据，且严格按 project_id 过滤。
+
+叙事来源（世界事实 / 人物信念 / 情节线 / 场景计划）默认**不**出现在全量检索里，
+需要显式请求来源或选用任务画像；请求到时只返回已确认、未被取代 / 作废的行，
+并且结果文本会用数据库当前行重新渲染，绝不回放可能过期的向量文本。
 """
 
 import json
@@ -35,8 +39,21 @@ from app.retrieval.chapter_index import (
     chapter_index_key,
     get_index_settings,
 )
+from app.retrieval.narrative_memory import (
+    NARRATIVE_SOURCE_LABELS,
+    character_belief_is_retrievable,
+    narrative_document_title,
+    plotline_is_retrievable,
+    render_character_belief,
+    render_plotline,
+    render_scene_plan,
+    render_world_fact,
+    scene_plan_is_retrievable,
+    world_fact_is_retrievable,
+)
 from app.retrieval.service import IndexNotReadyError, OpenFicRetrievalService
 from app.retrieval.story_memory import (
+    STORY_MEMORY_SOURCES as INDEXED_STORY_MEMORY_SOURCES,
     story_memory_index_is_fresh,
     story_memory_index_key,
 )
@@ -46,6 +63,7 @@ from app.storage.database import create_session
 from app.storage.repos import (
     chapter_repo,
     character_repo,
+    narrative_repo,
     note_repo,
     outline_repo,
     retrieval_index_repo,
@@ -55,18 +73,49 @@ from app.storage.repos import (
 )
 from app.storage.services import world_entry_meta_service
 
-StoryMemorySource = Literal["chapter", "character", "world_entry", "outline", "note"]
-
-ALL_SOURCES: tuple[str, ...] = (
+StoryMemorySource = Literal[
     "chapter",
     "character",
     "world_entry",
     "outline",
     "note",
+    "world_fact",
+    "character_belief",
+    "open_plotline",
+    "scene_state",
+]
+
+# 全量检索包含的章节索引来源。
+CHAPTER_SOURCES: tuple[str, ...] = ("chapter",)
+
+# 全量检索默认覆盖的来源，保持与叙事来源引入之前完全一致。
+DEFAULT_SOURCES: tuple[str, ...] = ("chapter", "character", "world_entry", "outline", "note")
+
+# 叙事状态来源：默认不参与全量检索，需要显式请求或走任务画像。
+NARRATIVE_SOURCES: tuple[str, ...] = (
+    "world_fact",
+    "character_belief",
+    "open_plotline",
+    "scene_state",
 )
 
-# Story Memory 索引里除章节外的数据源。
-STORY_MEMORY_SOURCES: tuple[str, ...] = ("character", "world_entry", "outline", "note")
+ALL_SOURCES: tuple[str, ...] = (*DEFAULT_SOURCES, *NARRATIVE_SOURCES)
+
+# 任务画像：把「这次要做什么」映射到一组来源，避免每次检索都把全部来源
+# 塞进上下文。`default` 与不传参数时的行为一致。
+SOURCE_PROFILES: dict[str, tuple[str, ...]] = {
+    "default": DEFAULT_SOURCES,
+    "narrative": NARRATIVE_SOURCES,
+    "consistency": (
+        "chapter",
+        "character",
+        "world_entry",
+        "outline",
+        *NARRATIVE_SOURCES,
+    ),
+}
+
+SourceProfile = Literal["default", "narrative", "consistency"]
 
 STORY_SOURCE_LABELS: dict[str, str] = {
     "chapter": "章节",
@@ -74,6 +123,7 @@ STORY_SOURCE_LABELS: dict[str, str] = {
     "world_entry": "世界设定",
     "outline": "大纲",
     "note": "笔记",
+    **NARRATIVE_SOURCE_LABELS,
 }
 
 # 单次检索的候选池与最终返回条数。
@@ -88,7 +138,19 @@ class SearchStoryMemoryInput(BaseModel):
     query: str = Field(description="检索语句")
     sources: list[StoryMemorySource] | None = Field(
         default=None,
-        description="可选：限定检索的数据源（chapter / character / world_entry / outline / note），默认全部",
+        description=(
+            "可选：限定检索的数据源。chapter / character / world_entry / outline / note "
+            "为默认来源；world_fact / character_belief / open_plotline / scene_state "
+            "为叙事状态来源，默认不参与全量检索。显式传入时以本字段为准"
+        ),
+    )
+    profile: SourceProfile | None = Field(
+        default=None,
+        description=(
+            "可选：任务画像，一次性选定该任务需要的来源组合。"
+            "default 等同不传；narrative 只看叙事状态；consistency 需要正文与设定一起对照。"
+            "同时传入 sources 时以 sources 为准"
+        ),
     )
     limit: int = Field(
         default=DEFAULT_RESULT_LIMIT,
@@ -156,6 +218,25 @@ def _candidate_sort_key(item: tuple[str, ChunkSearchResult]) -> tuple[int, float
     if result.rerank_score is not None:
         return (1, result.rerank_score)
     return (0, result.score)
+
+
+def _resolve_source_selection(
+    sources: list[str] | None, profile: str | None
+) -> tuple[str, ...]:
+    """解析本次检索的来源集合：显式 sources > 任务画像 > 默认来源。
+
+    默认来源刻意不含叙事状态来源，保持历史行为；需要叙事状态时由调用方
+    显式列出，或选用 `narrative` / `consistency` 画像。
+    """
+    if sources is not None:
+        selection: tuple[str, ...] = tuple(sources)
+    elif profile is not None:
+        selection = SOURCE_PROFILES.get(profile, DEFAULT_SOURCES)
+    else:
+        selection = DEFAULT_SOURCES
+    return tuple(
+        source for source in dict.fromkeys(selection) if source in ALL_SOURCES
+    )
 
 
 def _per_source_candidate_budget(source_count: int) -> int:
@@ -241,6 +322,82 @@ async def _resolve_story_entity(
     return None
 
 
+async def _resolve_narrative_entity(
+    session, source: str, entity_id: str, project_id: str
+) -> tuple[str, str] | None:
+    """按数据库当前状态重新渲染一条叙事结果；已不可检索或不属于本项目时返回 None。
+
+    向量库里的文本可能来自更早的一次编辑，也可能这一行在这之后被撤回确认、
+    被取代、被作废或删除。因此这里只把向量命中当作「候选」，返回的正文一律用
+    当前行重新渲染，绝不回放可能过期的向量文本。
+    """
+    if source == "world_fact":
+        fact = await narrative_repo.get_world_fact(session, project_id, entity_id)
+        if fact is None or not world_fact_is_retrievable(
+            confirmation=fact.confirmation,
+            status=fact.status,
+            superseded_by_id=fact.superseded_by_id,
+        ):
+            return None
+        return _narrative_title(
+            source, narrative_document_title(source, fact)
+        ), render_world_fact(fact)
+
+    if source == "character_belief":
+        belief = await narrative_repo.get_character_belief(
+            session, project_id, entity_id
+        )
+        if belief is None or not character_belief_is_retrievable(
+            confirmation=belief.confirmation,
+            superseded_by_id=belief.superseded_by_id,
+            invalidated_at=belief.invalidated_at,
+        ):
+            return None
+        character = await character_repo.get_by_id(session, belief.character_id)
+        if character is None or character.project_id != project_id:
+            # 信念的持有者已被删除或不属于本项目：不返回悬空信念。
+            return None
+        return _narrative_title(source, character.name), render_character_belief(
+            belief, character.name
+        )
+
+    if source == "open_plotline":
+        plotline = await narrative_repo.get_plotline(session, project_id, entity_id)
+        if plotline is None or not plotline_is_retrievable(
+            confirmation=plotline.confirmation, state=plotline.state
+        ):
+            return None
+        return _narrative_title(
+            source, narrative_document_title(source, plotline)
+        ), render_plotline(plotline)
+
+    if source == "scene_state":
+        plan = await narrative_repo.get_scene_plan(session, project_id, entity_id)
+        if plan is None or not scene_plan_is_retrievable(
+            confirmation=plan.confirmation
+        ):
+            return None
+        chapter = await chapter_repo.get_by_id(session, plan.chapter_id)
+        if chapter is None or chapter.project_id != project_id:
+            return None
+        pov_name: str | None = None
+        if plan.pov_character_id:
+            pov = await character_repo.get_by_id(session, plan.pov_character_id)
+            if pov is not None and pov.project_id == project_id:
+                pov_name = pov.name
+        title = (chapter.title or "").strip() or narrative_document_title(source, plan)
+        return _narrative_title(source, title), render_scene_plan(
+            plan, chapter_title=chapter.title, pov_character_name=pov_name
+        )
+
+    return None
+
+
+def _narrative_title(source: str, title: str | None) -> str:
+    text = (title or "").strip()
+    return text or STORY_SOURCE_LABELS.get(source, source)
+
+
 async def _rerank_merged_candidates(
     rerank_client: RerankClient,
     query: str,
@@ -320,7 +477,8 @@ class SearchStoryMemoryTool(AgentTool):
     name: str = "search_story_memory"
     description: str = (
         "在当前项目的故事记忆中做统一语义检索，一次返回相关的章节正文、人物、"
-        "世界设定、大纲与笔记，并标注每一条的来源"
+        "世界设定、大纲、笔记，以及已确认的世界事实、人物信念、情节线与场景计划，"
+        "并标注每一条的来源"
     )
     access_level: str = "readonly"
     args_schema: type[BaseModel] = SearchStoryMemoryInput
@@ -329,16 +487,14 @@ class SearchStoryMemoryTool(AgentTool):
         self,
         query: str,
         sources: list[str] | None = None,
+        profile: str | None = None,
         limit: int = DEFAULT_RESULT_LIMIT,
     ) -> str:
         effective_query = (query or "").strip()
         if not effective_query:
             raise ToolExecutionError("检索语句不能为空")
 
-        source_selection = ALL_SOURCES if sources is None else sources
-        requested = tuple(
-            source for source in source_selection if source in ALL_SOURCES
-        )
+        requested = _resolve_source_selection(sources, profile)
         if not requested:
             raise ToolExecutionError("没有可检索的数据源")
 
@@ -413,7 +569,9 @@ class SearchStoryMemoryTool(AgentTool):
 
             memory_sources = list(
                 dict.fromkeys(
-                    source for source in requested if source in STORY_MEMORY_SOURCES
+                    source
+                    for source in requested
+                    if source in INDEXED_STORY_MEMORY_SOURCES
                 )
             )
             if memory_sources:
@@ -501,12 +659,23 @@ class SearchStoryMemoryTool(AgentTool):
                 entity_id = _metadata_str(row, "entity_id")
                 if entity_id is None:
                     continue
-                label = await _resolve_story_entity(
-                    session, source, entity_id, self.project_id
-                )
-                if label is None:
-                    # 实体已被删除或不属于本项目：索引是旧的，不返回悬空结果。
-                    continue
+                if source in NARRATIVE_SOURCES:
+                    # 叙事来源一律以数据库当前状态重新渲染：
+                    # 候选 / 已取代 / 已作废 / 已删除的行在这里被丢弃。
+                    hydrated = await _resolve_narrative_entity(
+                        session, source, entity_id, self.project_id
+                    )
+                    if hydrated is None:
+                        continue
+                    label, live_text = hydrated
+                    text = live_text
+                else:
+                    label = await _resolve_story_entity(
+                        session, source, entity_id, self.project_id
+                    )
+                    if label is None:
+                        # 实体已被删除或不属于本项目：索引是旧的，不返回悬空结果。
+                        continue
                 results.setdefault(
                     (source, entity_id),
                     StoryMemoryResultItem(

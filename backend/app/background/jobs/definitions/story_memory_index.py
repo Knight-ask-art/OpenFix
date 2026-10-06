@@ -16,7 +16,8 @@ from app.background.runtime.context import JobContext
 from app.retrieval.service import OpenFicRetrievalService
 from app.retrieval.story_memory import (
     build_story_memory_documents,
-    fingerprint_story_memory_documents,
+    collect_story_memory_source_tokens,
+    fingerprint_story_memory_sources,
     story_memory_index_key,
 )
 from app.storage.repos import retrieval_index_repo, setting_repo
@@ -46,8 +47,13 @@ async def handle_story_memory_rebuild(context: JobContext) -> dict[str, int]:
     if current_model_ref_id != metadata.embedding_model_ref_id:
         raise RuntimeError("default_embedding_model changed; start the rebuild again")
 
+    # 先取一次便宜的来源令牌，作为本次构建的认证快照：它不读正文，
+    # 却在源数据增删改或可见性 / 确认状态切换时逐字变化。
+    source_tokens = await collect_story_memory_source_tokens(
+        context.session, project_id
+    )
+    source_fingerprint = fingerprint_story_memory_sources(source_tokens)
     documents = await build_story_memory_documents(context.session, project_id)
-    source_fingerprint = fingerprint_story_memory_documents(documents)
     embedding_client = await _build_embedding_client(
         context.session, metadata.embedding_model_ref_id
     )
@@ -87,7 +93,7 @@ async def handle_story_memory_rebuild(context: JobContext) -> dict[str, int]:
 STORY_MEMORY_REBUILD_JOB = JobDefinition(
     type=JOB_TYPE_STORY_MEMORY_REBUILD,
     name="故事记忆索引重建",
-    description="把人物、世界设定、大纲和笔记全量重建到检索索引",
+    description="把人物、世界设定、大纲、笔记，以及已确认的世界事实、人物信念、情节线与场景计划全量重建到检索索引",
     input_model=StoryMemoryRebuildInput,
     handler=handle_story_memory_rebuild,
     result_model=EmptyJobResult,
