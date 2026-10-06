@@ -17,7 +17,11 @@ from app.agent_runtime.agents.definitions import (
 from app.audit import AuditContext
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
 from app.agent_runtime.context.helpers import extract_referenced_skill_ids
-from app.agent_runtime.graph.react_agent import create_react_agent
+from app.agent_runtime.graph.react_agent import (
+    create_react_agent,
+    is_writing_loop_stop_message,
+    writing_loop_stop_notice,
+)
 from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.persistence import MessagePersister
 from app.agent_runtime.persistence.child_runs import (
@@ -275,6 +279,8 @@ def _last_assistant_content(messages: list[BaseMessage]) -> str | None:
     assistant content. When that message carries no usable text (empty string,
     reasoning/image-only blocks, or an unfinished tool call), the turn has
     no answer and older assistant text from previous turns must not be reused.
+    A writing-loop stop notice is a notification, not a deliverable, and must
+    never become a handoff source.
     """
     for message in reversed(messages):
         if isinstance(message, HumanMessage):
@@ -282,6 +288,8 @@ def _last_assistant_content(messages: list[BaseMessage]) -> str | None:
         if not isinstance(message, AIMessage):
             continue
         if message.tool_calls:
+            return None
+        if is_writing_loop_stop_message(message):
             return None
         content = str(message.text).strip()
         return content or None
@@ -535,6 +543,9 @@ class SubagentRunner:
                 final_state = snapshot_state
             if final_state is None:
                 raise ValueError("subagent stream completed without final state")
+            stop_notice = writing_loop_stop_notice(final_state.get("messages") or [])
+            if stop_notice is not None:
+                await persister.persist_writing_loop_stop(stop_notice)
             return final_state
         except asyncio.CancelledError:
             try:
@@ -1070,9 +1081,15 @@ class SubagentRunner:
                 return pending_result
             return {"error": "subagent interrupt payload missing"}
 
-        assistant_content = _last_assistant_content(result_state.get("messages") or [])
+        messages = result_state.get("messages") or []
+        assistant_content = _last_assistant_content(messages)
         if assistant_content is None:
-            error = "subagent turn completed without assistant content"
+            # 保护性停止的提示原文不是交付物：终止本轮并把原因交回主 Agent，
+            # 避免停止提示被登记为交付物后作为交接来源引用。
+            error = (
+                writing_loop_stop_notice(messages)
+                or "subagent turn completed without assistant content"
+            )
             refreshed = await self._complete_request(row, request_row, error=error)
             await self._publish_parent_subagent_status_row(
                 refreshed,

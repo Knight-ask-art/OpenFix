@@ -25,7 +25,11 @@ from app.agent_runtime.context.helpers import (
 )
 from app.audit import AuditContext
 from app.agent_runtime.graph.orchestrator.graph import build_orchestrator_graph
-from app.agent_runtime.graph.react_agent import _to_history_dict
+from app.agent_runtime.graph.react_agent import (
+    WRITING_LOOP_STOP_NOTICE_KEY,
+    WRITING_LOOP_TURN_START_KEY,
+    _to_history_dict,
+)
 from app.agent_runtime.graph.state import AgentRuntimeState
 from app.agent_runtime.model_config import without_api_key
 from app.agent_runtime.persistence import (
@@ -583,6 +587,13 @@ class SessionRunner:
             await session.close()
         return history_messages
 
+    async def _persist_writing_loop_stop(self, runtime_context: dict[str, Any]) -> None:
+        """补写写作循环保护的停止通知，让用户看到本轮为何停止。"""
+        notice = runtime_context.pop(WRITING_LOOP_STOP_NOTICE_KEY, None)
+        if not isinstance(notice, str) or not notice or self._persister is None:
+            return
+        await self._persister.persist_writing_loop_stop(notice)
+
     def _build_runtime_config(
         self,
         *,
@@ -897,6 +908,9 @@ class SessionRunner:
                     user_message_id=user_message_id,
                 )
                 state_user_request = ""
+                # 续跑轮次不追加 HumanMessage，写作循环保护需要 runner 显式给出
+                # 本轮消息起点，否则会沿用上一轮的计数并误停。
+                runtime_context[WRITING_LOOP_TURN_START_KEY] = len(history_messages)
 
             audit_context.set_revision_id(revision.id)
 
@@ -953,6 +967,7 @@ class SessionRunner:
                     await status_session.close()
                 await self._clear_replay_session()
                 return
+            await self._persist_writing_loop_stop(runtime_context)
         except asyncio.CancelledError:
             try:
                 await self._persister.finalize(reason="cancelled")
@@ -1346,6 +1361,7 @@ class SessionRunner:
                     await status_session.close()
                 await self._clear_replay_session()
                 return
+            await self._persist_writing_loop_stop(runtime_context)
         except asyncio.CancelledError:
             try:
                 await self._persister.finalize(reason="cancelled")

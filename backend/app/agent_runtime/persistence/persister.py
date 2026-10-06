@@ -418,6 +418,21 @@ class MessagePersister:
         finally:
             await session.close()
 
+    async def persist_writing_loop_stop(self, content: str) -> None:
+        """补写写作循环保护的停止通知。
+
+        该文本由 ReAct 子图合成，不是模型答复，也不会产生模型事件，因此需要
+        单独的落库入口，让用户看到本轮为何停止。
+        """
+        if not content:
+            return
+        await self._write(
+            role="assistant",
+            status="complete",
+            content=content,
+            metadata={"kind": "writing_loop_stop"},
+        )
+
     async def mark_user_sent(self, message_id: str) -> None:
         session = self._make_session()
         try:

@@ -12,7 +12,14 @@ import copy
 import inspect
 import json
 import time
-from collections.abc import Awaitable, Callable, Iterable, Mapping
+from collections.abc import (
+    Awaitable,
+    Callable,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Sequence,
+)
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, TypedDict, cast
 
 from langchain_core.messages import (
@@ -109,6 +116,70 @@ class ReactState(TypedDict, total=False):
     tool_phase: Literal["prepare", "execute"]
     tool_outcomes: Annotated[list[dict[str, Any]], _add_messages]
     tool_prepared_outcomes: Annotated[list[dict[str, Any]], _add_messages]
+
+
+# ---------------------------------------------------------------------------
+# Writing loop protection: stop notice markers
+# ---------------------------------------------------------------------------
+
+# 保护性停止提示由运行时合成，不是模型答复。下游据此区分两者，不做文本匹配。
+WRITING_LOOP_STOP_MARKER = "openfic_writing_loop_stop"
+# runner 通过共享 runtime_context 取回本轮停止提示，补写为用户可见消息。
+WRITING_LOOP_STOP_NOTICE_KEY = "writing_loop_stop_notice"
+# 续跑轮次没有新的 HumanMessage，runner 通过共享 runtime_context 给出本轮消息起点。
+WRITING_LOOP_TURN_START_KEY = "writing_loop_turn_start"
+
+
+def is_writing_loop_stop_message(message: BaseMessage) -> bool:
+    """判断一条消息是否为写作循环保护合成的停止提示。"""
+    if not isinstance(message, AIMessage):
+        return False
+    return bool((message.additional_kwargs or {}).get(WRITING_LOOP_STOP_MARKER))
+
+
+def writing_loop_stop_notice(messages: Sequence[BaseMessage]) -> str | None:
+    """返回本轮以保护性停止收尾时的提示原文，否则返回 None。
+
+    停止提示只是通知，不是模型交付物；调用方不应把它当作正文或交接来源。
+    """
+    if not messages:
+        return None
+    last = messages[-1]
+    if not is_writing_loop_stop_message(last):
+        return None
+    text = str(last.text).strip()
+    return text or None
+
+
+def _writing_loop_start(state: ReactState, configurable: Mapping[str, Any]) -> int:
+    """本轮写作循环计数的起点。
+
+    轮次已记录时沿用该值。新轮次的边界来自新追加的 HumanMessage（扫描时会
+    重置计数）；续跑轮次没有该消息，由 runner 通过 runtime_context 显式给出
+    消息起点，避免上一轮的工具记录计入新配额而误停。
+    """
+    runtime_context = configurable.get("runtime_context")
+    if isinstance(runtime_context, Mapping):
+        turn_start = runtime_context.get(WRITING_LOOP_TURN_START_KEY)
+        if (
+            isinstance(turn_start, int)
+            and not isinstance(turn_start, bool)
+            and turn_start >= 0
+        ):
+            return turn_start
+    current = state.get("writing_loop_start")
+    if isinstance(current, int) and not isinstance(current, bool) and current >= 0:
+        return current
+    return 0
+
+
+def _publish_writing_loop_stop(
+    configurable: Mapping[str, Any], stop_reason: str
+) -> None:
+    """把停止提示交给 runner，由其在图结束后补写一条助手消息。"""
+    runtime_context = configurable.get("runtime_context")
+    if isinstance(runtime_context, MutableMapping):
+        runtime_context[WRITING_LOOP_STOP_NOTICE_KEY] = stop_reason
 
 
 # ---------------------------------------------------------------------------
@@ -703,6 +774,11 @@ def create_react_agent(
     ) -> dict:
         """Call the LLM with bound tools."""
         nonlocal active_audit
+        configurable = cast(
+            dict[str, Any],
+            (config or {}).get("configurable", {}) if config else {},
+        )
+        writing_loop_start = _writing_loop_start(state, configurable)
         # Finish only after tool results exist, preserving every protocol pair.
         # Pending human input gets consumed below and starts a fresh allowance.
         if (
@@ -711,22 +787,24 @@ def create_react_agent(
             and (inject_queue is None or inject_queue.empty())
         ):
             stop_reason = writing_loop_stop_reason(
-                state["messages"][state.get("writing_loop_start", 0) :],
+                state["messages"][writing_loop_start:],
                 limit=react_config.max_writing_repetitions,
             )
             if stop_reason is not None:
+                _publish_writing_loop_stop(configurable, stop_reason)
                 return {
-                    "messages": [AIMessage(content=stop_reason)],
+                    "messages": [
+                        AIMessage(
+                            content=stop_reason,
+                            additional_kwargs={WRITING_LOOP_STOP_MARKER: True},
+                        )
+                    ],
                     "is_done": True,
                     "final_output": stop_reason,
                     "tool_outcomes": Overwrite([]),
                     "tool_prepared_outcomes": Overwrite([]),
                     "tool_phase": "prepare",
                 }
-        configurable = cast(
-            dict[str, Any],
-            (config or {}).get("configurable", {}) if config else {},
-        )
         runtime_state = configurable.get("runtime_state")
         db_session = configurable.get("db_session")
         inject_message_consumed_sink = configurable.get("inject_message_consumed_sink")
@@ -1024,6 +1102,7 @@ def create_react_agent(
         update: dict[str, Any] = {
             "messages": [response],
             "iteration_count": state["iteration_count"] + 1,
+            "writing_loop_start": writing_loop_start,
             "tool_outcomes": Overwrite([]),
             "tool_prepared_outcomes": Overwrite([]),
             "tool_phase": "prepare",
