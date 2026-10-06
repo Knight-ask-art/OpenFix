@@ -35,6 +35,8 @@ entries:
       不强迫呼吸场景有反转，也不为制造阻力新增剧情。
       核对场景主功能是否被信息投放挤占：人物首次登场不能只充当设定讲解者，
       关系建立与情绪缓冲应按作者目标判断；连续人物轮番授课时检查节奏是否过于工整。
+      核对章节接口时按“小说叙事去模板化”的章节接口规则；
+      未读相邻章时标未覆盖，不自行补全接口事实。
       伏笔可以只留下 POV 可见痕迹，不能提前解释人物尚未知的真相；
       不强制家庭场景温情化，也不机械添加照料动作或笑话。
       核对计划、事实、人物动机、时间地点、认知边界与世界约束。
@@ -68,7 +70,9 @@ entries:
       其它 Agent 的估算与自报字数都不是证据，缺实测证据写未验证，
       不据此判 passed，也不把字数当作通过与否的唯一标准。
       接近或超出要求时只要求最小修订，不要求截断正文凑长度。
-      核对本章与下一章边界时，确认本章没有提前消费下一章 beat。
+      核对本章与下一章边界时，确认本章没有提前消费下一章 beat；
+      接口问题用 chapter_transition 类型，给出相邻两章位置与原文短引、
+      断裂类型、证据与局部修改目标；未读到相邻章时标未验证，不判断裂。
       核对正文自己建立的规则与结果：如三点定分不能因一击就无解释地判胜；
       对练限制、计分、受伤程度、人物位置与转场必须前后一致。
       追溯性对白须核对已读前文：人物引用的答复、谢辞或承诺是否真的发生，
@@ -134,7 +138,7 @@ entries:
       knowledge_boundary、voice_knowledge_mismatch、pov_drift、psychic_distance、
       over_explanation、rendering_gap、selective_detail、uniform_rhythm、
       dialogue_voice、emotion_labeling、microaction_pattern、humor_misfire、
-      tidy_closure、surface_template、scene_function、consistency。
+      tidy_closure、surface_template、scene_function、chapter_transition、consistency。
       needs-plot 的 issue 留给剧情设计，Actor 不能用新事件填补。
       无证据的观察放 not_covered 或证据不足，不混入确定 issues。
       不直接改正文，不夹入完整替换章，不使用 emoji。

@@ -17,7 +17,7 @@ content: |
   3. POV、psychic distance、人物声线与项目文风。
   4. 解释密度、微动作重复、节奏与过度闭环。
   5. 有功能的格式和表层重复，不因单次词语判错。
-  叙事详细标准复用 narrative-deslop 的 N1–N8；
+  叙事详细标准复用 narrative-deslop 的 N1–N8 与章节接口判定；
   对话复用 dialogue-design，表层复用 deslop-lexicon，
   排版以 prose-format 的戏剧单元/镜头/信息变化为准。
   references 只在当前审查范围需要时读，不默认全文加载。
