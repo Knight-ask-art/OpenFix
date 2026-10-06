@@ -148,12 +148,6 @@ export function asTodoStatus(value: unknown): TodoStatus | undefined {
   return value === "pending" || value === "running" || value === "completed" ? value : undefined;
 }
 
-export function asPlanStatus(value: unknown): PlanStatus | undefined {
-  return value === "pending" || value === "in_progress" || value === "completed"
-    ? value
-    : undefined;
-}
-
 export function formatValue(value: unknown): string | undefined {
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -420,31 +414,6 @@ export function resolveToolMessageVisibilityState(input: {
     showDetail: input.hasDetail && (!hasError || input.showDetailOnError === true),
     showExpandButton: !hasError && canExpand,
   };
-}
-
-function toPlanTodoPayload(value: unknown): PlanTodoPayload | null {
-  if (!isRecord(value)) return null;
-  const content = asString(value.content);
-  const priority = value.priority;
-  if (!content || (priority !== "low" && priority !== "medium" && priority !== "high")) return null;
-  return {
-    content,
-    status: asPlanStatus(value.status) ?? "pending",
-    priority,
-  };
-}
-
-export function getPlanTodos(message: AgentMessage): PlanTodoPayload[] {
-  const resultData = getToolResultData(message);
-  if (isRecord(resultData) && isRecord(resultData.plan)) {
-    return asRecordArray(resultData.plan.todos)
-      .map(toPlanTodoPayload)
-      .filter((todo): todo is PlanTodoPayload => Boolean(todo));
-  }
-  const data = getStreamingData(message);
-  return asRecordArray(data.todos)
-    .map(toPlanTodoPayload)
-    .filter((todo): todo is PlanTodoPayload => Boolean(todo));
 }
 
 export function formatOutlineDetail(message: AgentMessage): string | undefined {

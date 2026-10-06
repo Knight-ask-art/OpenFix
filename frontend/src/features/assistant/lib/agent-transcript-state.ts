@@ -2,6 +2,10 @@ import i18n from "@/i18n";
 import type { AgentEvent, AgentMessage, AgentSessionStatus } from "@/lib/agent.types";
 
 import {
+  isPlanToolMessage,
+  toPendingPlanApprovalMessage,
+} from "../components/agent/message-blocks/tools/plan/plan-tool-message.utils";
+import {
   stopStreamingReasoning,
   stopStreamingReasoningForAgentEvent,
   stopStreamingToolMessages,
@@ -99,12 +103,24 @@ function getMessageToolCallId(message: AgentMessage): string | null {
   return null;
 }
 
+function isApprovalPlaceholderToolResult(message: AgentMessage): boolean {
+  const toolResult = message.toolResult;
+  if (!isRecord(toolResult)) return false;
+  if (toolResult.reason === "approval_preview") return true;
+  return isRecord(toolResult.data) && toolResult.data.reason === "approval_preview";
+}
+
 function isPendingApprovalToolMessage(
   message: AgentMessage,
   approvalMessage: AgentMessage,
 ): boolean {
   if (message.type !== "tool" || approvalMessage.type !== "approval") return false;
-  if (!(message.isStreaming || message.status === "running")) return false;
+  // Child runs record "需要审批" as a placeholder result; it is still a pending call.
+  const isOpenCall =
+    message.isStreaming === true ||
+    message.status === "running" ||
+    isApprovalPlaceholderToolResult(message);
+  if (!isOpenCall) return false;
 
   const approvalToolCallId =
     typeof approvalMessage.toolApproval?.tool_call_id === "string"
@@ -666,13 +682,26 @@ export function applyAgentTranscriptEvent(
 
     if (message.type === "approval") {
       const previewToolMessage = options.approvalPreviewFactory?.(message) ?? null;
+      // Plan calls are shown while they wait for approval; other write tools keep their
+      // previous behavior of being hidden until a result (or a preview) arrives.
+      const pendingApprovalMessages = new Map<string, AgentMessage>();
+      if (!previewToolMessage) {
+        for (const item of baseMessages) {
+          if (!isPlanToolMessage(item)) continue;
+          if (isPendingApprovalToolMessage(item, message)) {
+            pendingApprovalMessages.set(item.id, toPendingPlanApprovalMessage(item, message));
+          }
+        }
+      }
       const stopped = stopTranscriptStreamingMessages(clearRetryMessages(baseMessages));
-      const withoutPendingTool = previewToolMessage
-        ? stopped
-        : stopped.filter((item) => !isPendingApprovalToolMessage(item, message));
+      // Streaming tool messages are finalized as completed above, so resolve the pending
+      // approval state before that flag can be mistaken for an executed result.
+      const withPendingApproval = pendingApprovalMessages.size
+        ? stopped.map((item) => pendingApprovalMessages.get(item.id) ?? item)
+        : stopped;
       const withPreview = previewToolMessage
-        ? upsertTranscriptStreamingMessage(withoutPendingTool, previewToolMessage)
-        : withoutPendingTool;
+        ? upsertTranscriptStreamingMessage(withPendingApproval, previewToolMessage)
+        : withPendingApproval;
       const nextMessages = upsertTranscriptMessage(withPreview, message);
       return {
         state: {

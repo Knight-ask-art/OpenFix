@@ -7,8 +7,12 @@ import type { AgentMessage } from "@/lib/agent.types";
 import "./plan-tool-message.css";
 
 import { ToolBody, ToolNotice } from "../shared/tool-message-shared";
-import { getPlanTodos, getToolResultMessage } from "../shared/tool-message-utils";
-import { canReportEmptyPlan, getPlanTodoMarker } from "./plan-tool-message.utils";
+import { getToolResultMessage } from "../shared/tool-message-utils";
+import {
+  canReportEmptyPlan,
+  getPlanTodoMarker,
+  getPlanTodos,
+} from "./plan-tool-message.utils";
 
 interface PlanToolMessageProps {
   message: AgentMessage;
