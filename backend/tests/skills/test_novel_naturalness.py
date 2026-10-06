@@ -26,6 +26,8 @@ SKILLS = (
     "prose-format",
     "style-profile",
     "author-style-profile",
+    "fiction-prose-craft",
+    "humor-writing",
 )
 
 
@@ -136,6 +138,8 @@ def test_writer_is_generation_focused_and_reviewer_actor_have_targeted_protocol(
     reviewer = _prompt("reviewer")
     actor = _prompt("actor")
     assert "Writer 负责生成" in writer
+    assert "preserve" in writer
+    assert "requires_plot_change=true" in writer
     assert "允许不完整句" in writer
     assert "低频、功能性" in writer
     assert "当前提示不是唯一事实来源" in writer
@@ -201,10 +205,13 @@ def test_default_agent_skill_bundles_are_small_and_readonly_reviewer():
     assert writer.enabled_skills == (
         "builtin-skill--style-profile",
         "builtin-skill--deslop-writing",
+        "builtin-skill--fiction-prose-craft",
+        "builtin-skill--humor-writing",
     )
     assert "builtin-skill--narrative-deslop" in reviewer.enabled_skills
     assert "builtin-skill--deslop-lexicon" in reviewer.enabled_skills
-    assert len(reviewer.enabled_skills) <= 5
+    assert len(writer.enabled_skills) <= 4
+    assert len(reviewer.enabled_skills) <= 7
     assert not any(
         category.endswith("_write") for category in reviewer.enabled_tool_categories
     )
@@ -230,6 +237,7 @@ async def test_manifest_never_pushes_full_core_or_references(agent, monkeypatch)
     msg = await build_skills({"user_request": "继续"}, agent, session)
     assert msg is not None
     assert "<available_skills>" in msg.content
+    assert count_tokens(msg.content) <= 1200
     for skill_id in definition.enabled_skills:
         skill = load_builtin_skill(skill_id)
         assert skill is not None

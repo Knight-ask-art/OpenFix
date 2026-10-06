@@ -37,6 +37,8 @@ async def test_list_agent_definitions(client: AsyncClient):
     assert writer["enabled_skills"] == [
         "builtin-skill--style-profile",
         "builtin-skill--deslop-writing",
+        "builtin-skill--fiction-prose-craft",
+        "builtin-skill--humor-writing",
     ]
     assert reviewer["enabled_skills"] == [
         "builtin-skill--style-profile",
@@ -44,6 +46,8 @@ async def test_list_agent_definitions(client: AsyncClient):
         "builtin-skill--deslop-lexicon",
         "builtin-skill--story-quality",
         "builtin-skill--dialogue-design",
+        "builtin-skill--fiction-prose-craft",
+        "builtin-skill--humor-writing",
     ]
     assert build["color"] == "blue"
     assert build["icon"] == "pen-tool"

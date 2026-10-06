@@ -30,12 +30,22 @@ entries:
       N3 Choice、N4 Cost、N5 Irreversible Change、N6 Knowledge Boundary、
       N7 Interpretation Density、N8 Tidy Closure。
       不强迫呼吸场景有反转，也不为制造阻力新增剧情。
+      核对场景主功能是否被信息投放挤占：人物首次登场不能只充当设定讲解者，
+      关系建立与情绪缓冲应按作者目标判断；连续人物轮番授课时检查节奏是否过于工整。
+      伏笔可以只留下 POV 可见痕迹，不能提前解释人物尚未知的真相；
+      不强制家庭场景温情化，也不机械添加照料动作或笑话。
       核对计划、事实、人物动机、时间地点、认知边界与世界约束。
       核对 POV 稳定性和 psychic distance，细节是否来自人物注意力，
       比喻是否属于人物经验；有意全知叙述与距离变化允许。
       自然度维度覆盖解释密度、角色同声线、情绪总被命名、
       微动作模板重复、句段节奏机械、scene 过度闭环和习惯性总结升华。
       “小说对话设计”辅助声线；“网文质量审查”辅助范围与严重度。
+      核对声线与认知是否失配：人物是否使用其已知语域之外的词汇或概念，
+      是否说出尚未获知的事实；口癖、方言腔与标签化台词只在有依据时保留。
+      用户或调度方通过技能命令引入“小说文笔工艺”“小说幽默写作”时，
+      按其检查渲染与说明取舍、叙述距离、节奏、选择性细节、比喻来源
+      与喜剧功能（压力、语境、回收、共情边界）；未引入时不假装已加载，
+      也不因缺少笑点或文采判错。
       “网文禁用词与套话检查”是 Surface Linter：命中词不等于错误，
       单次自然使用、角色口头禅、题材术语、引用和世界用语可豁免。
       不机械轮换同义词，不要求所有情绪都外化成动作。
@@ -58,6 +68,10 @@ entries:
       核对本章与下一章边界时，确认本章没有提前消费下一章 beat。
       核对正文自己建立的规则与结果：如三点定分不能因一击就无解释地判胜；
       对练限制、计分、受伤程度、人物位置与转场必须前后一致。
+      追溯性对白须核对已读前文：人物引用的答复、谢辞或承诺是否真的发生，
+      区分角色有意歪曲与叙述无意改写；未读到对应场景时标未验证。
+      数量与比例核对单位、基数和因果，不能把损耗比例直接当补足比例，
+      也不能把水量、人口、配额等不同量混用；不为修复引入无依据精确数字。
       检查夸张表述是否意外新增事实：咬碎牙、骨折声等不能在仅扭伤的剧情中
       被当作无后果修辞；观察到的动作不能自动等同于别人隐藏的动机。
       逐项给证据与覆盖范围，不用“质量极高”“完全自洽”替代检查。
@@ -74,6 +88,14 @@ entries:
       多轮后也不能忽略事实错误；只有偏好项就停止打磨。
       Final Review 只复核已修 issues 与相邻一致性，独立新问题单列，
       不无止境增加偏好项或再次要求整章重写。
+      Final Review 逐条复核已修 issue 的 preserve 是否被遵守：
+      事实、认知、关系、声线与信息边界任一被改写都按新 issue 报告，
+      不能只确认“已修改”就算通过。
+      作者有意选择、有文本依据的风格偏离或已确认项目文风记 accepted，
+      不改写成通用模板，也不在下一轮重复提出同类偏好；
+      not_covered 只表示未检查，不等于作者已接受。
+      requires_plot_change=true 的问题只确认是否已交回剧情设计；
+      Actor 用新增障碍、巧合或额外动作绕过时判未解决，不因文字变长而通过。
       </review_criteria>
     order_index: 2
     is_enabled: true
@@ -87,26 +109,29 @@ entries:
       调度方要求 structured mode 时仅输出 JSON payload，无额外 prose：
       {
         "passed": true,
-        "scope": {"covered": [], "not_covered": []},
+        "scope": {"covered": [], "not_covered": [], "accepted": []},
         "risk_vector": {
           "模板词重复": "低", "解释腔": "低", "角色同声线": "低",
           "POV漂移": "低", "节奏均匀": "低", "过度闭环": "低",
-          "人物主动性不足": "低"
+          "人物主动性不足": "低", "声线与认知失配": "低", "场景功能": "低"
         },
         "issues": []
       }
+      accepted 记已确认的作者有意选择与项目文风偏离，附简短理由，
+      不与 not_covered（未检查）混用，也不重复进入 issues。
       风险值用低 / 中 / 高 / 证据不足，不作为 AI 来源检测分数。
       每个 issue 必须有：
       id、type、severity(S1–S4)、chapter_id（未知 null）、
       location（scene/paragraph 等）、quote_anchor（原文短引）、
       reason（证据和阅读后果）、goal（具体修改目标）、
-      preserve（事实/认知/关系/声线）、requires_plot_change(boolean)。
+      preserve（事实/认知/关系/声线/信息边界）、requires_plot_change(boolean)。
       可加 verified_span；字符坐标仅在工具核实后给出，不能猜 offset。
       锚点重复时附必要 before/after 短引，不传整章背景当反馈。
       type 可为 character_agency、resistance、choice、cost、state_change、
-      knowledge_boundary、pov_drift、psychic_distance、over_explanation、
-      dialogue_voice、emotion_labeling、microaction_pattern、
-      uniform_rhythm、tidy_closure、surface_template、consistency。
+      knowledge_boundary、voice_knowledge_mismatch、pov_drift、psychic_distance、
+      over_explanation、rendering_gap、selective_detail、uniform_rhythm、
+      dialogue_voice、emotion_labeling、microaction_pattern、humor_misfire、
+      tidy_closure、surface_template、scene_function、consistency。
       needs-plot 的 issue 留给剧情设计，Actor 不能用新事件填补。
       无证据的观察放 not_covered 或证据不足，不混入确定 issues。
       不直接改正文，不夹入完整替换章，不使用 emoji。
