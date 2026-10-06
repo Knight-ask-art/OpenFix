@@ -920,6 +920,10 @@
         "name": "Read Range Summaries",
         "description": "Read the range summary for a specified chapter range."
       },
+      "readNarrativeState": {
+        "name": "Read Narrative State",
+        "description": "Read the confirmed world facts, character beliefs, plotlines, and scene plans of the current project."
+      },
       "writeChapter": {
         "name": "Create Chapter",
         "description": "Create a chapter in a volume."
@@ -2179,6 +2183,7 @@
       "plan": "Planning",
       "chapterRead": "Reading chapters",
       "summaryRead": "Reading summaries",
+      "narrativeRead": "Reading narrative state",
       "characterRead": "Reading characters",
       "characterWrite": "Writing characters",
       "worldRead": "Reading world entries",
@@ -2390,6 +2395,8 @@
       "chapterSummaries": "Chapter summaries",
       "summaryCount": "{{count}} summaries",
       "rangeSummaries": "Range summaries",
+      "readNarrativeState": "Read narrative state",
+      "noNarrativeState": "No confirmed narrative state yet",
       "character": "Character",
       "listCharacters": "Character list",
       "readCharacter": "Read character",
@@ -2728,6 +2735,183 @@
       "needsRebuild": "Needs rebuild"
     }
   },
+  "narrativeState": {
+    "title": "Narrative state",
+    "badge": "Needs your confirmation",
+    "description": "World facts, character beliefs, plotlines and scene plans keep their provenance; only what you confirm counts as established.",
+    "disclaimer": "Nothing is extracted automatically here, and nothing is written into your text or settings. Candidates and inferences are hints only; check the evidence before confirming.",
+    "noProject": "Select a project to review and confirm narrative state.",
+    "tabs": {
+      "worldFacts": "World facts",
+      "characterBeliefs": "Character beliefs",
+      "plotlines": "Plotlines",
+      "scenePlans": "Scene plans"
+    },
+    "recordCount": "{{count}} records",
+    "refresh": "Refresh",
+    "loading": "Loading",
+    "loadFailed": "Could not load narrative state. Please retry.",
+    "retry": "Retry",
+    "empty": {
+      "worldFacts": "This project has no world facts yet.",
+      "characterBeliefs": "This project has no character beliefs yet.",
+      "plotlines": "This project has no plotlines yet.",
+      "scenePlans": "This project has no scene plans yet."
+    },
+    "pageStatus": "Page {{page}} / {{total}}",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "confirm": "Confirm",
+    "reconfirm": "Review and confirm again",
+    "confirmSuccess": "Record confirmed",
+    "confirmFailed": "Confirmation failed. Please retry.",
+    "confirmedNoAction": "Already confirmed.",
+    "conflictTitle": "Content was changed",
+    "conflictBody": "This record changed before your confirmation, so it was not applied. The latest content is shown below; review it and confirm again.",
+    "conflictBefore": "What you saw before confirming",
+    "conflictAfter": "Current content",
+    "conflictNoTextChange": "No field text changed, but the record was updated (status or links may have changed).",
+    "emptyField": "Not provided",
+    "readOnlyNotice": "Review and confirm only; manual creation is not available here yet.",
+    "addWorldFact": "Add world fact manually",
+    "addPlotline": "Add plotline manually",
+    "createSubmit": "Save as candidate",
+    "createSuccess": "Saved as a candidate; it applies only after you confirm it",
+    "createFailed": "Could not save the candidate. Please retry.",
+    "cancel": "Cancel",
+    "form": {
+      "manualHint": "Manually entered records are still candidates and count as confirmed only after you confirm them. No AI extraction runs here.",
+      "statementPlaceholder": "For example: the northern pass opens only in winter",
+      "subjectRefPlaceholder": "Optional, for example: the northern pass",
+      "titlePlaceholder": "For example: the missing sentry",
+      "descriptionPlaceholder": "Optional background for this plotline"
+    },
+    "confirmation": {
+      "candidate": "Candidate",
+      "inferred": "Inferred",
+      "confirmed": "Confirmed",
+      "rejected": "Rejected"
+    },
+    "sourceTypes": {
+      "user": "Manual entry",
+      "chapter": "Chapter text",
+      "agent": "AI agent",
+      "inference": "Inference",
+      "outline": "Outline",
+      "world_info": "World info",
+      "character_profile": "Character profile"
+    },
+    "worldFactStatus": {
+      "confirmed": "Fact: settled",
+      "uncertain": "Fact: uncertain",
+      "contradicted": "Fact: contradicted",
+      "retired": "Fact: retired"
+    },
+    "beliefState": {
+      "known": "Belief: knows",
+      "believed": "Belief: believes",
+      "suspected": "Belief: suspects",
+      "unknown": "Belief: unaware",
+      "mistaken": "Belief: mistaken"
+    },
+    "plotlineState": {
+      "open": "Plotline: open",
+      "progressing": "Plotline: progressing",
+      "resolved": "Plotline: resolved",
+      "abandoned": "Plotline: abandoned",
+      "uncertain": "Plotline: uncertain"
+    },
+    "field": {
+      "statement": "Statement",
+      "subjectRef": "Subject",
+      "proposition": "Proposition",
+      "characterId": "Character",
+      "learnedAtChapter": "Learned in chapter",
+      "title": "Title",
+      "description": "Description",
+      "currentQuestion": "Open question",
+      "payoff": "Payoff",
+      "relatedCharacters": "Related characters",
+      "sceneChapter": "Chapter",
+      "sceneGoal": "Scene goal",
+      "sceneLocation": "Location",
+      "sceneTone": "Tone",
+      "scenePov": "Point of view",
+      "scenePreconditions": "Preconditions",
+      "sceneParticipants": "Participants",
+      "sceneCharacterGoals": "Character goals",
+      "sceneKnownInformation": "Known information",
+      "sceneHiddenInformation": "Hidden information",
+      "sceneActivePlotlines": "Active plotlines",
+      "sceneWorldConstraints": "World constraints",
+      "sceneExpectedChanges": "Expected changes",
+      "sceneResult": "Scene result",
+      "status": "Status",
+      "supersededById": "Superseded by",
+      "invalidatedAt": "Invalidated at",
+      "introducedChapter": "Introduced in chapter",
+      "advancedChapter": "Advanced in chapter",
+      "relatedOutlines": "Related outlines",
+      "sourceType": "Source type",
+      "sourceId": "Source ID",
+      "sourceChapter": "Source chapter",
+      "quoteAnchor": "Quote anchor",
+      "createdBy": "Created by",
+      "confidence": "Confidence",
+      "confirmation": "Confirmation",
+      "confirmedAt": "Confirmed at",
+      "confirmedBy": "Confirmed by",
+      "createdAt": "Created at"
+    },
+    "details": {
+      "show": "Show all fields",
+      "hide": "Hide all fields",
+      "rawJson": "Full record JSON"
+    },
+    "worldFactStatusValue": {
+      "confirmed": "settled",
+      "uncertain": "uncertain",
+      "contradicted": "contradicted",
+      "retired": "retired"
+    },
+    "beliefStateValue": {
+      "known": "knows",
+      "believed": "believes",
+      "suspected": "suspects",
+      "unknown": "unaware",
+      "mistaken": "mistaken"
+    },
+    "plotlineStateValue": {
+      "open": "open",
+      "progressing": "progressing",
+      "resolved": "resolved",
+      "abandoned": "abandoned",
+      "uncertain": "uncertain"
+    },
+    "sceneResult": {
+      "factChanges": "Fact changes",
+      "beliefChanges": "Belief changes",
+      "relationshipChanges": "Relationship changes",
+      "stateChanges": "State changes",
+      "plotlineChanges": "Plotline changes"
+    },
+    "provenance": {
+      "show": "View evidence",
+      "hide": "Hide evidence",
+      "sourceType": "Source: {{value}}",
+      "sourceId": "Source ID: {{value}}",
+      "chapter": "Source chapter: {{value}}",
+      "quoteAnchor": "Anchor: {{value}}",
+      "createdBy": "Created by: {{value}}",
+      "confidence": "Confidence: {{value}}",
+      "confirmation": "Confirmation: {{value}}",
+      "confirmedAt": "Confirmed at: {{value}}",
+      "confirmedBy": "Confirmed by: {{value}}",
+      "updatedAt": "Read revision: {{value}}",
+      "unknown": "Unknown",
+      "missingToken": "Missing revision information. Refresh before confirming."
+    }
+  },
   "consistency": {
     "title": "Consistency check",
     "check": "Run check",
@@ -2774,7 +2958,8 @@
       "character_info": "Character info",
       "item": "Items",
       "character_state": "Character state",
-      "plot": "Plot continuity"
+      "plot": "Plot continuity",
+      "knowledge_boundary": "Knowledge boundary"
     },
     "scopeLabel": "Check scope",
     "scope": {

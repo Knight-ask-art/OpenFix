@@ -920,6 +920,10 @@
         "name": "读取区间摘要",
         "description": "读取指定章节范围的区间摘要内容"
       },
+      "readNarrativeState": {
+        "name": "读取叙事状态",
+        "description": "读取当前项目已确认的世界事实、人物信念、情节线与场景计划"
+      },
       "writeChapter": {
         "name": "创建章节",
         "description": "在卷内创建章节"
@@ -2242,6 +2246,7 @@
       "plan": "正在组织计划",
       "chapterRead": "正在章节读取",
       "summaryRead": "正在摘要读取",
+      "narrativeRead": "正在叙事状态读取",
       "characterRead": "正在角色读取",
       "characterWrite": "正在角色写入",
       "worldRead": "正在世界书读取",
@@ -2453,6 +2458,8 @@
       "chapterSummaries": "章节摘要",
       "summaryCount": "{{count}} 条摘要",
       "rangeSummaries": "区间摘要",
+      "readNarrativeState": "读取叙事状态",
+      "noNarrativeState": "暂无已确认的叙事状态",
       "character": "角色",
       "listCharacters": "角色列表",
       "readCharacter": "读取角色",
@@ -2728,6 +2735,183 @@
       "needsRebuild": "需要重建"
     }
   },
+  "narrativeState": {
+    "title": "叙事状态",
+    "badge": "需人工确认",
+    "description": "世界事实、人物信念、情节线与场景计划会记录来源；只有你确认过的内容才视为已确认的设定。",
+    "disclaimer": "这里不自动提取内容，也不会自动写入正文或设定。候选与推断仅作提示，请核对依据后再确认。",
+    "noProject": "选择项目后可查看与确认叙事状态。",
+    "tabs": {
+      "worldFacts": "世界事实",
+      "characterBeliefs": "人物信念",
+      "plotlines": "情节线",
+      "scenePlans": "场景计划"
+    },
+    "recordCount": "共 {{count}} 条",
+    "refresh": "刷新",
+    "loading": "加载中",
+    "loadFailed": "无法读取叙事状态，请重试。",
+    "retry": "重试",
+    "empty": {
+      "worldFacts": "该项目还没有世界事实。",
+      "characterBeliefs": "该项目还没有人物信念记录。",
+      "plotlines": "该项目还没有情节线。",
+      "scenePlans": "该项目还没有场景计划。"
+    },
+    "pageStatus": "第 {{page}} / {{total}} 页",
+    "prevPage": "上一页",
+    "nextPage": "下一页",
+    "confirm": "确认",
+    "reconfirm": "核对后重新确认",
+    "confirmSuccess": "已确认该条目",
+    "confirmFailed": "确认失败，请重试。",
+    "confirmedNoAction": "已确认，无需再次确认。",
+    "conflictTitle": "内容已被修改",
+    "conflictBody": "该条目在你确认前已被修改，本次确认未执行。下方已刷新为最新内容，请核对后重新确认。",
+    "conflictBefore": "确认前你看到的内容",
+    "conflictAfter": "当前最新内容",
+    "conflictNoTextChange": "字段文本没有变化，但记录已被更新（可能是状态或关联发生了变化）。",
+    "emptyField": "未填写",
+    "readOnlyNotice": "当前仅支持查看与确认，暂不支持在此手动新增。",
+    "addWorldFact": "手动新增世界事实候选",
+    "addPlotline": "手动新增情节线候选",
+    "createSubmit": "保存为候选",
+    "createSuccess": "已保存为候选，确认后才会生效",
+    "createFailed": "保存候选失败，请重试。",
+    "cancel": "取消",
+    "form": {
+      "manualHint": "手动录入的内容同样只是候选，需要确认后才视为已确认；这里不会调用 AI 提取。",
+      "statementPlaceholder": "例如：北境只在冬季开放关口",
+      "subjectRefPlaceholder": "可选，例如：北境关口",
+      "titlePlaceholder": "例如：失踪的哨兵",
+      "descriptionPlaceholder": "可选，补充这条情节线的背景"
+    },
+    "confirmation": {
+      "candidate": "候选",
+      "inferred": "推断",
+      "confirmed": "已确认",
+      "rejected": "已拒绝"
+    },
+    "sourceTypes": {
+      "user": "人工录入",
+      "chapter": "正文",
+      "agent": "AI 代理",
+      "inference": "推断",
+      "outline": "大纲",
+      "world_info": "世界设定",
+      "character_profile": "人物档案"
+    },
+    "worldFactStatus": {
+      "confirmed": "事实状态：确定",
+      "uncertain": "事实状态：不确定",
+      "contradicted": "事实状态：存在矛盾",
+      "retired": "事实状态：已停用"
+    },
+    "beliefState": {
+      "known": "信念：确信",
+      "believed": "信念：相信",
+      "suspected": "信念：怀疑",
+      "unknown": "信念：未知",
+      "mistaken": "信念：误信"
+    },
+    "plotlineState": {
+      "open": "情节线：开启",
+      "progressing": "情节线：推进中",
+      "resolved": "情节线：已回收",
+      "abandoned": "情节线：已放弃",
+      "uncertain": "情节线：不确定"
+    },
+    "field": {
+      "statement": "事实陈述",
+      "subjectRef": "主体",
+      "proposition": "信念命题",
+      "characterId": "人物",
+      "learnedAtChapter": "得知章节",
+      "title": "标题",
+      "description": "描述",
+      "currentQuestion": "当前悬念",
+      "payoff": "回收方式",
+      "relatedCharacters": "关联人物",
+      "sceneChapter": "所属章节",
+      "sceneGoal": "场景目标",
+      "sceneLocation": "地点",
+      "sceneTone": "基调",
+      "scenePov": "视角人物",
+      "scenePreconditions": "前置条件",
+      "sceneParticipants": "参与者",
+      "sceneCharacterGoals": "人物目标",
+      "sceneKnownInformation": "已知信息",
+      "sceneHiddenInformation": "隐藏信息",
+      "sceneActivePlotlines": "关联情节线",
+      "sceneWorldConstraints": "世界约束",
+      "sceneExpectedChanges": "预期变化",
+      "sceneResult": "场景结果",
+      "status": "状态",
+      "supersededById": "取代来源",
+      "invalidatedAt": "失效时间",
+      "introducedChapter": "引入章节",
+      "advancedChapter": "推进章节",
+      "relatedOutlines": "关联大纲",
+      "sourceType": "来源类型",
+      "sourceId": "来源 ID",
+      "sourceChapter": "来源章节",
+      "quoteAnchor": "定位锚点",
+      "createdBy": "创建者",
+      "confidence": "置信度",
+      "confirmation": "确认状态",
+      "confirmedAt": "确认时间",
+      "confirmedBy": "确认者",
+      "createdAt": "创建时间"
+    },
+    "details": {
+      "show": "查看完整字段",
+      "hide": "收起完整字段",
+      "rawJson": "完整记录 JSON"
+    },
+    "worldFactStatusValue": {
+      "confirmed": "确定",
+      "uncertain": "不确定",
+      "contradicted": "存在矛盾",
+      "retired": "已停用"
+    },
+    "beliefStateValue": {
+      "known": "确信",
+      "believed": "相信",
+      "suspected": "怀疑",
+      "unknown": "未知",
+      "mistaken": "误信"
+    },
+    "plotlineStateValue": {
+      "open": "待展开",
+      "progressing": "推进中",
+      "resolved": "已回收",
+      "abandoned": "已放弃",
+      "uncertain": "不确定"
+    },
+    "sceneResult": {
+      "factChanges": "事实变化",
+      "beliefChanges": "信念变化",
+      "relationshipChanges": "关系变化",
+      "stateChanges": "状态变化",
+      "plotlineChanges": "情节线变化"
+    },
+    "provenance": {
+      "show": "查看依据",
+      "hide": "收起依据",
+      "sourceType": "来源：{{value}}",
+      "sourceId": "来源 ID：{{value}}",
+      "chapter": "来源章节：{{value}}",
+      "quoteAnchor": "定位锚点：{{value}}",
+      "createdBy": "创建者：{{value}}",
+      "confidence": "置信度：{{value}}",
+      "confirmation": "确认状态：{{value}}",
+      "confirmedAt": "确认时间：{{value}}",
+      "confirmedBy": "确认者：{{value}}",
+      "updatedAt": "读取版本：{{value}}",
+      "unknown": "未知",
+      "missingToken": "缺少读取版本信息，请刷新后再确认。"
+    }
+  },
   "consistency": {
     "title": "一致性检查",
     "check": "开始检查",
@@ -2773,7 +2957,8 @@
       "character_info": "人物信息",
       "item": "物品",
       "character_state": "人物状态",
-      "plot": "前后剧情"
+      "plot": "前后剧情",
+      "knowledge_boundary": "知识边界"
     },
     "scopeLabel": "检查范围",
     "scope": {

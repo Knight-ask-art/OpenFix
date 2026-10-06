@@ -22,6 +22,7 @@ import {
   ListTodo,
   PenLine,
   Ruler,
+  ScrollText,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -600,6 +601,25 @@ const TOOL_REGISTRY = {
       return summaries.length > 0
         ? i18n.t("assistant.tools.summaryCount", { count: summaries.length })
         : formatRangeSummaryQuery(message);
+    },
+  },
+  read_narrative_state: {
+    toolName: "read_narrative_state",
+    group: "context",
+    tag: "narrative-state",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: ScrollText,
+    getTitle: () => i18n.t("assistant.tools.readNarrativeState"),
+    // 只展示章节范围与是否存在已确认状态；state_text 含完整叙事状态正文，不进 UI。
+    getDetail: (message) => {
+      const data = getToolResultData(message);
+      if (!isRecord(data)) return undefined;
+      const chapterScope = asString(data.chapter_scope);
+      if (chapterScope) return chapterScope;
+      return data.has_confirmed_state === false
+        ? i18n.t("assistant.tools.noNarrativeState")
+        : undefined;
     },
   },
   list_characters: {

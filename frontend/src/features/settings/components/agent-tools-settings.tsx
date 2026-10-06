@@ -59,6 +59,10 @@ const TOOL_DISPLAY_KEYS: Record<string, { name: string; description: string }> =
     name: "settings.agentTool.readRangeSummaries.name",
     description: "settings.agentTool.readRangeSummaries.description",
   },
+  read_narrative_state: {
+    name: "settings.agentTool.readNarrativeState.name",
+    description: "settings.agentTool.readNarrativeState.description",
+  },
   write_chapter: {
     name: "settings.agentTool.writeChapter.name",
     description: "settings.agentTool.writeChapter.description",

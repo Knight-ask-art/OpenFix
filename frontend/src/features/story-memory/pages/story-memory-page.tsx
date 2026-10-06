@@ -17,6 +17,7 @@ import { useSearchParams } from "react-router";
 
 import { toast } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { NarrativeStateSection } from "@/features/narrative-state";
 import { useProjectSelection } from "@/features/projects/hooks/use-project-selection";
 import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { getRecentProjects } from "@/lib/local-db";
@@ -383,6 +384,7 @@ export function StoryMemoryPage() {
                 </Box>
               ) : null}
             </section>
+            <NarrativeStateSection projectId={projectId} />
             <Flex
               align="center"
               gap="2"
