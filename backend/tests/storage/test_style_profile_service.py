@@ -1,10 +1,13 @@
 """SQLite-backed style persistence, context readback and opt-out regressions."""
 
+import io
 import json
+import re
 from dataclasses import replace
 from unittest.mock import AsyncMock
 
 import pytest
+from loguru import logger
 
 from app.agent_runtime.agents.definitions import (
     get_default_agent_definition,
@@ -58,19 +61,72 @@ def _encode(profile):
     return json.dumps(profile, ensure_ascii=False)
 
 
-async def _setup(session, **overrides):
+# Verbatim rich-text note editor round-trips recorded from @tiptap/markdown:
+# it escapes the Markdown punctuation set (\ ` * _ [ ] ~), serializes "<", ">"
+# and "&" as HTML entities, and can leave value quotes unescaped.
+_EDITOR_HEAD = r'{"schema\_version":1,"status":"confirmed",'
+_EDITOR_NARRATION = r'"narration":{"person":"third\_limited"},'
+
+_EDITOR_PLAIN = (
+    _EDITOR_HEAD
+    + r'"narration":{"person":"third\_limited","distance":"close"},'
+    + r'"anti\_patterns":\["段尾重复总结"\]}'
+)
+_EDITOR_TILDE = (
+    _EDITOR_HEAD + _EDITOR_NARRATION + r'"anti\_patterns":\["每 3\~5 句一次排比"\]}'
+)
+_EDITOR_QUOTE = (
+    _EDITOR_HEAD + _EDITOR_NARRATION + r'"anti\_patterns":\["避免 "他说" 式标签"\]}'
+)
+_EDITOR_ANGLE = (
+    _EDITOR_HEAD
+    + _EDITOR_NARRATION
+    + r'"anti\_patterns":\["不要 &lt;心理描写&gt; 标签"\]}'
+)
+
+# The editor's serializer: ``encodeHtmlEntities`` then ``escapeMarkdownSyntax``
+# (escape set ``\ ` * _ [ ] ~``), matching @tiptap/markdown and @tiptap/core.
+_EDITOR_ESCAPE = re.compile(r"([\\`*_\[\]~])")
+
+
+def _editor_roundtrip(json_text):
+    entities = json_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return _EDITOR_ESCAPE.sub(r"\\\1", entities)
+
+
+def _editor_profile(narration, anti_patterns):
+    return {
+        "schema_version": 1,
+        "status": "confirmed",
+        "narration": narration,
+        "anti_patterns": anti_patterns,
+    }
+
+
+@pytest.fixture
+def style_logs():
+    """Capture loguru warnings so rejections can be asserted without a body."""
+    stream = io.StringIO()
+    handler_id = logger.add(stream, level="WARNING", format="{message}")
+    try:
+        yield stream
+    finally:
+        logger.remove(handler_id)
+
+
+async def _setup_content(session, content):
     project = Project(title="文风档案测试")
     session.add(project)
     await session.flush()
     note = await note_service.create_note(
-        session,
-        project.id,
-        None,
-        STYLE_PROFILE_NOTE_TITLE,
-        _encode(_profile(**overrides)),
+        session, project.id, None, STYLE_PROFILE_NOTE_TITLE, content
     )
     await session.commit()
     return project, note
+
+
+async def _setup(session, **overrides):
+    return await _setup_content(session, _encode(_profile(**overrides)))
 
 
 def test_short_card_is_deterministic_and_omits_samples_and_evidence():
@@ -100,6 +156,135 @@ def test_markdown_normalization_preserves_json_escapes_and_confirmation():
     ) == compile_runtime_style_card(raw)
     draft = _encode(_profile(status="draft")).replace("_", "\\_")
     assert compile_runtime_style_card(draft) is None
+
+
+@pytest.mark.parametrize(
+    ("editor_content", "profile"),
+    [
+        (
+            _EDITOR_PLAIN,
+            _editor_profile(
+                {"person": "third_limited", "distance": "close"}, ["段尾重复总结"]
+            ),
+        ),
+        (
+            _EDITOR_TILDE,
+            _editor_profile({"person": "third_limited"}, ["每 3~5 句一次排比"]),
+        ),
+        (
+            _EDITOR_QUOTE,
+            _editor_profile({"person": "third_limited"}, ['避免 "他说" 式标签']),
+        ),
+        (
+            _EDITOR_ANGLE,
+            _editor_profile({"person": "third_limited"}, ["不要 <心理描写> 标签"]),
+        ),
+    ],
+)
+def test_note_editor_roundtrip_compiles_like_raw_profile(editor_content, profile):
+    """Editor-serialized notes must reach the same card as the plain JSON."""
+    card = compile_runtime_style_card(editor_content)
+    assert card is not None
+    assert card == compile_runtime_style_card(_encode(profile))
+
+
+def test_editor_value_quoting_and_tilde_are_recovered():
+    assert "anti_patterns: 每 3~5 句一次排比" in compile_runtime_style_card(
+        _EDITOR_TILDE
+    )
+    assert 'anti_patterns: 避免 "他说" 式标签' in compile_runtime_style_card(
+        _EDITOR_QUOTE
+    )
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        '{"schema_version":1 "status":"confirmed","narration":{"person":"third"}}',
+        '{"schema_version":1,"status":"confirmed","narration":{"person":"third",}}',
+        '{"schema_version":1,"status":"confirmed","narration":{"person":"third"}',
+    ],
+)
+def test_non_editor_json_damage_is_not_repaired(content):
+    assert compile_runtime_style_card(content) is None
+
+
+def test_editor_backslash_escape_is_undone_once():
+    one_backslash = "\\"
+    assert _editor_roundtrip(one_backslash) == one_backslash * 2
+    raw = _encode(_profile(anti_patterns=["路径 C:\\tmp 风格", "正则 \\d+"]))
+    card = compile_runtime_style_card(_editor_roundtrip(raw))
+    assert card is not None
+    assert card == compile_runtime_style_card(raw)
+    assert "路径 C:\\tmp 风格" in card
+
+
+def test_raw_profile_html_entities_are_decoded_once():
+    card = compile_runtime_style_card(
+        _encode(_profile(anti_patterns=["A &lt;B&gt; &amp; C"]))
+    )
+    assert card is not None
+    assert "anti_patterns: A <B> & C" in card
+
+
+@pytest.mark.asyncio
+async def test_editor_entity_profile_reaches_context_with_single_escape(session):
+    project, _ = await _setup_content(session, _EDITOR_ANGLE)
+    msg = await build_style_profile(session, project.id, "writer")
+    assert msg is not None
+    assert "&lt;心理描写&gt;" in msg.content
+    assert "&amp;lt;" not in msg.content
+    assert msg.content.count("</runtime_style_card>") == 1
+
+
+def test_rejection_logs_stage_without_profile_text(style_logs):
+    marker = "SECRET_PROFILE_BODY"
+    draft = _encode(_profile(status="draft", anti_patterns=[marker]))
+    assert compile_runtime_style_card(draft) is None
+    logs = style_logs.getvalue()
+    assert "stage=status" in logs
+    assert marker not in logs
+
+
+@pytest.mark.parametrize(
+    ("kind", "stage"),
+    [
+        ("oversized", "size"),
+        ("not_object", "parse"),
+        ("schema", "schema"),
+        ("draft", "status"),
+    ],
+)
+def test_rejection_stage_is_logged_without_profile_text(style_logs, kind, stage):
+    marker = "SECRETPROFILE"
+    contents = {
+        "oversized": marker * 3000,
+        "not_object": "[]",
+        "schema": json.dumps({"schema_version": 2, "secret": marker}),
+        "draft": json.dumps({"schema_version": 1, "status": "draft"}),
+    }
+    assert compile_runtime_style_card(contents[kind]) is None
+    logs = style_logs.getvalue()
+    assert f"stage={stage}" in logs
+    assert marker not in logs
+
+
+def test_valid_profile_logs_no_rejection(style_logs):
+    assert compile_runtime_style_card(_encode(_profile())) is not None
+    assert "not applied" not in style_logs.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_loader_rejection_logs_note_id_and_stage_without_profile_text(
+    session, style_logs
+):
+    marker = "SECRET_PROFILE_BODY"
+    project, note = await _setup(session, status="draft", anti_patterns=[marker])
+    assert await load_runtime_style_card(session, project.id) is None
+    logs = style_logs.getvalue()
+    assert f"note_id={note.id}" in logs
+    assert "stage=status" in logs
+    assert marker not in logs
 
 
 @pytest.mark.parametrize(
