@@ -445,3 +445,110 @@ async def test_build_context_filters_tool_result_metadata_for_llm_context(
 
     assert isinstance(out[-1], ToolMessage)
     assert json.loads(out[-1].content) == {"success": True}
+
+
+def _measurement_pair(index: int, draft: str) -> list[dict]:
+    call_id = f"call_{index}"
+    return [
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": call_id,
+                    "name": "measure_text",
+                    "args": {"text": draft, "min_words": 2000, "max_words": 3000},
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "name": "measure_text",
+            "tool_call_id": call_id,
+            "content": json.dumps(
+                {"word_count": 2400, "within_range": True}, ensure_ascii=False
+            ),
+        },
+    ]
+
+
+async def _build_with_measurement_history(
+    base_state: AgentRuntimeState,
+    node_messages: list[dict],
+) -> list:
+    with (
+        patch(
+            "app.agent_runtime.context.build_context.build_system_prompt",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.agent_runtime.context.build_context.build_rules",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.agent_runtime.context.build_context.build_skills",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.agent_runtime.context.build_context.compaction_repo.list_by_session",
+            new=AsyncMock(return_value=[]),
+        ),
+    ):
+        return await build_context(
+            state=base_state,
+            agent_name="writer",
+            node_messages=node_messages,
+            db_session=AsyncMock(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_build_context_retires_obsolete_measurement_inputs(
+    base_state: AgentRuntimeState,
+) -> None:
+    drafts = ["甲" * 3000, "乙" * 3000, "丙" * 3000, "丁" * 3000]
+    node_messages: list[dict] = [{"role": "user", "content": "继续写第三章"}]
+    for index, draft in enumerate(drafts):
+        node_messages.extend(_measurement_pair(index, draft))
+
+    with patch(
+        "app.agent_runtime.context.processors.soft_gc.setting_repo.get_by_key",
+        new=AsyncMock(return_value=None),
+    ):
+        out = await _build_with_measurement_history(base_state, node_messages)
+
+    ai_messages = [message for message in out if message.type == "ai"]
+    calls = [message.tool_calls[0] for message in ai_messages]
+    assert len(calls) == len(drafts)
+    assert calls[0]["id"] == "call_0"
+    assert calls[2]["args"]["text"] == drafts[2]
+    assert calls[3]["args"]["text"] == drafts[3]
+    assert calls[0]["args"]["text"] != drafts[0]
+    assert drafts[0] not in calls[0]["args"]["text"]
+    # 工具结果与配对关系保持原样。
+    tool_messages = [message for message in out if message.type == "tool"]
+    assert [message.tool_call_id for message in tool_messages] == [
+        "call_0",
+        "call_1",
+        "call_2",
+        "call_3",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_build_context_skips_measurement_gc_when_setting_disabled(
+    base_state: AgentRuntimeState,
+) -> None:
+    drafts = ["甲" * 3000, "乙" * 3000, "丙" * 3000, "丁" * 3000]
+    node_messages: list[dict] = [{"role": "user", "content": "继续写第三章"}]
+    for index, draft in enumerate(drafts):
+        node_messages.extend(_measurement_pair(index, draft))
+
+    with patch(
+        "app.agent_runtime.context.processors.soft_gc.setting_repo.get_by_key",
+        new=AsyncMock(return_value=SimpleNamespace(value="false")),
+    ):
+        out = await _build_with_measurement_history(base_state, node_messages)
+
+    calls = [message.tool_calls[0] for message in out if message.type == "ai"]
+    assert [call["args"]["text"] for call in calls] == drafts

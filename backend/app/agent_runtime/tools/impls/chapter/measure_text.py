@@ -1,5 +1,7 @@
 """确定性文本字数测量工具。"""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.agent_runtime.tools.base import AgentTool
@@ -41,6 +43,7 @@ class MeasureTextRevision(BaseModel):
     target_words: int
     word_delta: int
     minimum_change_words: int
+    strategy: Literal["structural_compression", "local_revision"]
     guidance: str
 
 
@@ -107,15 +110,28 @@ class MeasureTextTool(AgentTool):
                 else max_words
             )
             assert boundary is not None
+            structural = (
+                max_words is not None
+                and max_words > 0
+                and word_count > max_words * 1.15
+            )
+            strategy_guidance = (
+                "超长超过上限15%，先给必要场景分配篇幅，合并重复功能的议论、反应和描写；"
+                "一次向目标字数调整，不逐句零碎删改，不删除必要人物选择与因果。"
+                if structural
+                else "当前优先局部修订，不因篇幅要求重写整章。"
+            )
             revision = MeasureTextRevision(
                 target_words=target,
                 word_delta=target - word_count,
                 minimum_change_words=abs(boundary - word_count),
+                strategy="structural_compression" if structural else "local_revision",
                 guidance=(
                     "word_delta 为达到目标需要增减的实测字数（负数表示删减）。"
                     "按差额集中修订，避免每次只改几字反复调用；"
                     "保留事实、认知边界、声线与必要因果，不能机械截断。"
                     "修订后测量完整候选，片段达标不代表整章达标。"
+                    + strategy_guidance
                 ),
             )
 

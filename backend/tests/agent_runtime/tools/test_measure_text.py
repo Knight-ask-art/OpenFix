@@ -117,6 +117,16 @@ async def test_measure_text_guides_one_bounded_length_revision() -> None:
     assert "片段达标不代表整章达标" in data["revision"]["guidance"]
 
 
+async def test_measure_text_selects_structural_compression_only_for_large_excess() -> None:
+    long = await _measure(text="字" * 6019, min_words=2800, max_words=3200)
+    assert long["revision"]["strategy"] == "structural_compression"
+    assert "必要人物选择与因果" in long["revision"]["guidance"]
+    near = await _measure(text="字" * 3308, min_words=2800, max_words=3200)
+    assert near["revision"]["strategy"] == "local_revision"
+    short = await _measure(text="字" * 2000, min_words=2800, max_words=3200)
+    assert short["revision"]["strategy"] == "local_revision"
+
+
 async def test_measure_text_revision_supports_single_bound_and_empty_text() -> None:
     short = await _measure(text="", min_words=10)
     assert short["revision"]["word_delta"] == 10
