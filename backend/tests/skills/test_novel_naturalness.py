@@ -24,6 +24,7 @@ SKILLS = (
     "dialogue-design",
     "story-quality",
     "prose-format",
+    "prose-polish",
     "style-profile",
     "author-style-profile",
     "fiction-prose-craft",
@@ -206,7 +207,7 @@ def test_default_agent_skill_bundles_are_small_and_readonly_reviewer():
         "builtin-skill--style-profile",
         "builtin-skill--deslop-writing",
         "builtin-skill--fiction-prose-craft",
-        "builtin-skill--humor-writing",
+        "builtin-skill--prose-polish",
     )
     assert "builtin-skill--narrative-deslop" in reviewer.enabled_skills
     assert "builtin-skill--deslop-lexicon" in reviewer.enabled_skills

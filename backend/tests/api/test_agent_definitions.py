@@ -38,7 +38,7 @@ async def test_list_agent_definitions(client: AsyncClient):
         "builtin-skill--style-profile",
         "builtin-skill--deslop-writing",
         "builtin-skill--fiction-prose-craft",
-        "builtin-skill--humor-writing",
+        "builtin-skill--prose-polish",
     ]
     assert reviewer["enabled_skills"] == [
         "builtin-skill--style-profile",
