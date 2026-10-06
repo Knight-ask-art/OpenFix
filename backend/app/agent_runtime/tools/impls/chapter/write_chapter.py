@@ -39,7 +39,7 @@ class WriteChapterInput(BaseModel):
     content: str = Field(description="正文内容")
     chapter_ref: ChapterRef | None = Field(
         default=None,
-        description="插入位置，可选；传入时章节会被插入到指定章节之前，否则会被追加到卷末",
+        description="已有章节的插入锚点，可选；只在需要插到一个已存在章节之前时传入。创建下一章或追加到卷末时省略，不要传新章节的序号或标题",
     )
 
 

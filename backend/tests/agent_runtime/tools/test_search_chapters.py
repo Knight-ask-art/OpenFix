@@ -1,6 +1,7 @@
 import json
 import importlib
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -1229,8 +1230,25 @@ async def test_update_index_tool_enqueues_outdated_chapters(
     async def _fake_enqueue(_session, *, project_id):
         return IndexEnqueueResult(enqueued_count=1, skipped_count=0, job_id="job-1")
 
+    async def _fake_settings(_session):
+        return SimpleNamespace(mode="all", enabled_projects=set())
+
+    async def _fake_resolve_model(_session, _config):
+        return SimpleNamespace(id="model-1")
+
+    async def _fake_list_jobs(*_args, **_kwargs):
+        return []
+
+    async def _memory_is_fresh(*_args, **_kwargs) -> bool:
+        return True
+
+    monkeypatch.setattr(module, "get_index_settings", _fake_settings)
+    monkeypatch.setattr(module, "resolve_index_embedding_model", _fake_resolve_model)
+    monkeypatch.setattr(module, "is_project_index_enabled", lambda *_a, **_k: True)
     monkeypatch.setattr(module, "enqueue_project_index_update", _fake_enqueue)
+    monkeypatch.setattr(module, "story_memory_index_is_fresh", _memory_is_fresh)
     monkeypatch.setattr(module, "schedule_emit_index_status", lambda *_a, **_k: None)
+    monkeypatch.setattr(module.background_service, "list_jobs", _fake_list_jobs)
     monkeypatch.setattr(module.background_service, "commit_and_notify", _noop_commit)
     monkeypatch.setattr(module, "create_session", _fake_create_session)
 
@@ -1239,6 +1257,7 @@ async def test_update_index_tool_enqueues_outdated_chapters(
 
     assert "1 个章节" in result
     assert "已开始更新" in result
+    assert json.loads(result)["story_memory_index"]["status"] == "fresh"
 
     # 无需更新
     async def _fake_enqueue_none(_session, *, project_id):
@@ -1247,18 +1266,21 @@ async def test_update_index_tool_enqueues_outdated_chapters(
     monkeypatch.setattr(module, "enqueue_project_index_update", _fake_enqueue_none)
     result = await tool.ainvoke({}, config={"configurable": {"db_session": None}})
     assert "已是最新" in result
+    assert json.loads(result)["chapter_index"]["status"] == "fresh"
 
-    # 未启用
-    async def _fake_enqueue_disabled(_session, *, project_id):
+    # 未配置可用的嵌入模型：章节与故事记忆都无法更新
+    async def _fake_resolve_model_none(_session, _config):
         return None
 
-    monkeypatch.setattr(module, "enqueue_project_index_update", _fake_enqueue_disabled)
+    monkeypatch.setattr(
+        module, "resolve_index_embedding_model", _fake_resolve_model_none
+    )
     result = await tool.ainvoke({}, config={"configurable": {"db_session": None}})
     assert json.loads(result) == {
         "type": "fail",
         "success": False,
         "code": "dependency_unavailable",
-        "message": "当前项目未启用索引或未配置可用的嵌入模型，无法更新索引。",
+        "message": "当前项目未配置可用的嵌入模型，无法更新检索索引。",
     }
 
 

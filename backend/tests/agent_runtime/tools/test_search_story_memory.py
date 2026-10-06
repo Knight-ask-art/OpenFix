@@ -17,6 +17,7 @@ from app.agent_runtime.tools.permission_metadata import (
 )
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.core.encryption import EncryptionService
+from app.core.errors import ProviderError
 from app.models.repos import model_provider_repo, model_repo
 from app.retrieval.chapter_index import compute_chapter_source_hash
 from app.retrieval.story_memory import (
@@ -111,6 +112,120 @@ class FailingRetrievalService:
     async def query(self, session, index_key: str, text: str, embedding_client):
         _ = (session, index_key, text, embedding_client)
         raise RuntimeError(self.message)
+
+
+class RecordingEmbeddingClient:
+    """记录查询编码调用，用于验证同一句查询只被编码一次。"""
+
+    def __init__(self) -> None:
+        self.config = None
+        self.calls: list[str] = []
+
+    async def embed_single(self, text: str) -> list[float]:
+        self.calls.append(text)
+        return [0.1, 0.2, 0.3]
+
+
+class EngineLikeQueryBuilder:
+    """模拟真实检索引擎：记录过滤条件，按条件过滤并截断候选。
+
+    与 FakeQueryBuilder 不同，这里会真正应用 filter_eq 与 limit，
+    因此可以复现「全局 top-k 被其它来源占满」的饥饿场景。
+    """
+
+    def __init__(
+        self,
+        results: list[ChunkSearchResult],
+        query_text: str,
+        embedding_client: Any,
+        *,
+        undeclared_filter_fields: tuple[str, ...] = (),
+    ) -> None:
+        self.results = results
+        self.query_text = query_text
+        self.embedding_client = embedding_client
+        self.undeclared_filter_fields = undeclared_filter_fields
+        self.calls: list[tuple[str, Any]] = []
+        self.filters: dict[str, Any] = {}
+        self.vector_top_k_count: int | None = None
+        self.bm25_top_k_count: int | None = None
+        self.limit_count: int | None = None
+        self.embed_calls = 0
+
+    def hybrid(self):
+        return self
+
+    def vector_top_k(self, count: int):
+        self.vector_top_k_count = count
+        self.calls.append(("vector_top_k", count))
+        return self
+
+    def bm25_top_k(self, count: int):
+        self.bm25_top_k_count = count
+        self.calls.append(("bm25_top_k", count))
+        return self
+
+    def ef(self, ef: int):
+        self.calls.append(("ef", ef))
+        return self
+
+    def filter_eq(self, field: str, value: Any):
+        if field in self.undeclared_filter_fields:
+            raise ValueError(f"Undeclared filterable field: {field}")
+        self.filters[field] = value
+        self.calls.append(("filter_eq", (field, value)))
+        return self
+
+    def rerank(self, rerank_client, *, top_n=None):
+        self.calls.append(("rerank", (rerank_client, top_n)))
+        return self
+
+    def limit(self, count: int):
+        self.limit_count = count
+        self.calls.append(("limit", count))
+        return self
+
+    async def run(self) -> list[ChunkSearchResult]:
+        self.embed_calls += 1
+        await self.embedding_client.embed_single(self.query_text)
+        rows = [
+            row
+            for row in self.results
+            if all(
+                row.metadata.get(field) == value for field, value in self.filters.items()
+            )
+        ]
+        rows.sort(key=lambda row: row.score, reverse=True)
+        if self.limit_count is not None:
+            rows = rows[: self.limit_count]
+        return rows
+
+
+class EngineLikeRetrievalService:
+    """按 index_key 返回结果，并在 builder 内应用过滤与截断。"""
+
+    def __init__(
+        self,
+        results_by_index: dict[str, list[ChunkSearchResult]],
+        *,
+        undeclared_filter_fields: tuple[str, ...] = (),
+    ) -> None:
+        self.results_by_index = results_by_index
+        self.undeclared_filter_fields = undeclared_filter_fields
+        self.queries: list[str] = []
+        self.entries: list[tuple[str, EngineLikeQueryBuilder]] = []
+
+    async def query(self, session, index_key: str, text: str, embedding_client):
+        _ = session
+        self.queries.append(index_key)
+        builder = EngineLikeQueryBuilder(
+            self.results_by_index.get(index_key, []),
+            text,
+            embedding_client,
+            undeclared_filter_fields=self.undeclared_filter_fields,
+        )
+        self.entries.append((index_key, builder))
+        return builder
 
 
 def _make_state(project_id: str = PROJECT_ID) -> dict[str, Any]:
@@ -327,6 +442,8 @@ async def _prepare_session(
     *,
     chapter_index: bool = True,
     story_memory_index: bool = True,
+    retrieval_service=None,
+    embedding_client: Any = None,
 ):
     model = await _create_embedding_model(session)
     await _seed_project(
@@ -339,16 +456,25 @@ async def _prepare_session(
     await session.commit()
 
     module = importlib.import_module(MODULE_PATH)
-    retrieval = FakeRetrievalService(results_by_index)
+    retrieval = retrieval_service or FakeRetrievalService(results_by_index)
     monkeypatch.setattr(module, "OpenFicRetrievalService", lambda: retrieval)
 
     async def _fake_build_embedding_client(session_, model_ref_id: str):
         _ = (session_, model_ref_id)
-        return FakeEmbeddingClient(config=None)
+        return embedding_client or FakeEmbeddingClient(config=None)
 
     monkeypatch.setattr(module, "_build_embedding_client", _fake_build_embedding_client)
     tool = ToolRegistry.get_tools(names=["search_story_memory"], state=_make_state())[0]
     return module, retrieval, tool
+
+
+def _pushed_sources(builder) -> list[str]:
+    """返回该查询构建器收到的来源过滤值；未下推时为空。"""
+    return [
+        payload[1]
+        for name, payload in builder.calls
+        if name == "filter_eq" and payload[0] == "source"
+    ]
 
 
 async def _invoke(tool, session: AsyncSession, payload: dict[str, Any]) -> dict[str, Any]:
@@ -534,10 +660,18 @@ async def test_search_story_memory_covers_all_sources_with_attribution(
     ]
     assert all(item["rerank_score"] is None for item in data["results"])
 
-    # 两个索引都被查询，并按 project_id 过滤。
-    assert retrieval.queries == [CHAPTER_INDEX_KEY, STORY_MEMORY_INDEX_KEY]
+    # 章节索引查询一次；Story Memory 按被请求的来源各查询一次（默认请求全部来源）。
+    assert retrieval.queries == [CHAPTER_INDEX_KEY] + [STORY_MEMORY_INDEX_KEY] * 4
     for builder in retrieval.builders:
         assert ("filter_eq", ("project_id", PROJECT_ID)) in builder.calls
+    # 来源过滤必须在检索之前下推，否则条目多的来源会占满全局 top-k。
+    assert _pushed_sources(retrieval.builders[0]) == []
+    assert [_pushed_sources(builder) for builder in retrieval.builders[1:]] == [
+        ["character"],
+        ["world_entry"],
+        ["outline"],
+        ["note"],
+    ]
 
 
 @pytest.mark.asyncio
@@ -858,8 +992,11 @@ async def test_search_story_memory_rejects_unknown_source_key(
 class _FakeRerankClient:
     """rerank client 替身：按文本查表给出相关度，并按相关度降序返回。"""
 
-    def __init__(self, scores_by_text: dict[str, float]) -> None:
+    def __init__(
+        self, scores_by_text: dict[str, float], *, only_scored: bool = False
+    ) -> None:
         self.scores_by_text = scores_by_text
+        self.only_scored = only_scored
         self.calls: list[tuple[str, list[str], int | None]] = []
 
     async def rerank(self, query: str, documents: list[str], top_n: int | None = None):
@@ -871,9 +1008,25 @@ class _FakeRerankClient:
             for index, text in enumerate(documents)
         ]
         items.sort(key=lambda item: item.relevance_score, reverse=True)
+        if self.only_scored:
+            # 模拟服务端只对部分候选给出相关度（例如内部截断），其余候选视为未重排。
+            items = [
+                item for item in items if documents[item.index] in self.scores_by_text
+            ]
         if top_n is not None:
             items = items[:top_n]
         return RerankResponse(results=items, model="fake-reranker")
+
+
+class _FailingRerankClient:
+    """重排调用失败的替身，用于验证错误细节不外泄。"""
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+
+    async def rerank(self, query: str, documents: list[str], top_n: int | None = None):
+        _ = (query, documents, top_n)
+        raise ProviderError(self.message)
 
 
 async def _enable_rerank(
@@ -919,17 +1072,23 @@ async def test_search_story_memory_keeps_rrf_order_when_rerank_disabled(
     # 未启用 rerank 时只暴露 RRF 分数，不虚构重排分数。
     assert [item["score"] for item in data["results"]] == [0.9, 0.4]
     assert [item["rerank_score"] for item in data["results"]] == [None, None]
-    assert len(retrieval.builders) == 2
+    # 章节索引 1 次 + 默认的 4 个 Story Memory 来源各 1 次。
+    assert len(retrieval.builders) == 5
     for builder in retrieval.builders:
         assert all(name != "rerank" for name, _ in builder.calls)
-        assert ("limit", module.CANDIDATE_TOP_K) in builder.calls
+    # 章节索引保留完整候选池；Story Memory 来源共享同一个候选池配额。
+    assert ("limit", module.CANDIDATE_TOP_K) in retrieval.builders[0].calls
+    per_source_budget = module._per_source_candidate_budget(4)
+    for builder in retrieval.builders[1:]:
+        assert ("limit", per_source_budget) in builder.calls
+        assert ("vector_top_k", per_source_budget) in builder.calls
 
 
 @pytest.mark.asyncio
 async def test_search_story_memory_reranks_candidates_before_limit(
     session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """启用 rerank 后两个索引都先重排候选池，再按重排相关度合并返回。"""
+    """启用 rerank 后：章节索引沿用自身重排，Story Memory 各来源合并后统一重排一次。"""
     results_by_index = {
         CHAPTER_INDEX_KEY: [
             _chapter_chunk(
@@ -960,35 +1119,100 @@ async def test_search_story_memory_reranks_candidates_before_limit(
     # 模型不会再收到「顺序与唯一分数相互矛盾」的结果。
     assert [item["score"] for item in data["results"]] == [0.4, 0.9]
     assert [item["rerank_score"] for item in data["results"]] == [0.95, 0.12]
-    assert len(retrieval.builders) == 2
-    for builder in retrieval.builders:
-        names = [name for name, _ in builder.calls]
-        assert ("rerank", (rerank_client, module.CANDIDATE_TOP_K)) in builder.calls
-        # rerank 必须发生在最终候选上限之前。
-        assert names.index("rerank") < names.index("limit") < names.index("run")
+    assert len(retrieval.builders) == 5
+    per_source_budget = module._per_source_candidate_budget(4)
 
-    # FakeQueryBuilder 只记录 rerank 配置，run() 直接返回预置结果，不会真正调用
-    # rerank client；实际重排由检索服务在 run() 内完成。所以这里断言的是「工具把
-    # 配置好的 reranker 挂到两个索引的查询构建器上，各一次」，以及「工具自身不直接
-    # 调用 rerank client、把执行权委托给检索服务」，而不是替身 client 的执行次数。
-    rerank_configs = [
-        payload
-        for builder in retrieval.builders
-        for name, payload in builder.calls
-        if name == "rerank"
+    # 章节索引是独立索引，保持既有行为：重排先于最终候选上限。
+    chapter_builder = retrieval.builders[0]
+    chapter_names = [name for name, _ in chapter_builder.calls]
+    assert ("rerank", (rerank_client, module.CANDIDATE_TOP_K)) in chapter_builder.calls
+    assert chapter_names.index("rerank") < chapter_names.index("limit")
+    # Story Memory 各来源不再各自重排，只在这一层保留按来源的候选配额。
+    for builder in retrieval.builders[1:]:
+        assert all(name != "rerank" for name, _ in builder.calls)
+        assert ("limit", per_source_budget) in builder.calls
+    # 合并后的候选池只调用一次重排，而不是每个来源一次。
+    assert rerank_client.calls == [("北城", ["人物：林洛"], 1)]
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_reranks_multi_source_pool_once(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """多来源检索只重排一次：各来源按配额检索后合并成一个池子统一重排，顺序取返回的相关度。"""
+    results_by_index = {
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(
+                source="character", entity_id="char-1", text="人物：林洛", score=0.85
+            ),
+            _entity_chunk(
+                source="world_entry", entity_id="entry-1", text="世界设定：北城", score=0.5
+            ),
+            _entity_chunk(
+                source="outline",
+                entity_id="outline-1",
+                text="大纲[book]：全书主线",
+                score=0.3,
+            ),
+        ]
+    }
+    embedding_client = RecordingEmbeddingClient()
+    retrieval = EngineLikeRetrievalService(results_by_index)
+    module, _retrieval, tool = await _prepare_session(
+        session,
+        monkeypatch,
+        results_by_index,
+        retrieval_service=retrieval,
+        embedding_client=embedding_client,
+    )
+    rerank_client = _FakeRerankClient(
+        {"人物：林洛": 0.2, "世界设定：北城": 0.6, "大纲[book]：全书主线": 0.95}
+    )
+    await _enable_rerank(session, monkeypatch, module, rerank_client)
+
+    data = await _invoke(
+        tool, session, {"query": "北城", "sources": ["character", "world_entry", "outline"]}
+    )
+
+    # 三个来源各检索一次，来源过滤仍按来源下推，配额仍按来源均分。
+    assert retrieval.queries == [STORY_MEMORY_INDEX_KEY] * 3
+    per_source_budget = module._per_source_candidate_budget(3)
+    assert [builder.filters["source"] for _, builder in retrieval.entries] == [
+        "character",
+        "world_entry",
+        "outline",
     ]
-    assert rerank_configs == [
-        (rerank_client, module.CANDIDATE_TOP_K),
-        (rerank_client, module.CANDIDATE_TOP_K),
+    assert {builder.limit_count for _, builder in retrieval.entries} == {
+        per_source_budget
+    }
+    for _, builder in retrieval.entries:
+        assert all(name != "rerank" for name, _ in builder.calls)
+
+    # 只调用一次重排，候选池是三个来源合并后的结果。
+    assert len(rerank_client.calls) == 1
+    assert rerank_client.calls[0] == (
+        "北城",
+        ["人物：林洛", "世界设定：北城", "大纲[book]：全书主线"],
+        3,
+    )
+    # 顺序由重排返回的相关度决定，与来源配额顺序、RRF 高低都无关。
+    assert [item["source"] for item in data["results"]] == [
+        "outline",
+        "world_entry",
+        "character",
     ]
-    assert rerank_client.calls == []
+    assert [item["rerank_score"] for item in data["results"]] == [0.95, 0.6, 0.2]
+    # score 仍是各候选自己的 RRF 置信度，不被重排分覆盖。
+    assert [item["score"] for item in data["results"]] == [0.3, 0.5, 0.85]
+    # 同一句查询在多次来源检索中仍只编码一次。
+    assert embedding_client.calls == ["北城"]
 
 
 @pytest.mark.asyncio
 async def test_search_story_memory_only_marks_reranked_candidates(
     session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """候选池大于 top_n 时，只有真正被重排的候选带 rerank_score，其余保持 null。"""
+    """重排只返回部分候选时，只有被返回的候选带 rerank_score，其余保持 null。"""
     results_by_index = {
         STORY_MEMORY_INDEX_KEY: [
             _entity_chunk(
@@ -1010,7 +1234,7 @@ async def test_search_story_memory_only_marks_reranked_candidates(
     module, _retrieval, tool = await _prepare_session(
         session, monkeypatch, results_by_index
     )
-    rerank_client = _FakeRerankClient({"人物：林洛": 0.95})
+    rerank_client = _FakeRerankClient({"人物：林洛": 0.95}, only_scored=True)
     await _enable_rerank(session, monkeypatch, module, rerank_client)
 
     data = await _invoke(
@@ -1054,6 +1278,284 @@ async def test_search_story_memory_skips_rerank_when_model_is_not_a_reranker(
     assert [item["source"] for item in data["results"]] == ["chapter", "character"]
     # 降级为纯 RRF 时不暴露任何重排分数。
     assert [item["rerank_score"] for item in data["results"]] == [None, None]
-    assert len(retrieval.builders) == 2
+    assert len(retrieval.builders) == 5
     for builder in retrieval.builders:
         assert all(name != "rerank" for name, _ in builder.calls)
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_hides_rerank_error_details(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """合并重排失败时沿用检索失败语义：不把 provider 错误细节暴露给模型。"""
+    results_by_index = {
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(
+                source="character", entity_id="char-1", text="人物：林洛", score=0.8
+            )
+        ]
+    }
+    module, _retrieval, tool = await _prepare_session(
+        session, monkeypatch, results_by_index
+    )
+    await _enable_rerank(
+        session, monkeypatch, module, _FailingRerankClient("secret-rerank-detail-xyz")
+    )
+
+    data = await _invoke(tool, session, {"query": "北城", "sources": ["character"]})
+
+    assert data["type"] == "fail"
+    assert "secret-rerank-detail-xyz" not in json.dumps(data, ensure_ascii=False)
+    assert "故事记忆检索执行失败" in data["message"]
+
+
+# ============================================
+# 来源过滤下推与候选配额
+# ============================================
+
+
+def test_per_source_candidate_budget_is_deterministic() -> None:
+    """候选配额按来源数均分，总和不超过候选池，且每个来源至少 1 条。"""
+    module = importlib.import_module(MODULE_PATH)
+
+    assert module._per_source_candidate_budget(1) == module.CANDIDATE_TOP_K
+    assert module._per_source_candidate_budget(4) == module.CANDIDATE_TOP_K // 4
+    assert module._per_source_candidate_budget(0) == 1
+    for source_count in range(1, 9):
+        budget = module._per_source_candidate_budget(source_count)
+        assert budget >= 1
+        assert budget * source_count <= module.CANDIDATE_TOP_K
+
+
+def _dominating_character_chunks(count: int = 25) -> list[ChunkSearchResult]:
+    """构造大量高分人物候选，用于复现「其它来源占满全局 top-k」的场景。
+
+    只有 char-1 在数据库中存在，其余用于占满候选池。
+    """
+    return [
+        _entity_chunk(
+            source="character",
+            entity_id=f"char-{index}",
+            text=f"人物：配角{index}",
+            score=0.9,
+        )
+        for index in range(count)
+    ]
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_retrieves_outline_despite_dominant_source(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """人物候选占满全局 top-k 时，显式请求的大纲来源仍必须返回结果。
+
+    来源过滤若只发生在全局 top-k 之后，条目多的来源会把被显式请求的大纲卡片
+    挤出候选池，使大纲检索结果为空。
+    """
+    results_by_index = {
+        STORY_MEMORY_INDEX_KEY: [
+            *_dominating_character_chunks(),
+            _entity_chunk(
+                source="outline",
+                entity_id="outline-1",
+                text="大纲[chapter]：第三章 雨夜入城",
+                score=0.2,
+            ),
+        ]
+    }
+    module, retrieval, tool = await _prepare_session(
+        session,
+        monkeypatch,
+        results_by_index,
+        retrieval_service=EngineLikeRetrievalService(results_by_index),
+        embedding_client=RecordingEmbeddingClient(),
+    )
+
+    data = await _invoke(
+        tool, session, {"query": "第三章大纲", "sources": ["outline"]}
+    )
+
+    assert [item["source"] for item in data["results"]] == ["outline"]
+    assert data["results"][0]["title"] == "全书主线"
+    assert data["results"][0]["entity_id"] == "outline-1"
+    # 来源过滤在检索之前下推，候选池先按来源收窄。
+    builder = retrieval.entries[-1][1]
+    assert _pushed_sources(builder) == ["outline"]
+    assert builder.limit_count == module.CANDIDATE_TOP_K
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_keeps_outline_when_one_source_dominates(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """默认请求全部来源时，均分配额也必须让大纲来源拿到候选。"""
+    results_by_index = {
+        STORY_MEMORY_INDEX_KEY: [
+            *_dominating_character_chunks(),
+            _entity_chunk(
+                source="outline",
+                entity_id="outline-1",
+                text="大纲[chapter]：第三章 雨夜入城",
+                score=0.2,
+            ),
+        ]
+    }
+    module, retrieval, tool = await _prepare_session(
+        session,
+        monkeypatch,
+        results_by_index,
+        retrieval_service=EngineLikeRetrievalService(results_by_index),
+        embedding_client=RecordingEmbeddingClient(),
+    )
+
+    data = await _invoke(tool, session, {"query": "雨夜入城"})
+
+    assert {item["entity_id"] for item in data["results"]} == {"char-1", "outline-1"}
+    builders_by_source = {
+        builder.filters.get("source"): builder
+        for index_key, builder in retrieval.entries
+        if index_key == STORY_MEMORY_INDEX_KEY
+    }
+    # 人物来源只能占满自己的配额，不再独占整个候选池。
+    per_source_budget = module._per_source_candidate_budget(4)
+    assert builders_by_source["character"].limit_count == per_source_budget
+    assert builders_by_source["outline"].limit_count == per_source_budget
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_pushes_source_filter_and_shares_budget(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """章节索引不受来源过滤影响，Story Memory 各来源各查一次并均分配额。"""
+    results_by_index = {
+        CHAPTER_INDEX_KEY: [
+            _chapter_chunk(chapter_id="chapter-1", text="正文", score=0.9)
+        ],
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(source="character", entity_id="char-1", text="人物：林洛", score=0.8),
+            _entity_chunk(source="outline", entity_id="outline-1", text="大纲[book]：全书主线", score=0.7),
+        ],
+    }
+    module, retrieval, tool = await _prepare_session(
+        session,
+        monkeypatch,
+        results_by_index,
+        retrieval_service=EngineLikeRetrievalService(results_by_index),
+        embedding_client=RecordingEmbeddingClient(),
+    )
+
+    await _invoke(tool, session, {"query": "北城"})
+
+    chapter_key, chapter_builder = retrieval.entries[0]
+    assert chapter_key == CHAPTER_INDEX_KEY
+    # 章节索引的契约里没有 source 字段，不得向其下推来源过滤。
+    assert _pushed_sources(chapter_builder) == []
+    assert chapter_builder.limit_count == module.CANDIDATE_TOP_K
+
+    memory_entries = retrieval.entries[1:]
+    assert [key for key, _ in memory_entries] == [STORY_MEMORY_INDEX_KEY] * 4
+    assert [builder.filters["source"] for _, builder in memory_entries] == [
+        "character",
+        "world_entry",
+        "outline",
+        "note",
+    ]
+    per_source_budget = module._per_source_candidate_budget(4)
+    assert {builder.limit_count for _, builder in memory_entries} == {per_source_budget}
+    assert {builder.vector_top_k_count for _, builder in memory_entries} == {
+        per_source_budget
+    }
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_single_source_keeps_full_candidate_pool(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """只请求一个来源时不做配额切分，候选深度与既有实现一致。"""
+    results_by_index = {
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(
+                source="outline", entity_id="outline-1", text="大纲[book]：全书主线", score=0.7
+            )
+        ]
+    }
+    module, retrieval, tool = await _prepare_session(
+        session,
+        monkeypatch,
+        results_by_index,
+        retrieval_service=EngineLikeRetrievalService(results_by_index),
+        embedding_client=RecordingEmbeddingClient(),
+    )
+
+    data = await _invoke(tool, session, {"query": "全书主线", "sources": ["outline"]})
+
+    assert [item["source"] for item in data["results"]] == ["outline"]
+    builder = retrieval.entries[-1][1]
+    assert _pushed_sources(builder) == ["outline"]
+    assert builder.vector_top_k_count == module.CANDIDATE_TOP_K
+    assert builder.limit_count == module.CANDIDATE_TOP_K
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_falls_back_when_source_filter_is_not_declared(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """旧索引契约未声明 source 过滤字段时退回不过滤，并仍按 metadata.source 收窄。"""
+    results_by_index = {
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(source="character", entity_id="char-1", text="人物：林洛", score=0.9),
+            _entity_chunk(
+                source="outline", entity_id="outline-1", text="大纲[book]：全书主线", score=0.2
+            ),
+        ]
+    }
+    _module, retrieval, tool = await _prepare_session(
+        session,
+        monkeypatch,
+        results_by_index,
+        retrieval_service=EngineLikeRetrievalService(
+            results_by_index, undeclared_filter_fields=("source",)
+        ),
+        embedding_client=RecordingEmbeddingClient(),
+    )
+
+    data = await _invoke(tool, session, {"query": "全书主线", "sources": ["outline"]})
+
+    assert data.get("type") != "fail"
+    # 兜底的 python 侧过滤仍然保证不返回未请求的来源。
+    assert [item["source"] for item in data["results"]] == ["outline"]
+    builder = retrieval.entries[-1][1]
+    assert "source" not in builder.filters
+    # 下推失败不影响检索本身：project_id 过滤与查询照常执行。
+    assert ("filter_eq", ("project_id", PROJECT_ID)) in builder.calls
+    assert builder.embed_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_search_story_memory_embeds_query_once_across_sources(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """按来源分别检索时，同一句查询只编码一次。"""
+    results_by_index = {
+        CHAPTER_INDEX_KEY: [
+            _chapter_chunk(chapter_id="chapter-1", text="正文", score=0.9)
+        ],
+        STORY_MEMORY_INDEX_KEY: [
+            _entity_chunk(source="character", entity_id="char-1", text="人物：林洛", score=0.8)
+        ],
+    }
+    embedding_client = RecordingEmbeddingClient()
+    retrieval = EngineLikeRetrievalService(results_by_index)
+    _module, _retrieval, tool = await _prepare_session(
+        session,
+        monkeypatch,
+        results_by_index,
+        retrieval_service=retrieval,
+        embedding_client=embedding_client,
+    )
+
+    await _invoke(tool, session, {"query": "北城"})
+
+    # 章节索引 1 次 + 默认 4 个 Story Memory 来源，共 5 次检索。
+    assert sum(builder.embed_calls for _, builder in retrieval.entries) == 5
+    assert embedding_client.calls == ["北城"]

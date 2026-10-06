@@ -12,6 +12,7 @@ import json
 from collections import OrderedDict
 from typing import Any, Literal
 
+from loguru import logger
 from pydantic import BaseModel, Field, field_validator
 
 from app.agent_runtime.tools.base import AgentTool
@@ -157,6 +158,54 @@ def _candidate_sort_key(item: tuple[str, ChunkSearchResult]) -> tuple[int, float
     return (0, result.score)
 
 
+def _per_source_candidate_budget(source_count: int) -> int:
+    """把候选池均分给被请求的来源，保证每个来源都有确定的最小配额。
+
+    Story Memory 的各来源共用同一个索引。若只在全局 top-k 之后才按来源过滤，
+    条目数量多的来源（人物、世界设定）会占满候选池，把大纲、笔记饿死，
+    导致被显式请求的来源也拿不到结果。
+    """
+    if source_count <= 0:
+        return 1
+    return max(1, CANDIDATE_TOP_K // source_count)
+
+
+class _CachedEmbeddingClient:
+    """同一次工具调用内复用同一句查询的向量。
+
+    来源过滤下推后，一句查询会被章节索引与每个 Story Memory 来源各检索一次；
+    不缓存就会对同一句查询重复调用 embedding 服务。
+    """
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self._vectors: dict[str, list[float]] = {}
+
+    async def embed_single(self, text: str) -> list[float]:
+        cached = self._vectors.get(text)
+        if cached is None:
+            cached = await self._inner.embed_single(text)
+            self._vectors[text] = cached
+        return cached
+
+    def __getattr__(self, name: str) -> Any:
+        # 其余属性（例如 config）透传给真实 client。
+        return getattr(self._inner, name)
+
+
+def _push_down_source_filter(query_builder: Any, source: str) -> Any:
+    """把来源过滤下推到检索阶段：先按来源缩小候选池，再检索。
+
+    旧索引契约未声明 source 过滤字段时退回不过滤：调用方仍会按 metadata.source
+    过滤，结果语义不变，只是候选池退回全局 top-k。
+    """
+    try:
+        return query_builder.filter_eq("source", source)
+    except ValueError:
+        logger.debug("故事记忆检索: 来源过滤未能下推 source={}", source)
+        return query_builder
+
+
 async def _resolve_story_entity(
     session, source: str, entity_id: str, project_id: str
 ) -> str | None:
@@ -192,6 +241,37 @@ async def _resolve_story_entity(
     return None
 
 
+async def _rerank_merged_candidates(
+    rerank_client: RerankClient,
+    query: str,
+    candidates: list[tuple[str, ChunkSearchResult]],
+) -> None:
+    """对合并后的 Story Memory 候选池重排一次，并按相关度就地写回 rerank_score。
+
+    各来源仍按配额分别检索，但只在这一个合并候选池上调用重排接口：来源之间的
+    相关度来自同一个模型与同一句查询，量纲一致，可以直接比较；按来源逐次重排
+    只会把网络调用次数放大到来源数量倍，排序结果并不会更好。
+
+    代价是各来源先按 RRF 截断到配额、再交给重排模型，同一来源内 RRF 排名靠后的
+    条目无法再靠重排翻盘；这是为「保留来源配额」付出的确定性代价，不是遗漏。
+
+    失败语义与章节检索一致：底层 provider 错误不暴露给模型。
+    """
+    if not candidates:
+        return
+    documents = [row.text or "" for _, row in candidates]
+    try:
+        response = await rerank_client.rerank(query, documents, top_n=len(documents))
+        for item in response.results:
+            candidates[item.index][1].rerank_score = max(
+                0.0, min(float(item.relevance_score), 1.0)
+            )
+    except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, ToolExecutionError):
+            raise
+        raise ToolExecutionError("故事记忆检索执行失败") from exc
+
+
 async def _query_index(
     session,
     *,
@@ -200,6 +280,8 @@ async def _query_index(
     query: str,
     embedding_client,
     rerank_client: RerankClient | None = None,
+    source: str | None = None,
+    candidate_limit: int = CANDIDATE_TOP_K,
 ) -> list[ChunkSearchResult]:
     try:
         builder = await OpenFicRetrievalService().query(
@@ -207,15 +289,18 @@ async def _query_index(
         )
         query_builder = (
             builder.hybrid()
-            .vector_top_k(CANDIDATE_TOP_K)
-            .bm25_top_k(CANDIDATE_TOP_K)
+            .vector_top_k(candidate_limit)
+            .bm25_top_k(candidate_limit)
             .ef(200)
             .filter_eq("project_id", project_id)
         )
-        # 与章节检索一致：配置了 rerank 时先重排候选池，再套用取回上限。
+        if source is not None:
+            query_builder = _push_down_source_filter(query_builder, source)
+        # 章节索引沿用既有行为：配置了 rerank 时先重排候选池，再套用取回上限。
+        # Story Memory 各来源不在这里重排，由调用方对合并后的候选池统一重排一次。
         if rerank_client is not None:
-            query_builder = query_builder.rerank(rerank_client, top_n=CANDIDATE_TOP_K)
-        return await query_builder.limit(CANDIDATE_TOP_K).run()
+            query_builder = query_builder.rerank(rerank_client, top_n=candidate_limit)
+        return await query_builder.limit(candidate_limit).run()
     except IndexNotReadyError:
         return []
     except Exception as exc:  # noqa: BLE001
@@ -287,6 +372,8 @@ class SearchStoryMemoryTool(AgentTool):
                 raise ToolExecutionError(
                     "故事记忆检索 embedding client 初始化失败"
                 ) from exc
+            # 一句查询会被章节索引与每个 Story Memory 来源各检索一次，缓存查询向量。
+            query_embedding_client = _CachedEmbeddingClient(embedding_client)
 
             index_config = await get_index_settings(session)
             rerank_client: RerankClient | None = None
@@ -314,7 +401,7 @@ class SearchStoryMemoryTool(AgentTool):
                             index_key=index_key,
                             project_id=self.project_id,
                             query=effective_query,
-                            embedding_client=embedding_client,
+                            embedding_client=query_embedding_client,
                             rerank_client=rerank_client,
                         )
                         candidates.extend(("chapter", row) for row in rows)
@@ -324,27 +411,44 @@ class SearchStoryMemoryTool(AgentTool):
                 else:
                     skipped.append("chapter")
 
-            memory_sources = [
-                source for source in requested if source in STORY_MEMORY_SOURCES
-            ]
+            memory_sources = list(
+                dict.fromkeys(
+                    source for source in requested if source in STORY_MEMORY_SOURCES
+                )
+            )
             if memory_sources:
                 index_key = story_memory_index_key(self.project_id)
                 if await story_memory_index_is_fresh(
                     session,
                     project_id=self.project_id,
                 ):
-                    rows = await _query_index(
-                        session,
-                        index_key=index_key,
-                        project_id=self.project_id,
-                        query=effective_query,
-                        embedding_client=embedding_client,
-                        rerank_client=rerank_client,
-                    )
-                    for row in rows:
-                        source = _metadata_str(row, "source")
-                        if source in memory_sources:
-                            candidates.append((source, row))
+                    # 每个来源各自检索一次：来源过滤在检索之前下推，
+                    # 候选配额按来源数量均分。否则条目数量多的来源会占满全局
+                    # top-k，使被显式请求的来源（例如大纲）拿不到任何结果。
+                    # 各来源不单独重排：候选合并成一个池子后统一重排一次，
+                    # 既保留来源配额，又不把重排的网络调用放大到来源数量倍。
+                    candidate_limit = _per_source_candidate_budget(len(memory_sources))
+                    memory_candidates: list[tuple[str, ChunkSearchResult]] = []
+                    for memory_source in memory_sources:
+                        rows = await _query_index(
+                            session,
+                            index_key=index_key,
+                            project_id=self.project_id,
+                            query=effective_query,
+                            embedding_client=query_embedding_client,
+                            source=memory_source,
+                            candidate_limit=candidate_limit,
+                        )
+                        for row in rows:
+                            # 来源过滤未能下推（旧索引契约或旧引擎）时的兜底：
+                            # 这里按 metadata.source 再过滤一次，语义不变。
+                            if _metadata_str(row, "source") == memory_source:
+                                memory_candidates.append((memory_source, row))
+                    if rerank_client is not None:
+                        await _rerank_merged_candidates(
+                            rerank_client, effective_query, memory_candidates
+                        )
+                    candidates.extend(memory_candidates)
                     searched.extend(memory_sources)
                 else:
                     skipped.extend(memory_sources)

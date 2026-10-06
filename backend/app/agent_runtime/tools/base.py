@@ -258,6 +258,11 @@ class AgentTool(BaseTool):
                                 "success": False,
                                 "status": "approval_denied",
                                 "message": "工具调用已被用户拒绝",
+                                "next_action": (
+                                    "停止本次写入流程并等待用户说明修改意见；"
+                                    "拒绝不是临时执行错误，不要原样重试，"
+                                    "不要换工具绕过拒绝，也不要自行猜测原因后重新申请。"
+                                ),
                                 "approval_id": resume_value.get("approval_id"),
                                 "tool_name": self.name,
                             },
