@@ -86,6 +86,22 @@ def test_short_card_is_deterministic_and_omits_samples_and_evidence():
     assert count_tokens(card) <= MAX_RUNTIME_STYLE_TOKENS
 
 
+def test_rich_text_markdown_escaped_profile_compiles():
+    raw = _encode(_profile())
+    escaped = raw.replace("_", "\\_").replace("[", "\\[").replace("]", "\\]")
+    assert compile_runtime_style_card(escaped) == compile_runtime_style_card(raw)
+
+
+def test_markdown_normalization_preserves_json_escapes_and_confirmation():
+    profile = _profile(narration={"person": '近景 "限知"', "distance": "close"})
+    raw = _encode(profile)
+    assert compile_runtime_style_card(
+        raw.replace("_", "\\_")
+    ) == compile_runtime_style_card(raw)
+    draft = _encode(_profile(status="draft")).replace("_", "\\_")
+    assert compile_runtime_style_card(draft) is None
+
+
 @pytest.mark.parametrize(
     "overrides",
     [

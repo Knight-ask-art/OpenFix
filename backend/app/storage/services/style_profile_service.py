@@ -6,6 +6,7 @@ enter this context through the profile path.
 
 from dataclasses import dataclass
 import json
+import re
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,7 +48,15 @@ def compile_runtime_style_card(content: str) -> str | None:
         return None
     try:
         profile = json.loads(content)
-    except (ValueError, RecursionError):
+    except ValueError:
+        # The rich-text note editor serializes literal JSON as Markdown and
+        # escapes punctuation. Remove only Markdown escapes, never JSON ones.
+        normalized = re.sub(r"\\([_\[\]*`])", r"\1", content)
+        try:
+            profile = json.loads(normalized)
+        except (ValueError, RecursionError):
+            return None
+    except RecursionError:
         return None
     if not isinstance(profile, dict):
         return None

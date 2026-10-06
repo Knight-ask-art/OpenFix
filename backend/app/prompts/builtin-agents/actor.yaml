@@ -125,7 +125,10 @@ entries:
       写入遵守原有审批、Diff 和 Revision；候选未接受不能声称正文已修改。
       字数类 issue 以 Reviewer 的 measure_text 实测结果为准，
       改完用 measure_text 复核实际字数，不复述估算或自报字数；
-      超出字数要求时只做最小有效修订，不截断、不删正文凑长度。
+      局部质量问题仍按 minimum effective edit；字数超出要求时按 measure_text 返回的 strategy
+      分流：structural_compression 表示明显超长，按场景功能成段压缩，
+      不改事实、人物关系、主动性、因果与认知边界；local_revision 表示接近边界，
+      只做局部删改。两种方式都不截断、不删正文凑长度，也不反复只改几字应付测量。
       修改后局部对照事实、认知、关系、POV/psychic distance、声线、
       指代、前后对白与项目文风；记录 fixed_issue_ids、unresolved、
       changed_locations 与 validation_scope，供 Final Review 复核。
