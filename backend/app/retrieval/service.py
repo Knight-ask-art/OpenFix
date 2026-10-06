@@ -190,10 +190,29 @@ class OpenFicRetrievalService:
             embedding_client,
             skip_chunking=skip_chunking,
             max_consecutive_failures=max_consecutive_failures,
-            on_status_change=lambda status, error: self._update_status(
+            on_status_change=lambda status, error: self._update_rebuild_status(
                 session, row, status=status, error=error
             ),
         )
+
+    async def _update_rebuild_status(
+        self,
+        session: AsyncSession,
+        row: RetrievalIndex,
+        *,
+        status: str,
+        error: str | None,
+    ) -> None:
+        """全量重建的状态回调。
+
+        引擎在嵌入请求和 LanceDB 重建之前先回调 building，如果这里只 flush，
+        SQLite 写事务会一直持有到网络请求和原生索引构建结束，其他写入方会拿到
+        database is locked。因此这里与 index_chunk_batch 保持一致，在 building
+        时立即提交；终态（ready/failed）仍留给调用方事务提交。
+        """
+        await self._update_status(session, row, status=status, error=error)
+        if status == "building":
+            await session.commit()
 
     async def rebuild_indexes(self, session: AsyncSession, index_key: str) -> None:
         row = await self._get_index(session, index_key)
