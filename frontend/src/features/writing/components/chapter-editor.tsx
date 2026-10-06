@@ -6,7 +6,6 @@ import { AnimatePresence } from "motion/react";
 import { useState, useCallback, useRef, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import wordsCountModule from "words-count";
 
 import { toast } from "@/components";
 import { TitleInput, EditorToolbar, Spinner } from "@/components";
@@ -34,6 +33,7 @@ import {
 } from "@/lib/editor-content-limits";
 import { htmlToNewlines, newlinesToHtml } from "@/lib/html-utils";
 import { createToastThrottler } from "@/lib/ui-utils";
+import { countWords } from "@/lib/word-count";
 
 import { useAutoSave } from "../hooks/use-auto-save";
 import { useUpdateChapter } from "../hooks/use-chapters";
@@ -57,12 +57,6 @@ import { ChapterMetaBar } from "./chapter-meta-bar";
 import { FindReplacePanel } from "./find-replace-panel";
 
 const MANUAL_SAVE_EVENT = "openfic:chapter-editor-manual-save";
-
-interface WordsCountModule {
-  wordsCount: (text: string) => number;
-}
-
-const wordsCount = (wordsCountModule as unknown as WordsCountModule).wordsCount;
 
 function getLineNumberDigits(lineCount: number): number {
   return String(Math.max(lineCount, 1)).length;
@@ -149,7 +143,7 @@ function ChapterEditorContent({
   const [isSaving, setIsSaving] = useState(false);
   const isBackupPaused = useSyncExternalStore(subscribeAutoBackupPause, isAutoBackupPaused);
   const [findReplaceMode, setFindReplaceMode] = useState<"closed" | "find" | "replace">("closed");
-  const [wordCount, setWordCount] = useState(() => wordsCount(initialDraft.content));
+  const [wordCount, setWordCount] = useState(() => countWords(initialDraft.content));
   const [lineNumberDigits, setLineNumberDigits] = useState(1);
   const saveStatus = isSaving ? "saving" : hasChanges ? "unsaved" : "saved";
   const latestDraftRef = useRef(initialDraft);
@@ -283,11 +277,11 @@ function ChapterEditorContent({
       if (isAgentLocked) return;
       syncDirtyStateFromEditor(editor);
       setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
-      setWordCount(wordsCount(editor.getText()));
+      setWordCount(countWords(editor.getText()));
     },
     onCreate: ({ editor }) => {
       setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
-      setWordCount(wordsCount(editor.getText()));
+      setWordCount(countWords(editor.getText()));
     },
   });
 
@@ -339,7 +333,7 @@ function ChapterEditorContent({
         return { ok: false, reason: "content-limit" };
       }
       rejectedContentRef.current = null;
-      const currentWordCount = wordsCount(draftToSave.content);
+      const currentWordCount = countWords(draftToSave.content);
 
       setIsSaving(true);
       try {
@@ -481,7 +475,7 @@ function ChapterEditorContent({
       editor.commands.setContent(nextContent, { emitUpdate: false });
       setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       queueMicrotask(() => {
-        setWordCount(wordsCount(editor.getText()));
+        setWordCount(countWords(editor.getText()));
       });
     }
   }, [

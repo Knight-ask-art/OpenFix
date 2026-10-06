@@ -4,6 +4,7 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any, AsyncIterator, Literal, cast
 
+import httpx
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
@@ -290,6 +291,16 @@ class SessionRunner:
 
     @staticmethod
     def _exception_reason(exc: Exception) -> str:
+        current: BaseException | None = exc
+        seen: set[int] = set()
+        while current is not None and id(current) not in seen and len(seen) < 8:
+            seen.add(id(current))
+            if isinstance(current, httpx.TransportError):
+                return (
+                    "模型连接中断或超时，本次响应未完成。请重试或切换模型；"
+                    "重试前核对已保存正文，未执行的工具不会因重试自动获批。"
+                )
+            current = current.__cause__ or current.__context__
         reason = str(exc).strip()
         return reason or exc.__class__.__name__
 

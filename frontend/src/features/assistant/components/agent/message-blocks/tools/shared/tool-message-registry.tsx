@@ -21,6 +21,7 @@ import {
   PenOff,
   ListTodo,
   PenLine,
+  Ruler,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -183,6 +184,23 @@ const TOOL_REGISTRY = {
     icon: BookOpen,
     getTitle: () => i18n.t("assistant.tools.readChapter"),
     getDetail: (message) => getReadChapterDetail(message),
+  },
+  measure_text: {
+    toolName: "measure_text",
+    group: "chapter",
+    tag: "measure",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: Ruler,
+    getTitle: () => i18n.t("assistant.tools.measureText"),
+    getDetail: (message) => {
+      const data = getToolResultData(message);
+      if (!isRecord(data) || typeof data.word_count !== "number") return undefined;
+      const label = i18n.t("assistant.tools.wordCount", { count: data.word_count });
+      return data.within_range === false
+        ? `${label} · ${i18n.t("assistant.tools.outOfWordRange")}`
+        : label;
+    },
   },
   write_chapter: {
     toolName: "write_chapter",

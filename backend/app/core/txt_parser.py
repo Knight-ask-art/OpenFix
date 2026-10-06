@@ -14,6 +14,10 @@ from dataclasses import dataclass, field
 
 from charset_normalizer import from_bytes
 
+# 字数口径统一由 app.core.word_count 提供；保留 _count_words 别名是因为
+# docx_parser 与 project_import 仍按该名字导入。
+from app.core.word_count import count_words as _count_words
+
 
 @dataclass
 class ParsedChapter:
@@ -190,35 +194,6 @@ def decode_text_content(content: bytes) -> tuple[str, str]:
     if text.startswith("\ufeff"):
         text = text[1:]
     return text.replace("\r\n", "\n").replace("\r", "\n"), encoding
-
-
-def _count_words(text: str) -> int:
-    """
-    统计中文字数。
-
-    统计规则：中文字符按字计数，英文单词按词计数。
-
-    Args:
-        text: 文本内容。
-
-    Returns:
-        字数。
-    """
-    # 移除空白字符
-    text = text.strip()
-    if not text:
-        return 0
-
-    # 统计中文字符数
-    chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", text))
-
-    # 统计英文单词数
-    english_words = len(re.findall(r"[a-zA-Z]+", text))
-
-    # 统计数字
-    numbers = len(re.findall(r"\d+", text))
-
-    return chinese_chars + english_words + numbers
 
 
 def _create_fallback_chapter(content: str) -> ParsedChapter | None:

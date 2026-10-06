@@ -166,6 +166,14 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
 
 
 def _clean_title(raw_title: str) -> str:
+    # Plain title generation can return provider tool/reasoning envelopes.
+    # Reject the whole payload before truncation, retaining the existing seed title.
+    if re.search(
+        r"</?(?:tool_call|tool_calls|function|parameter|think|analysis|assistant)\b",
+        raw_title,
+        flags=re.IGNORECASE,
+    ) or raw_title.lstrip().startswith(("{", "[", "```")):
+        return ""
     title = raw_title.strip()
     title = re.sub(r"^[#\-\s]+", "", title)
     title = title.strip(" \t\n\r`*_\"'“”‘’《》")

@@ -2073,6 +2073,73 @@ async def test_rollback_moving_chapter_into_occupied_order_parks_before_volume_c
 
 
 @pytest.mark.asyncio
+async def test_rollback_recalculates_word_count_from_snapshot_content(revision_db):
+    """回滚写回章节时按正文重算字数，不能沿用快照里旧口径写下的过期字数。"""
+    from app.agent_runtime.revisions import rollback_revision_for_session
+    from app.storage.repos import (
+        chapter_repo,
+        commit_repo,
+        project_repo,
+        revision_chapter_snapshot_repo,
+    )
+
+    revision = await _begin_revision(revision_db, content="恢复章节正文")
+
+    restored_content = "Hello, world! 你好。"
+
+    async with revision_db() as session:
+        await revision_chapter_snapshot_repo.create(
+            session,
+            RevisionChapterSnapshot(
+                revision_id=revision.id,
+                chapter_id="chap-1",
+                project_id="proj-1",
+                volume_id="vol-1",
+                exists=True,
+                title="第一章",
+                content=restored_content,
+                # 旧版本按旧口径写入：独立标点被当成英文词。
+                word_count=99,
+                chapter_order=1,
+            ),
+        )
+        chapter = await chapter_repo.get_by_id(session, "chap-1")
+        assert chapter is not None
+        chapter.content = "回滚前的正文"
+        chapter.word_count = 6
+        await chapter_repo.update_chapter(session, chapter)
+        await session.commit()
+
+    async with revision_db() as session:
+        rollback_result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+        rollback_revision_id = rollback_result.rollback_revision.id
+
+    async with revision_db() as session:
+        restored = await chapter_repo.get_by_id(session, "chap-1")
+        untouched = await chapter_repo.get_by_id(session, "chap-2")
+        project = await project_repo.get_by_id(session, "proj-1")
+        commits = await commit_repo.list_by_revision(session, rollback_revision_id)
+
+    assert restored is not None
+    assert restored.content == restored_content
+    assert restored.word_count == 4
+    assert untouched is not None
+    assert untouched.word_count == 4
+    assert project is not None
+    assert project.word_count == 8
+    assert project.chapter_count == 2
+    rolled_back_commit = next(item for item in commits if item.chapter_id == "chap-1")
+    # 回滚提交记录的是重算后的字数，不是快照里的过期值。
+    assert rolled_back_commit.new_word_count == 4
+    assert rolled_back_commit.snapshot_word_count == 6
+
+
+@pytest.mark.asyncio
 async def test_restore_character_extensions_skips_malformed_state_snapshot(revision_db):
     """结构不完整的状态快照应跳过，不得删除当前有效状态。"""
     from app.agent_runtime.revision_extensions import restore_character_extensions

@@ -1,11 +1,11 @@
 import json
-import re
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from app.agent_runtime.tools.base import AgentTool
 from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
+from app.core.word_count import count_words
 from app.agent_runtime.revisions import (
     current_revision_id_from_state,
     images_by_id,
@@ -31,15 +31,6 @@ from app.storage.models.chapter import Chapter
 from app.storage.repos import chapter_repo, volume_repo
 from app.storage.services.volume_service import refresh_volume_chapter_count
 from app.storage.services.version_control_service import refresh_project_stats
-
-
-def count_words(text: str) -> int:
-    if not text:
-        return 0
-    chinese_chars = re.findall(r"[一-鿿]", text)
-    text_without_chinese = re.sub(r"[一-鿿]", " ", text)
-    english_words = [w for w in text_without_chinese.split() if w.strip()]
-    return len(chinese_chars) + len(english_words)
 
 
 class WriteChapterInput(BaseModel):

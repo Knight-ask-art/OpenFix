@@ -40,6 +40,7 @@ _PERMISSION_METADATA_BY_TOOL_NAME = {
     "list_subagents": ToolPermissionMetadata("list_subagents", "allow"),
     "list_volumes": ToolPermissionMetadata("list_volumes", "allow"),
     "list_world_entries": ToolPermissionMetadata("list_world_entries", "allow"),
+    "measure_text": ToolPermissionMetadata("measure_text", "allow"),
     "move_chapter_to_volume": ToolPermissionMetadata("move_chapter_to_volume", "ask"),
     "move_note": ToolPermissionMetadata("move_note", "ask"),
     "notify_subagent": ToolPermissionMetadata("notify_subagent", "allow"),

@@ -327,8 +327,12 @@ entries:
       同一轮可完成两个 pass，避免重复读取全文与全部背景。
       要求 Reviewer structured mode，返回 scope/risk_vector/issues，
       每条有 quote_anchor、reason、goal、preserve、requires_plot_change。
-      只将需要处理的 issue、目标章节/短锚点、必要邻域与事实索引交 Actor，
-      不把 Writer 全部历史再转给下一 Agent。
+      未保存候选并不在章节数据库或索引中；派 Reviewer 时用 source_dispatch_ids
+      引用候选生成的 dispatch，只读审查确切新稿，不误读旧章节。
+      修订未保存候选优先通知原 Writer；派另一 Actor 时同时用 source_dispatch_ids
+      引用候选与审稿交付物，并提供 issue、必要邻域与事实索引。
+      不把 Writer 全部历史再转给下一 Agent，只传确切交付物。
+      Actor 写入前读取最新数据库正文作 old_content，修订候选作 new_content。
       Actor Targeted Revision 使用最小有效修改；需要新剧情的问题交回设计，
       正文候选仍走原有审批，未接受不当作已完成修改。
       Final Review 复核已修 issue 与局部一致性；只剩偏好就结束。

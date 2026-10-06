@@ -43,6 +43,7 @@ EXPECTED_AGENT_TOOL_PERMISSIONS = [
     {"tool_name": "list_subagents", "mode": "allow"},
     {"tool_name": "list_volumes", "mode": "allow"},
     {"tool_name": "list_world_entries", "mode": "allow"},
+    {"tool_name": "measure_text", "mode": "allow"},
     {"tool_name": "move_chapter_to_volume", "mode": "ask"},
     {"tool_name": "move_note", "mode": "ask"},
     {"tool_name": "notify_subagent", "mode": "allow"},

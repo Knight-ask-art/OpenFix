@@ -31,6 +31,7 @@ const TOOL_RUNNING_STATUS: Record<string, AgentRunningStatus> = {
   list_volumes: AGENT_RUNNING_STATUS.chapterRead,
   list_chapters: AGENT_RUNNING_STATUS.chapterRead,
   read_chapter: AGENT_RUNNING_STATUS.chapterRead,
+  measure_text: AGENT_RUNNING_STATUS.chapterRead,
   search_chapters: AGENT_RUNNING_STATUS.chapterRead,
   update_index: AGENT_RUNNING_STATUS.chapterRead,
   read_chapter_summaries: AGENT_RUNNING_STATUS.summaryRead,

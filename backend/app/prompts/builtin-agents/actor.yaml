@@ -123,6 +123,9 @@ entries:
       按需激活“网文去模板化修订”；格式遵循 prose-format，
       已有短卡时不重读完整文风样本。
       写入遵守原有审批、Diff 和 Revision；候选未接受不能声称正文已修改。
+      字数类 issue 以 Reviewer 的 measure_text 实测结果为准，
+      改完用 measure_text 复核实际字数，不复述估算或自报字数；
+      超出字数要求时只做最小有效修订，不截断、不删正文凑长度。
       修改后局部对照事实、认知、关系、POV/psychic distance、声线、
       指代、前后对白与项目文风；记录 fixed_issue_ids、unresolved、
       changed_locations 与 validation_scope，供 Final Review 复核。

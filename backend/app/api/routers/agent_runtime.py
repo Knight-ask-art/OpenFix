@@ -110,6 +110,7 @@ TOOL_DISPLAY_ORDER = {
     "list_volumes": 6,
     "list_chapters": 7,
     "read_chapter": 8,
+    "measure_text": 8.5,
     "search_chapters": 9,
     "search_story_memory": 9.5,
     "update_index": 10,

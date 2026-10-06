@@ -2,7 +2,11 @@ import type { AgentMessage } from "@/lib/agent.types";
 
 import type { PlanStatus, ToolMessageContentMode } from "../shared/tool-message-utils";
 
-export function canReportEmptyPlan(message: Pick<AgentMessage, "status" | "toolResult">): boolean {
+export function canReportEmptyPlan(
+  message: Pick<AgentMessage, "status" | "toolResult" | "payload">,
+): boolean {
+  // An approval preview describes a proposed call, not an executed result.
+  if (message.payload?.is_interrupt_preview === true) return false;
   return (
     Boolean(message.toolResult) || message.status === "completed" || message.status === "error"
   );

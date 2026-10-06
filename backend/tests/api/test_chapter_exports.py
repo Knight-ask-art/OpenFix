@@ -60,15 +60,14 @@ async def _create_chapter(
     volume_id: str,
     title: str,
     content: str,
-    word_count: int,
 ) -> dict:
+    """创建章节。字数由服务端按正文重算，这里不传客户端字数。"""
     response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
         json={
             "volume_id": volume_id,
             "title": title,
             "content": content,
-            "word_count": word_count,
         },
     )
     assert response.status_code == 201
@@ -80,8 +79,8 @@ async def test_create_full_volume_export_uses_volume_filename_and_snapshot_selec
     client: AsyncClient,
 ) -> None:
     project_id, volume_id = await _create_project(client)
-    first = await _create_chapter(client, project_id, volume_id, "第一章", "第一章正文\r\n第二行", 5)
-    second = await _create_chapter(client, project_id, volume_id, "第二章", "第二章正文", 5)
+    first = await _create_chapter(client, project_id, volume_id, "第一章", "第一章正文\r\n第二行")
+    second = await _create_chapter(client, project_id, volume_id, "第二章", "第二章正文")
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/chapter-exports",
@@ -97,7 +96,8 @@ async def test_create_full_volume_export_uses_volume_filename_and_snapshot_selec
     data = response.json()
     assert data["status"] == "pending"
     assert data["chapter_count"] == 2
-    assert data["word_count"] == 10
+    # 字数按正文重算：第一章 8 字（换行分段）加第二章 5 字。
+    assert data["word_count"] == 13
     assert data["filename"] == "测试小说-全本-2026-07-28.txt"
     assert data["chapter_ids"] == [first["id"], second["id"]]
 
@@ -105,7 +105,7 @@ async def test_create_full_volume_export_uses_volume_filename_and_snapshot_selec
 @pytest.mark.asyncio
 async def test_export_creation_does_not_load_chapter_bodies(client: AsyncClient, monkeypatch) -> None:
     project_id, volume_id = await _create_project(client)
-    chapter = await _create_chapter(client, project_id, volume_id, "第一章", "正文", 2)
+    chapter = await _create_chapter(client, project_id, volume_id, "第一章", "正文")
 
     async def reject_full_chapter_load(*_args, **_kwargs):
         raise AssertionError("导出创建阶段不应读取完整章节正文")
@@ -140,7 +140,7 @@ async def test_only_cancel_endpoint_preempts_running_export(client: AsyncClient,
     supervisor = Supervisor()
     monkeypatch.setattr(chapter_exports_router, "get_background_supervisor", lambda: supervisor)
     project_id, volume_id = await _create_project(client)
-    chapter = await _create_chapter(client, project_id, volume_id, "第一章", "正文", 2)
+    chapter = await _create_chapter(client, project_id, volume_id, "第一章", "正文")
 
     created = await client.post(
         f"/api/v1/projects/{project_id}/chapter-exports",
@@ -164,8 +164,8 @@ async def test_only_cancel_endpoint_preempts_running_export(client: AsyncClient,
 @pytest.mark.asyncio
 async def test_create_fragment_export_uses_chapter_filename(client: AsyncClient) -> None:
     project_id, volume_id = await _create_project(client)
-    selected = await _create_chapter(client, project_id, volume_id, "第一章", "正文", 2)
-    await _create_chapter(client, project_id, volume_id, "第二章", "正文", 2)
+    selected = await _create_chapter(client, project_id, volume_id, "第一章", "正文")
+    await _create_chapter(client, project_id, volume_id, "第二章", "正文")
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/chapter-exports",
@@ -186,8 +186,8 @@ async def test_manually_selected_complete_volume_still_uses_chapter_format(
     client: AsyncClient,
 ) -> None:
     project_id, volume_id = await _create_project(client)
-    first = await _create_chapter(client, project_id, volume_id, "第一章", "正文", 2)
-    second = await _create_chapter(client, project_id, volume_id, "第二章", "正文", 2)
+    first = await _create_chapter(client, project_id, volume_id, "第一章", "正文")
+    second = await _create_chapter(client, project_id, volume_id, "第二章", "正文")
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/chapter-exports",
@@ -234,8 +234,8 @@ async def test_export_task_writes_full_volume_txt_and_serves_download(
     monkeypatch.setattr(chapter_export_service.settings, "chapter_exports_dir", tmp_path)
     monkeypatch.setattr(JobContext, "check_cancelled", skip_cancellation_check)
     project_id, volume_id = await _create_project(client)
-    first = await _create_chapter(client, project_id, volume_id, "第一章", "第一章正文\r\n第二行", 5)
-    second = await _create_chapter(client, project_id, volume_id, "第二章", "第二章正文", 5)
+    first = await _create_chapter(client, project_id, volume_id, "第一章", "第一章正文\r\n第二行")
+    second = await _create_chapter(client, project_id, volume_id, "第二章", "第二章正文")
     created = await client.post(
         f"/api/v1/projects/{project_id}/chapter-exports",
         json={
@@ -285,7 +285,7 @@ async def test_export_task_writes_full_volume_txt_and_serves_download(
         "filename": "测试小说-全本-2026-07-28.txt",
         "volume_count": 1,
         "chapter_count": 2,
-        "word_count": 10,
+        "word_count": 13,
         "expires_at": result["expires_at"],
     }
     assert [first["id"], second["id"]] == created.json()["chapter_ids"]
@@ -301,7 +301,7 @@ async def test_cancelled_export_removes_partial_file(
 ) -> None:
     monkeypatch.setattr(chapter_export_service.settings, "chapter_exports_dir", tmp_path)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, "第一章", "正文", 2)
+    await _create_chapter(client, project_id, volume_id, "第一章", "正文")
     created = await client.post(
         f"/api/v1/projects/{project_id}/chapter-exports",
         json={
@@ -370,8 +370,8 @@ async def test_export_task_writes_full_volume_docx_and_serves_download(
     monkeypatch.setattr(chapter_export_service.settings, "chapter_exports_dir", tmp_path)
     monkeypatch.setattr(JobContext, "check_cancelled", skip_cancellation_check)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, "第一章", "第一章正文\r\n第二行", 5)
-    await _create_chapter(client, project_id, volume_id, "第二章", "第二章正文", 5)
+    await _create_chapter(client, project_id, volume_id, "第一章", "第一章正文\r\n第二行")
+    await _create_chapter(client, project_id, volume_id, "第二章", "第二章正文")
     created = await client.post(
         f"/api/v1/projects/{project_id}/chapter-exports",
         json={

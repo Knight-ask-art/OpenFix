@@ -8,10 +8,11 @@
 只读，不写入任何数据，且严格按 project_id 过滤。
 """
 
+import json
 from collections import OrderedDict
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -94,6 +95,20 @@ class SearchStoryMemoryInput(BaseModel):
         le=MAX_RESULT_LIMIT,
         description="返回结果条数上限",
     )
+
+    @field_validator("sources", mode="before")
+    @classmethod
+    def normalize_json_sources(cls, value: Any) -> Any:
+        # Some compatible providers encode nested arrays as JSON strings.
+        # Decode only this bounded read filter; Literal validation remains authoritative.
+        if isinstance(value, str) and len(value) <= 512:
+            try:
+                decoded = json.loads(value)
+            except json.JSONDecodeError:
+                return value
+            if isinstance(decoded, list):
+                return decoded
+        return value
 
 
 class StoryMemoryResultItem(BaseModel):

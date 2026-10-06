@@ -22,4 +22,6 @@ assert.equal(plan.canReportEmptyPlan({ status: "running" }), false);
 assert.equal(plan.canReportEmptyPlan({ status: "completed" }), true);
 assert.equal(plan.canReportEmptyPlan({ status: "error" }), true);
 assert.equal(plan.canReportEmptyPlan({ toolResult: { data: {} } }), true);
-console.log("Tool message acceptance: 9 checks passed");
+assert.equal(plan.canReportEmptyPlan({ status: "completed", toolResult: {}, payload: { is_interrupt_preview: true } }), false);
+assert.equal(plan.canReportEmptyPlan({ status: "completed", payload: { is_interrupt_preview: false } }), true);
+console.log("Tool message acceptance: 11 checks passed");

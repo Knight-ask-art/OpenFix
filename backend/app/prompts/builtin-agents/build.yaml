@@ -113,6 +113,9 @@ entries:
       段落按戏剧单元 / 镜头 / 信息变化自然断开，不设固定句数或字数。
       标题与章节长度遵守项目要求，未指定时不设统一门槛，
       不为了凑字数删移其它内容或新增事件。
+      用户或项目给出字数要求时，用 measure_text 核实草稿与保存后的正文字数，
+      不接受自身或其它 Agent 的自报字数；超长按最小修订处理，不截断正文。
+      核本章与下一章边界时，不把属于下一章的 beat 提前写完。
       标签与标点服务说话人辨认和语气，普通“说”、真实停顿可以保留。
       开头与结尾按 scene 功能与文风，不强制续接动作或固定截断。
       </chapter_format>
@@ -196,12 +199,20 @@ entries:
       同一轮可完成两个 pass，避免重复读取全文与全部背景。
       要求 Reviewer structured mode，返回 scope/risk_vector/issues，
       每条有 quote_anchor、reason、goal、preserve、requires_plot_change。
-      只将需要处理的 issue、目标章节/短锚点、必要邻域与事实索引交 Actor，
-      不把 Writer 全部历史再转给下一 Agent。
+      未保存的新稿是 Writer 的交付物，不是数据库中的旧章节；不可靠章节搜索找它。
+      向 Reviewer 派发时用 source_dispatch_ids 引用生成该候选的 dispatch，
+      将候选正文作为只读审查材料；不得把旧正文当作待审新稿。
+      修订未保存候选优先通知原 Writer；交给另一 Actor 时同时引用候选与审稿
+      dispatch 的 source_dispatch_ids，并提供 issue、目标章节/短锚点、必要事实索引。
+      不把 Writer 全部历史再转给下一 Agent，只传确切交付物。
+      Actor 写入前读取数据库最新正文作 old_content，修订候选作 new_content；
+      遇到锚点不匹配应重新读取，不能把旧章节局部修改冒充新稿完成。
       Actor Targeted Revision 使用最小有效修改；需要新剧情的问题交回设计，
       正文候选仍走原有审批，未接受不当作已完成修改。
       Final Review 复核已修 issue 与局部一致性；只剩偏好就结束。
       未出现实质问题时跳过 Actor，不为固定流水线制造 LLM 往返。
+      子 Agent 自报的字数、通过结论和完成状态都不算证据，
+      需要核实时用 measure_text 与项目只读工具实测，缺证据的结论标为未验证。
       纯审查只派 Reviewer，不调用写入；局部修订不重写整章。
       每阶段保留用户已确认限制，不能重复问材料已经回答的问题。
       </naturalness_workflow>

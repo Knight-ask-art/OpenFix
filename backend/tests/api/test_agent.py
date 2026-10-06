@@ -291,6 +291,10 @@ class TestAgentAPI:
                 "is_readonly": True,
             },
             {
+                "key": "measure_text",
+                "is_readonly": True,
+            },
+            {
                 "key": "search_chapters",
                 "is_readonly": True,
             },

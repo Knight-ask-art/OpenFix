@@ -31,6 +31,7 @@ from app.agent_runtime.revision_extensions import (
 )
 from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
+from app.core.word_count import count_words
 from app.storage.models.chapter import Chapter
 from app.storage.models.character import Character
 from app.storage.models.commit import Commit
@@ -156,13 +157,15 @@ def _image_from_chapter(chapter: Chapter) -> ChapterImage:
 def _image_from_snapshot(snapshot: RevisionChapterSnapshot) -> ChapterImage | None:
     if not snapshot.exists:
         return None
+    content = snapshot.content or ""
     return ChapterImage(
         id=snapshot.chapter_id,
         project_id=snapshot.project_id,
         volume_id=getattr(snapshot, "volume_id", "") or "",
         title=snapshot.title or "",
-        content=snapshot.content or "",
-        word_count=snapshot.word_count or 0,
+        content=content,
+        # 快照里的字数可能是旧口径写下的：恢复时按正文重算，避免把过期统计写回章节。
+        word_count=count_words(content),
         order=snapshot.chapter_order or 1,
     )
 

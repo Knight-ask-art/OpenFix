@@ -9,6 +9,7 @@ from app.api.routers.chapter_context import (
     build_summary_statuses_response,
 )
 from app.background.jobs.models import BackgroundJob, BackgroundJobItem
+from app.core.word_count import count_words
 from app.memory.chapter.summary_service import (
     LONG_TERM_SUMMARY_INTERVAL,
     MIN_CHAPTER_SUMMARY_WORD_COUNT,
@@ -18,6 +19,14 @@ from app.memory.chapter.summary_service import (
 from app.storage.repos import chapter_summary_repo
 from app.storage.models.chapter_summary import ChapterSummary
 from app.storage.repos.chapter_summary_repo import SUMMARY_STATUS_FAILED, SUMMARY_STATUS_READY, SUMMARY_TYPE_LONG_TERM
+
+
+# 字数由服务端按正文重算，客户端伪字数一律不采信：需要“长章节”的用例必须给出
+# 真实足够长的正文（LONG_CHAPTER_WORDS 高于摘要字数下限），短章节用 SHORT_CHAPTER_CONTENT。
+LONG_CHAPTER_CONTENT = "这是用于上下文测试的长章节正文。" * 40  # 600 字
+LONG_CHAPTER_WORDS = count_words(LONG_CHAPTER_CONTENT)
+SHORT_CHAPTER_CONTENT = "内容"  # 2 字
+SHORT_CHAPTER_WORDS = count_words(SHORT_CHAPTER_CONTENT)
 
 
 class _FakeResponse:
@@ -72,8 +81,7 @@ async def test_chapters(client: AsyncClient, test_project: dict) -> list[dict]:
             json={
                 "volume_id": test_project["default_volume_id"],
                 "title": f"第{i + 1}章",
-                "content": f"这是第{i + 1}章的内容。" * 50,
-                "word_count": 800,
+                "content": f"这是第{i + 1}章的内容。" * 100,
             },
         )
         assert response.status_code == 201
@@ -208,10 +216,7 @@ class TestChapterSummaries:
 
         response = await client.patch(
             f"/api/v1/chapters/{chapter['id']}",
-            json={
-                "content": f"{chapter['content']}{'新增剧情' * 40}",
-                "word_count": 1200,
-            },
+            json={"content": f"{chapter['content']}{'新增剧情' * 40}"},
         )
         assert response.status_code == 200
 
@@ -222,7 +227,7 @@ class TestChapterSummaries:
 
         response = await client.patch(
             f"/api/v1/chapters/{chapter['id']}",
-            json={"content": chapter["content"], "word_count": chapter["word_count"]},
+            json={"content": chapter["content"]},
         )
         assert response.status_code == 200
         status_response = await _summary_statuses_response(session, test_project["id"])
@@ -252,7 +257,7 @@ class TestChapterSummaries:
         changed_content = "\n，。".join(chapter["content"])
         response = await client.patch(
             f"/api/v1/chapters/{chapter['id']}",
-            json={"content": changed_content, "word_count": chapter["word_count"]},
+            json={"content": changed_content},
         )
         assert response.status_code == 200
 
@@ -269,8 +274,7 @@ class TestChapterSummaries:
             json={
                 "volume_id": test_project["default_volume_id"],
                 "title": "短章节",
-                "content": "内容",
-                "word_count": 100,
+                "content": SHORT_CHAPTER_CONTENT,
             },
         )
         assert response.status_code == 201
@@ -334,7 +338,6 @@ class TestChapterSummaries:
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
                     "content": "内容",
-                    "word_count": 800,
                 },
             )
             assert response.status_code == 201
@@ -382,7 +385,6 @@ class TestChapterSummaries:
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
                     "content": "内容",
-                    "word_count": 800,
                 },
             )
             assert response.status_code == 201
@@ -496,7 +498,6 @@ class TestChapterSummaries:
                         "volume_id": volume_id,
                         "title": f"{volume_label}第{index + 1}章",
                         "content": "内容",
-                        "word_count": 800,
                     },
                 )
                 assert response.status_code == 201
@@ -622,8 +623,7 @@ class TestChapterSummaries:
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": "内容",
-                    "word_count": 600,
+                    "content": LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -635,7 +635,10 @@ class TestChapterSummaries:
         assert maintenance["block_reason_code"] == "too_many_pending_chapters"
         assert maintenance["block_reason_params"] == {"chapter_threshold": 20}
         assert len(maintenance["missing_or_failed_chapter_summaries"]) == 21
-        assert maintenance["missing_or_failed_chapter_summaries"][0]["word_count"] == 600
+        assert (
+            maintenance["missing_or_failed_chapter_summaries"][0]["word_count"]
+            == LONG_CHAPTER_WORDS
+        )
 
     async def test_maintenance_lists_skipped_short_chapters(
         self, client: AsyncClient, session, test_project: dict
@@ -645,8 +648,7 @@ class TestChapterSummaries:
             json={
                 "volume_id": test_project["default_volume_id"],
                 "title": "短章节",
-                "content": "内容",
-                "word_count": 120,
+                "content": SHORT_CHAPTER_CONTENT,
             },
         )
         assert short_response.status_code == 201
@@ -656,8 +658,7 @@ class TestChapterSummaries:
             json={
                 "volume_id": test_project["default_volume_id"],
                 "title": "长章节",
-                "content": "内容",
-                "word_count": 800,
+                "content": LONG_CHAPTER_CONTENT,
             },
         )
         assert long_response.status_code == 201
@@ -676,7 +677,7 @@ class TestChapterSummaries:
                 "volume_title": "第一卷",
                 "volume_order": 1,
                 "chapter_title": "短章节",
-                "word_count": 120,
+                "word_count": SHORT_CHAPTER_WORDS,
             }
         ]
 
@@ -1029,8 +1030,7 @@ class TestChapterSummaries:
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": "内容",
-                    "word_count": 800,
+                    "content": LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -1105,8 +1105,7 @@ class TestChapterSummaries:
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": "内容",
-                    "word_count": 800,
+                    "content": LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -1171,14 +1170,13 @@ class TestChapterSummaries:
     ):
         chapters = []
         for index in range(LONG_TERM_SUMMARY_INTERVAL):
-            word_count = 120 if index in {0, 4} else 900
+            is_short = index in {0, 4}
             response = await client.post(
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": f"内容{index + 1}",
-                    "word_count": word_count,
+                    "content": SHORT_CHAPTER_CONTENT if is_short else LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -1242,13 +1240,13 @@ class TestChapterSummaries:
     ):
         chapters = []
         for index in range(40):
+            is_short = index == 14
             response = await client.post(
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": f"内容{index + 1}",
-                    "word_count": 120 if index == 14 else 900,
+                    "content": SHORT_CHAPTER_CONTENT if is_short else LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -1293,8 +1291,7 @@ class TestChapterSummaries:
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": "内容",
-                    "word_count": 800,
+                    "content": LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -1382,8 +1379,7 @@ class TestChapterSummaries:
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": "内容",
-                    "word_count": 800,
+                    "content": LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -1453,8 +1449,7 @@ class TestChapterSummaries:
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": "内容",
-                    "word_count": 800,
+                    "content": LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -1551,8 +1546,7 @@ class TestChapterSummaries:
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": "内容",
-                    "word_count": 800,
+                    "content": LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201
@@ -1618,8 +1612,7 @@ class TestChapterSummaries:
             json={
                 "volume_id": test_project["default_volume_id"],
                 "title": "新章节",
-                "content": "新内容",
-                "word_count": 800,
+                "content": LONG_CHAPTER_CONTENT,
             },
         )
         assert response.status_code == 201
@@ -1657,8 +1650,7 @@ class TestContextBuilder:
                 json={
                     "volume_id": test_project["default_volume_id"],
                     "title": f"第{index + 1}章",
-                    "content": f"正文{index + 1}",
-                    "word_count": 800,
+                    "content": LONG_CHAPTER_CONTENT,
                 },
             )
             assert response.status_code == 201

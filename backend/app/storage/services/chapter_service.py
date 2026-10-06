@@ -3,7 +3,6 @@
 Chapter Service - 章节业务逻辑层。
 """
 
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
@@ -13,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
+from app.core.word_count import count_words
 from app.memory.chapter.sequence import global_order_index
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
@@ -53,33 +53,6 @@ class MentionCandidate:
     title: str
     label: str
     description: str | None = None
-
-
-def _count_words(text: str) -> int:
-    """
-    计算中英文混合文本的字数。
-
-    中文按字符计数，英文按单词计数。
-
-    Args:
-        text: 待计算的文本。
-
-    Returns:
-        字数。
-    """
-    if not text:
-        return 0
-
-    # 匹配中文字符
-    chinese_chars = re.findall(r"[\u4e00-\u9fff]", text)
-    chinese_count = len(chinese_chars)
-
-    # 移除中文字符后，按空格分割计算英文单词
-    text_without_chinese = re.sub(r"[\u4e00-\u9fff]", " ", text)
-    english_words = [w for w in text_without_chinese.split() if w.strip()]
-    english_count = len(english_words)
-
-    return chinese_count + english_count
 
 
 def _display_volume_title(volume: Volume) -> str:
@@ -156,7 +129,7 @@ async def create_chapter(
         volume_id: 卷 ID。
         title: 章节标题。
         content: 章节内容，默认为空。
-        word_count: 字数（前端计算），如果为 None 则后端计算。
+        word_count: 兼容旧客户端保留；字数始终按正文重新计算，该参数不参与入库。
 
     Returns:
         创建的章节实例。
@@ -177,8 +150,8 @@ async def create_chapter(
     # 获取最大排序序号
     max_order = await chapter_repo.get_max_order(session, volume_id)
 
-    # 使用前端传递的字数，或后端计算
-    final_word_count = word_count if word_count is not None else _count_words(content)
+    # 字数始终按正文重算：前端传入的 word_count 只保留接口兼容，不作为统计来源。
+    final_word_count = count_words(content)
 
     # 创建章节
     chapter = Chapter(
@@ -446,7 +419,7 @@ async def update_chapter(
         chapter_id: 章节 ID。
         title: 新标题，可选。
         content: 新内容，可选。
-        word_count: 字数（前端计算），如果为 None 则后端计算。
+        word_count: 兼容旧客户端保留；字数始终按正文重新计算，该参数不参与入库。
 
     Returns:
         更新后的章节实例。
@@ -464,18 +437,19 @@ async def update_chapter(
         title_changed = True
 
     content_changed = False
+    statistics_corrected = False
     if content is not None and content != chapter.content:
         validate_editor_content(content)
         chapter.content = content
-        # 优先使用前端传递的字数，否则后端计算
-        chapter.word_count = (
-            word_count if word_count is not None else _count_words(content)
-        )
+        chapter.word_count = count_words(content)
         content_changed = True
-    elif word_count is not None and word_count != chapter.word_count:
-        # 如果只传了 word_count 没传 content，也只在字数实际变化时更新
-        chapter.word_count = word_count
-        content_changed = True
+    elif content is not None:
+        # 正文没变也重算一次：历史统计可能是按客户端伪字数写坏的，这里只做统计校正，
+        # 不记录写作活动，也不刷新章节时间戳。
+        corrected_word_count = count_words(content)
+        if corrected_word_count != chapter.word_count:
+            chapter.word_count = corrected_word_count
+            statistics_corrected = True
 
     if title_changed or content_changed:
         chapter.updated_at = datetime.now(UTC)
@@ -494,6 +468,9 @@ async def update_chapter(
                 old_word_count=old_word_count,
                 new_word_count=chapter.word_count,
             )
+        await _update_project_stats(session, chapter.project_id)
+    elif statistics_corrected:
+        # 统计校正只同步项目聚合字数，不伪造写作活动。
         await _update_project_stats(session, chapter.project_id)
     if content is not None and content != old_content:
         from app.retrieval.chapter_index import (

@@ -13,6 +13,7 @@ from app.agent_runtime.tools.impls.chapter.refs import (
     resolve_volume_from_list,
 )
 from app.agent_runtime.tools.impls.chapter.content_edit import edit_chapter_content
+from app.core.word_count import count_words
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
 from app.storage.repos import chapter_repo, volume_repo
@@ -144,7 +145,7 @@ async def build_write_chapter_tool_result_preview(
         title=title,
         content=content,
         order=order,
-        word_count=word_count,
+        word_count=count_words(content),
     )
     return build_tool_result_preview(None, after, path=[volume.title.strip()])
 
@@ -176,7 +177,11 @@ async def build_edit_chapter_tool_result_preview(
             updated_content, old_content, new_content, replace_all=replace_all
         )
         if edited_content is None:
-            return None
+            return {
+                "success": False,
+                "code": "stale_chapter_anchor",
+                "message": "原文锚点与当前章节不匹配，无法生成有效修改预览。请拒绝本次修改，重新读取当前正文后再修订；不要删除重建章节。",
+            }
         updated_content = edited_content
 
     after = ChapterPreviewData(
@@ -186,7 +191,7 @@ async def build_edit_chapter_tool_result_preview(
         title=updated_title,
         content=updated_content,
         order=before.order,
-        word_count=before.word_count,
+        word_count=count_words(updated_content),
     )
     return build_tool_result_preview(before, after, path=[volume.title.strip()])
 

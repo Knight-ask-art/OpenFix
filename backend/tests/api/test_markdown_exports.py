@@ -30,6 +30,11 @@ LAST_HEADING = "丙 \\`夜色\\` \\&amp\\; \\<tag\\>"
 FIRST_VOLUME_HEADING = "第一卷 晨光 \\& \\<黎明\\> \\# 一"
 
 
+# 字数由服务端按正文重算，客户端字数不再入库：下面两个常量是合成正文的真实字数。
+FIRST_BODY_WORDS = 17
+LAST_BODY_WORDS = 10
+
+
 @dataclass(frozen=True)
 class SyntheticBook:
     project_id: str
@@ -69,11 +74,12 @@ async def _create_volume(client: AsyncClient, project_id: str, title: str) -> st
 
 
 async def _create_chapter(
-    client: AsyncClient, project_id: str, volume_id: str, title: str, body: str, words: int,
+    client: AsyncClient, project_id: str, volume_id: str, title: str, body: str,
 ) -> str:
+    """创建章节。字数由服务端按正文重算，这里不传客户端字数。"""
     created = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": volume_id, "title": title, "content": body, "word_count": words},
+        json={"volume_id": volume_id, "title": title, "content": body},
     )
     assert created.status_code == 201
     return created.json()["id"]
@@ -88,9 +94,9 @@ async def _create_book(client: AsyncClient) -> SyntheticBook:
     last_volume = await _create_volume(client, project_id, "暮色")
     await _create_volume(client, project_id, "空卷")
     ids = [
-        await _create_chapter(client, project_id, first_volume, "甲 *醒来*\r\n# 后续", FIRST_BODY, 7),
-        await _create_chapter(client, project_id, first_volume, "乙 空章", "", 0),
-        await _create_chapter(client, project_id, last_volume, "丙 `夜色` &amp; <tag>", LAST_BODY, 9),
+        await _create_chapter(client, project_id, first_volume, "甲 *醒来*\r\n# 后续", FIRST_BODY),
+        await _create_chapter(client, project_id, first_volume, "乙 空章", ""),
+        await _create_chapter(client, project_id, last_volume, "丙 `夜色` &amp; <tag>", LAST_BODY),
     ]
     return SyntheticBook(project_id, first_volume, last_volume, ids)
 
@@ -148,7 +154,7 @@ async def test_markdown_scope_reaches_dispatch_cleanup_status_and_download(
         selected_volumes = [book.last_volume, book.first_volume]
         included, excluded = [], []
         expected_ids = book.chapter_ids
-        expected_mode, words, label = "volumes", 16, "全本"
+        expected_mode, words, label = "volumes", FIRST_BODY_WORDS + LAST_BODY_WORDS, "全本"
         expected_text = (
             f"# {FIRST_VOLUME_HEADING}\n\n{first}\n\n## 乙 空章\n\n"
             f"\n\n# 第二卷 暮色\n\n{last}"
@@ -157,13 +163,13 @@ async def test_markdown_scope_reaches_dispatch_cleanup_status_and_download(
         selected_volumes = [book.last_volume]
         included, excluded = [], []
         expected_ids = [book.chapter_ids[2]]
-        expected_mode, words, label = "volumes", 9, "暮色"
+        expected_mode, words, label = "volumes", LAST_BODY_WORDS, "暮色"
         expected_text = f"# 第二卷 暮色\n\n{last}"
     else:
         selected_volumes = [book.first_volume]
         included, excluded = [book.chapter_ids[2]], [book.chapter_ids[1]]
         expected_ids = [book.chapter_ids[0], book.chapter_ids[2]]
-        expected_mode, words, label = "chapters", 16, "2个章节"
+        expected_mode, words, label = "chapters", FIRST_BODY_WORDS + LAST_BODY_WORDS, "2个章节"
         expected_text = (
             f"# {FIRST_HEADING}\n\n{normalized_first_body}\n\n"
             f"# {LAST_HEADING}\n\n{LAST_BODY}"
@@ -249,7 +255,7 @@ async def test_markdown_batches_keep_fixed_order_and_report_progress_across_volu
     for index in range(23):
         ids.append(await _create_chapter(
             client, project_id, first_volume if index < 13 else second_volume,
-            f"章 {index:02d}", f"BODY-{index:02d}\n\n**正文保留**", 1,
+            f"章 {index:02d}", f"BODY-{index:02d}\n\n**正文保留**",
         ))
     original_load = chapter_repo.get_by_ids
     original_progress = background_service.update_progress
@@ -288,7 +294,7 @@ async def test_markdown_second_batch_cancellation_and_failure_remove_partial_out
     monkeypatch: pytest.MonkeyPatch, stop: str,
 ) -> None:
     project_id, volume_id = await _create_project(client)
-    ids = [await _create_chapter(client, project_id, volume_id, f"章 {i}", f"BODY-{i}", 1) for i in range(21)]
+    ids = [await _create_chapter(client, project_id, volume_id, f"章 {i}", f"BODY-{i}") for i in range(21)]
     created = await _create_export(client, project_id, volumes=[volume_id])
     part, output = export_service.export_file_paths(created["id"], "markdown")
     original_load = chapter_repo.get_by_ids

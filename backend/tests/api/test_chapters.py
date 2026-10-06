@@ -36,14 +36,11 @@ async def _create_chapter(
     *,
     title: str,
     content: str = "",
-    word_count: int | None = None,
 ) -> dict:
-    payload: dict = {"volume_id": volume_id, "title": title, "content": content}
-    if word_count is not None:
-        payload["word_count"] = word_count
+    """创建章节。字数由服务端按正文重算，这里不传客户端字数。"""
     response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json=payload,
+        json={"volume_id": volume_id, "title": title, "content": content},
     )
     assert response.status_code == 201
     return response.json()
@@ -269,13 +266,13 @@ async def test_get_and_update_chapter(client: AsyncClient) -> None:
 
     update_response = await client.patch(
         f"/api/v1/chapters/{chapter['id']}",
-        json={"title": "新标题", "content": "新内容", "word_count": 200},
+        json={"title": "新标题", "content": "新内容"},
     )
     assert update_response.status_code == 200
     data = update_response.json()
     assert data["title"] == "新标题"
     assert data["content"] == "新内容"
-    assert data["word_count"] == 200
+    assert data["word_count"] == 3
 
 
 @pytest.mark.asyncio
@@ -379,7 +376,6 @@ async def test_delete_chapter_removes_summary_and_affected_long_term_summaries(
             volume_id,
             title=f"第{i + 1}章",
             content="内容",
-            word_count=800,
         )
         for i in range(30)
     ]
@@ -454,7 +450,6 @@ async def test_delete_chapter_in_later_volume_keeps_prior_long_term_summaries(
             first_volume_id,
             title=f"第{order + 1}章",
             content="内容",
-            word_count=800,
         )
     second_volume_chapters = [
         await _create_chapter(
@@ -463,7 +458,6 @@ async def test_delete_chapter_in_later_volume_keeps_prior_long_term_summaries(
             second_volume_id,
             title=f"第{order + 1}章",
             content="内容",
-            word_count=800,
         )
         for order in range(10)
     ]
@@ -626,16 +620,129 @@ async def test_project_stats_update_on_chapter_create_and_update(
         volume_id,
         title="第一章",
         content="这是测试内容",
-        word_count=100,
     )
     project = await client.get(f"/api/v1/projects/{project_id}")
     assert project.json()["chapter_count"] == 1
-    assert project.json()["word_count"] == 100
+    assert project.json()["word_count"] == 6
 
     await client.patch(
         f"/api/v1/chapters/{chapter['id']}",
-        json={"content": "新内容", "word_count": 200},
+        json={"content": "新内容"},
     )
     project = await client.get(f"/api/v1/projects/{project_id}")
     assert project.json()["chapter_count"] == 1
-    assert project.json()["word_count"] == 200
+    assert project.json()["word_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_create_chapter_ignores_client_word_count(client: AsyncClient) -> None:
+    """创建章节时前端传入的伪字数不采信，字数按正文重算。"""
+    project_id, volume_id = await _create_project(client)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/chapters",
+        json={
+            "volume_id": volume_id,
+            "title": "第一章",
+            "content": "这是正文",
+            "word_count": 999,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["word_count"] == 4
+    project = await client.get(f"/api/v1/projects/{project_id}")
+    assert project.json()["word_count"] == 4
+
+
+@pytest.mark.asyncio
+async def test_update_chapter_ignores_client_word_count(client: AsyncClient) -> None:
+    """更新正文时前端传入的伪字数同样不采信。"""
+    project_id, volume_id = await _create_project(client)
+    chapter = await _create_chapter(
+        client,
+        project_id,
+        volume_id,
+        title="第一章",
+        content="旧正文",
+    )
+
+    response = await client.patch(
+        f"/api/v1/chapters/{chapter['id']}",
+        json={"content": "新正文内容", "word_count": 999},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["word_count"] == 5
+    project = await client.get(f"/api/v1/projects/{project_id}")
+    assert project.json()["word_count"] == 5
+
+
+@pytest.mark.asyncio
+async def test_word_count_only_update_keeps_stored_count(client: AsyncClient) -> None:
+    """只传 word_count 而不传正文时，存量字数保持不变。"""
+    project_id, volume_id = await _create_project(client)
+    chapter = await _create_chapter(
+        client,
+        project_id,
+        volume_id,
+        title="第一章",
+        content="这是正文",
+    )
+
+    response = await client.patch(
+        f"/api/v1/chapters/{chapter['id']}",
+        json={"word_count": 5000},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["word_count"] == 4
+    project = await client.get(f"/api/v1/projects/{project_id}")
+    assert project.json()["word_count"] == 4
+
+
+@pytest.mark.asyncio
+async def test_update_chapter_corrects_stale_statistics_without_activity(
+    client: AsyncClient, session
+) -> None:
+    """正文未变时也按正文校正历史统计，但统计校正不伪造写作活动。"""
+    project = Project(title="统计校正项目")
+    volume = Volume(project_id=project.id, title="第一卷", order=1)
+    chapter = Chapter(
+        project_id=project.id,
+        volume_id=volume.id,
+        title="第一章",
+        content="这是正文",
+        word_count=0,
+        order=1,
+    )
+    session.add(project)
+    session.add(volume)
+    session.add(chapter)
+    await session.commit()
+
+    before = (await client.get(f"/api/v1/chapters/{chapter.id}")).json()
+    assert before["word_count"] == 0
+
+    response = await client.patch(
+        f"/api/v1/chapters/{chapter.id}",
+        json={"content": "这是正文"},
+    )
+
+    assert response.status_code == 200
+    after = response.json()
+    assert after["word_count"] == 4
+    # 统计校正不改变章节时间戳。
+    # SQLite drops UTC tzinfo on reload; compare the timestamp value rather than Z formatting.
+    assert after["updated_at"].removesuffix("Z") == before["updated_at"].removesuffix("Z")
+
+    project_after = await client.get(f"/api/v1/projects/{project.id}")
+    assert project_after.json()["word_count"] == 4
+
+    dashboard = await client.get(
+        "/api/v1/dashboard/writing",
+        params={"project_id": project.id, "source": "user"},
+    )
+    assert dashboard.status_code == 200
+    assert dashboard.json()["summary"]["active_days"] == 0
+    assert dashboard.json()["time_series"] == []

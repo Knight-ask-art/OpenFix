@@ -19,6 +19,7 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "list_volumes",
             "list_chapters",
             "read_chapter",
+            "measure_text",
             "search_chapters",
             "update_index",
         ),
