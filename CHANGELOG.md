@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.3](https://github.com/Knight-ask-art/OpenFix/compare/v0.12.2...v0.12.3) (2026-10-07)
+
+### 长篇叙事与写作质量
+
+* 新增结构化 World Fact、Character Belief、Open Plotline 与 Scene State，并接入既有 Story Memory、Writer、Reviewer、Inline AI、Outline AI 和一致性检查；AI 提取内容默认保持候选状态，需用户确认后才进入 Canon。
+* 增加小说文笔、人物化幽默、自然度、角色认知边界与项目文风档案能力；Runtime Style Card 按需注入，修复 Markdown/HTML 往返导致已保存档案失效的问题。
+* 增加章节接口判定：区分有叙事收益的硬切与必须延续的因果/状态余波，识别动作丢失、时序回卷、复述代替余波和接缝装置重复；Reviewer 输出结构化问题，Actor 只做接口附近的最小修订。
+* 优化写作长度策略、测字历史清理与子 Agent 交接，减少完整旧稿反复进入上下文；循环保护停止原因现在可见，手动续跑会获得新的轮次配额。
+
+### 数据一致性与发布
+
+* 删除章节、人物或卷时同步清理 Narrative State 的显式关系、JSON 关系与来源引用，避免孤儿状态继续进入检索和一致性上下文。
+* 加强 Windows 双架构更新清单与发布校验，确保 GitHub 更新源使用单段下载、架构清单齐全，并让普通 PR 的配置检查不再误要求发布标签版本。
+* 记录十章真实写作验收中的长度、锚点、过渡、模型连接与质量问题；测试通过与创作质量验收继续分开报告。
+
 ## [0.12.2](https://github.com/Knight-ask-art/OpenFix/compare/v0.12.1...v0.12.2) (2026-10-06)
 
 ### 实际写作与大纲

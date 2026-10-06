@@ -2,6 +2,7 @@
  * 发布产物静态校验。
  *
  * 打包完成后运行，逐项检查「装出来能不能用」的关键不变量：
+ *   - 发布关键配置：四处版本号一致、更新源身份只有一个来源、分段下载开关放在能生效的位置
  *   - 产物齐全且文件名架构后缀已规范化
  *   - latest.yml 指向的文件真实存在、sha512 与实际一致（否则自动更新 404）
  *   - 内置后端 wheel 与桌面版本号匹配（否则运行时不会安装我们的后端）
@@ -10,6 +11,8 @@
  *   - 前端产物确实含 V1 新页面（防止打进旧 frontend/dist）
  *
  * 用法：node scripts/verify-release.mjs [dist-electron 目录]
+ *       node scripts/verify-release.mjs --config-only       只跑配置项（PR 门禁，不需要产物）
+ *       node scripts/verify-release.mjs --prepared-update-assets
  */
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -19,7 +22,8 @@ import { fileURLToPath } from "node:url";
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliArgs = process.argv.slice(2);
 const verifyPreparedUpdateAssets = cliArgs.includes("--prepared-update-assets");
-const outputDirectoryArgument = cliArgs.find((argument) => argument !== "--prepared-update-assets");
+const verifyConfigurationOnly = cliArgs.includes("--config-only");
+const outputDirectoryArgument = cliArgs.find((argument) => !argument.startsWith("--"));
 const outputDir = path.resolve(outputDirectoryArgument ?? path.join(desktopDir, "dist-electron"));
 const desktopPackage = JSON.parse(readFileSync(path.join(desktopDir, "package.json"), "utf8"));
 const version = desktopPackage.version;
@@ -92,7 +96,7 @@ function printResultsAndExit() {
   process.exit(failures.length === 0 ? 0 : 1);
 }
 
-if (expectedReleaseVersion || isGitHubActions) {
+if (expectedReleaseVersion || (isGitHubActions && !verifyConfigurationOnly)) {
   // CI release guard: the v* tag that triggered the workflow must match the
   // desktop package version, otherwise installers and manifests would be
   // published under a version the release tag does not describe. GitHub Actions
@@ -105,6 +109,89 @@ if (expectedReleaseVersion || isGitHubActions) {
       ? `release tag ${expectedReleaseVersion}, desktop package ${version}`
       : "OPENFIX_RELEASE_VERSION is unset or blank in GitHub Actions",
   );
+}
+
+// 发布关键配置：这些偏差不会让构建失败，只会让界面版本号或更新源静默错位。
+// 只读取扁平的 `键: 值` 行，足够覆盖下面这几个配置文件（不引入 YAML 依赖）。
+function readYamlScalars(content, blockKey = null) {
+  const scalars = new Map();
+  let collecting = blockKey === null;
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+    const indented = /^[ \t]/.test(line);
+    if (blockKey !== null && !collecting) {
+      if (trimmed === `${blockKey}:`) collecting = true;
+      continue;
+    }
+    if (blockKey !== null && !indented) break;
+    if (blockKey === null && indented) continue;
+    const match = line.match(/^[ \t]*([A-Za-z0-9_-]+):[ \t]*(.*)$/);
+    if (match) {
+      const value = match[2].trim();
+      scalars.set(match[1], /^".*"$|^'.*'$/.test(value) ? value.slice(1, -1) : value);
+    }
+  }
+  return scalars;
+}
+
+const repositoryRoot = path.resolve(desktopDir, "..");
+const frontendPackage = JSON.parse(readFileSync(path.join(repositoryRoot, "frontend", "package.json"), "utf8"));
+const backendPyproject = readFileSync(path.join(repositoryRoot, "backend", "pyproject.toml"), "utf8");
+const backendLock = readFileSync(path.join(repositoryRoot, "backend", "uv.lock"), "utf8");
+const releasePleaseManifest = JSON.parse(readFileSync(path.join(repositoryRoot, ".release-please-manifest.json"), "utf8"));
+const builderConfig = readFileSync(path.join(desktopDir, "electron-builder.yml"), "utf8");
+const publishConfig = readYamlScalars(builderConfig, "publish");
+const updaterSource = readFileSync(path.join(desktopDir, "src", "main", "updater.ts"), "utf8");
+
+// 版本号散落在四处（前端界面、桌面包、后端 wheel、依赖锁），漏改一处不会被既有门禁全部拦住。
+check("frontend/package.json version matches desktop package", frontendPackage.version === version, `${frontendPackage.version} vs ${version}`);
+const pyprojectVersion = backendPyproject.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
+check("backend/pyproject.toml version matches desktop package", pyprojectVersion === version, `${pyprojectVersion ?? "缺少 version"} vs ${version}`);
+const lockedVersion = backendLock.match(/\[\[package\]\]\r?\nname = "openfic"\r?\nversion = "([^"]+)"/)?.[1];
+check("backend/uv.lock editable openfic version matches desktop package", lockedVersion === version, `${lockedVersion ?? "缺少 openfic 版本"} vs ${version}`);
+check(".release-please-manifest.json version matches desktop package", releasePleaseManifest["."] === version, `${releasePleaseManifest["."] ?? "缺失"} vs ${version}`);
+
+// 更新源身份：桌面代码里的常量、electron-builder publish、仓库内参照文件必须说同一件事。
+const updaterOwner = updaterSource.match(/UPDATE_GITHUB_OWNER\s*=\s*"([^"]+)"/)?.[1];
+const updaterRepo = updaterSource.match(/UPDATE_GITHUB_REPO\s*=\s*"([^"]+)"/)?.[1];
+check("electron-builder publish provider is github", publishConfig.get("provider") === "github", publishConfig.get("provider") ?? "缺失");
+check("electron-builder publish owner matches updater.ts", publishConfig.get("owner") === updaterOwner, `${publishConfig.get("owner") ?? "缺失"} vs ${updaterOwner ?? "缺失"}`);
+check("electron-builder publish repo matches updater.ts", publishConfig.get("repo") === updaterRepo, `${publishConfig.get("repo") ?? "缺失"} vs ${updaterRepo ?? "缺失"}`);
+
+const referenceUpdateConfigPath = path.join(desktopDir, "resources", "app-update.yml");
+const referenceUpdateConfig = readYamlScalars(readFileSync(referenceUpdateConfigPath, "utf8"));
+const identityKeys = ["provider", "owner", "repo", "releaseType"];
+const identityMismatches = identityKeys.filter((key) => referenceUpdateConfig.get(key) !== publishConfig.get(key));
+check(
+  "resources/app-update.yml 与 electron-builder publish 身份一致",
+  identityMismatches.length === 0,
+  identityMismatches.map((key) => `${key}: ${referenceUpdateConfig.get(key) ?? "缺失"} vs ${publishConfig.get(key) ?? "缺失"}`).join(", "),
+);
+
+// 分段下载开关：GitHub provider 的 publish 不允许该字段（electron-builder 会以
+// Invalid configuration object 中断打包），而 electron-updater 对 GitHub 源本来就强制单段下载；
+// 只有 generic 源自读该开关，所以它必须声明在 generic 通道上。
+check(
+  "GitHub publish 不含 useMultipleRangeRequest（该位置会让打包失败）",
+  !publishConfig.has("useMultipleRangeRequest"),
+  "electron-builder 拒绝 GitHub publish 上的未知字段",
+);
+const localUpdateConfigPath = path.join(desktopDir, "electron-builder.local-update.yml");
+if (existsSync(localUpdateConfigPath)) {
+  const localUpdatePublish = readYamlScalars(readFileSync(localUpdateConfigPath, "utf8"), "publish");
+  check(
+    "本地更新通道（generic）声明 useMultipleRangeRequest: false",
+    localUpdatePublish.get("provider") === "generic" && localUpdatePublish.get("useMultipleRangeRequest") === "false",
+    `${localUpdatePublish.get("provider") ?? "缺失"}, useMultipleRangeRequest=${localUpdatePublish.get("useMultipleRangeRequest") ?? "缺失"}`,
+  );
+} else {
+  check("本地更新通道配置存在", false, "缺失 electron-builder.local-update.yml");
+}
+
+if (verifyConfigurationOnly) {
+  console.log(`verify-release: 配置项 (版本 ${version})\n`);
+  printResultsAndExit();
 }
 
 console.log(

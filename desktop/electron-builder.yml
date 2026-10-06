@@ -5,6 +5,14 @@ copyright: Copyright © 2026 OpenFix contributors. Based on OpenFic by Syrize.
 directories:
   output: dist-electron
 
+# This block is the only source of the packaged update feed: electron-builder
+# writes resources/app-update.yml itself in its afterPack hook, which runs after
+# extraResources have been copied, so a repo copy under resources/ never reaches
+# the installer. useMultipleRangeRequest cannot be declared here for the GitHub
+# provider (the publish schema rejects unknown properties, so packaging would
+# abort) and does not need to be: electron-updater forces single range requests
+# for GitHub feeds. Only a generic feed honours the option, which is why
+# electron-builder.local-update.yml declares it there.
 publish:
   provider: github
   owner: Knight-ask-art
@@ -20,6 +28,8 @@ files:
   - package.json
 
 extraResources:
+  # No app-update.yml entry: electron-builder generates resources/app-update.yml
+  # from the publish block above and overwrites anything copied from resources/.
   - from: ../frontend/dist
     to: frontend-dist
     filter:
@@ -30,8 +40,6 @@ extraResources:
       - "openfic-*.whl"
       - "uv.gz"
       - "uv.exe.gz"
-  - from: resources/app-update.yml
-    to: app-update.yml
 
 win:
   icon: ../frontend/public/openfix-logo.png
