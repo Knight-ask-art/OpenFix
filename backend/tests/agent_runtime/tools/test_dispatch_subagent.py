@@ -236,6 +236,9 @@ def _patch_dispatch_runtime(
     async def open_session(*_args, **_kwargs) -> object:
         return object()
 
+    async def load_saved_chapter_writes(*_args, **_kwargs) -> list:
+        return []
+
     async def load_waiting_child_run(*_args, **_kwargs):
         return waiting_row
 
@@ -263,6 +266,11 @@ def _patch_dispatch_runtime(
         DispatchSubagentTool,
         "_load_waiting_child_run",
         load_waiting_child_run,
+    )
+    monkeypatch.setattr(
+        DispatchSubagentTool,
+        "_load_saved_chapter_writes",
+        load_saved_chapter_writes,
     )
     monkeypatch.setattr(
         DispatchSubagentTool,
@@ -649,3 +657,179 @@ def test_dispatch_subagent_input_forbids_unknown_fields() -> None:
             prompt="改写第三幕。",
             handoff_source="dispatch-1",
         )
+
+
+def _persisted_chapter_row(*, chapter_id: str = "chap-7", title: str = "第七章", order: int = 7):
+    return SimpleNamespace(
+        id="msg-1",
+        role="tool",
+        tool_name="write_chapter",
+        content=json.dumps(
+            {
+                "success": True,
+                "word_count": 2956,
+                "metadata": {
+                    "chapter_diff": {
+                        "operation": "create",
+                        "chapter_id": chapter_id,
+                        "chapter_title": title,
+                        "order": order,
+                        "path": ["第一卷"],
+                        "sections": [],
+                    }
+                },
+            },
+            ensure_ascii=False,
+        ),
+        seq=1,
+    )
+
+
+def _install_child_thread_messages(
+    monkeypatch: pytest.MonkeyPatch, *, child_row, rows
+) -> None:
+    from app.agent_runtime.tools.impls.orchestration import saved_writes
+
+    async def list_by_sessions(_session, _session_ids, **_kwargs):
+        return {child_row.child_thread_id: list(rows)}
+
+    monkeypatch.setattr(
+        saved_writes.message_repo, "list_by_sessions", list_by_sessions
+    )
+
+
+@pytest.mark.asyncio
+async def test_dispatch_subagent_reports_saved_chapters_with_ownership_instruction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.agent_runtime.tools.impls.orchestration.dispatch_subagent as dispatch_module
+    from app.agent_runtime.tools.impls.orchestration import saved_writes
+
+    child_row = SimpleNamespace(
+        id="child-run-writer",
+        child_thread_id="parent:child:dispatch-writer",
+        dispatch_id="dispatch-writer",
+        agent_key="writer",
+        metadata_json={"agent_number": "#1001"},
+        pending_approval_json=None,
+    )
+    created: list[dict] = []
+    persisted: list[str] = []
+    _patch_dispatch_runtime(
+        monkeypatch,
+        dispatch_module,
+        child_row=child_row,
+        created=created,
+        persisted=persisted,
+    )
+
+    async def load_saved_chapter_writes(_self, *, configurable, child_run):
+        return await saved_writes.collect_saved_chapter_writes(object(), [child_run])
+
+    monkeypatch.setattr(
+        DispatchSubagentTool,
+        "_load_saved_chapter_writes",
+        load_saved_chapter_writes,
+    )
+    _install_child_thread_messages(
+        monkeypatch, child_row=child_row, rows=[_persisted_chapter_row()]
+    )
+
+    tool = DispatchSubagentTool(_state=_parent_state())
+
+    result = json.loads(
+        await tool._arun(
+            agent_type="writer",
+            description="写第七章",
+            prompt="写第七章正文。",
+        )
+    )
+
+    assert result["dispatch_id"] == "dispatch-writer"
+    assert result["result"] == "actor completed"
+    assert result["saved_chapters"] == [
+        {
+            "chapter_id": "chap-7",
+            "title": "第七章",
+            "order": 7,
+            "status": "saved",
+            "volume": "第一卷",
+            "agent": "writer",
+            "agent_number": "#1001",
+        }
+    ]
+    assert "不要再次调用 write_chapter 新建这些章节" in result["next_action"]
+    assert "edit_chapter" in result["next_action"]
+
+
+@pytest.mark.asyncio
+async def test_dispatch_subagent_without_persisted_write_keeps_plain_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.agent_runtime.tools.impls.orchestration.dispatch_subagent as dispatch_module
+    from app.agent_runtime.tools.impls.orchestration import saved_writes
+
+    child_row = SimpleNamespace(
+        id="child-run-writer",
+        child_thread_id="parent:child:dispatch-writer",
+        dispatch_id="dispatch-writer",
+        agent_key="writer",
+        metadata_json={"agent_number": "#1001"},
+        pending_approval_json=None,
+    )
+    created: list[dict] = []
+    persisted: list[str] = []
+    _patch_dispatch_runtime(
+        monkeypatch,
+        dispatch_module,
+        child_row=child_row,
+        created=created,
+        persisted=persisted,
+        assistant_content="候选稿正文",
+    )
+
+    async def load_saved_chapter_writes(_self, *, configurable, child_run):
+        return await saved_writes.collect_saved_chapter_writes(object(), [child_run])
+
+    monkeypatch.setattr(
+        DispatchSubagentTool,
+        "_load_saved_chapter_writes",
+        load_saved_chapter_writes,
+    )
+    _install_child_thread_messages(
+        monkeypatch,
+        child_row=child_row,
+        rows=[
+            SimpleNamespace(
+                id="msg-1",
+                role="tool",
+                tool_name="write_chapter",
+                content=json.dumps(
+                    {
+                        "type": "ok",
+                        "success": True,
+                        "reason": "approval_preview",
+                        "message": "需要审批",
+                    },
+                    ensure_ascii=False,
+                ),
+                seq=1,
+            )
+        ],
+    )
+
+    tool = DispatchSubagentTool(_state=_parent_state())
+
+    result = json.loads(
+        await tool._arun(
+            agent_type="writer",
+            description="写第七章",
+            prompt="写第七章正文。",
+        )
+    )
+
+    assert result == {
+        "dispatch_id": "dispatch-writer",
+        "agent_number": "#1001",
+        "result": "候选稿正文",
+    }

@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from loguru import logger
+
 from app.agent_runtime.agents.definitions import (
     AgentDefinition,
     load_agent_definition,
@@ -17,6 +19,8 @@ from app.agent_runtime.persistence.child_runs import (
     get_waiting_child_run_for_tool_call,
     update_child_run_request_boundaries,
 )
+from app.agent_runtime.persistence.errors import PersistenceLoadError
+from app.agent_runtime.persistence.model import AgentChildRun
 from app.agent_runtime.runner.checkpointer import latest_checkpoint_id_for_thread
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -35,6 +39,11 @@ from app.agent_runtime.tools.impls.orchestration.handoff import (
     build_handoff_metadata,
     compose_handoff_task,
     resolve_handoff_sources,
+)
+from app.agent_runtime.tools.impls.orchestration.saved_writes import (
+    SAVED_CHAPTER_OWNERSHIP_NOTE,
+    SavedChapterWrite,
+    collect_saved_chapter_writes,
 )
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.core.ids import generate_id
@@ -108,6 +117,7 @@ class DispatchSubagentTool(AgentTool):
         - Agent完成后会在工具结果中返回，你应默认Agent的执行结果对用户不可见，如要向用户展示执行结果，你应输出一段简短的总结
         - Agent的执行结果包含dispatch_id，可在后续通过notify_subagent复用以继续同一Agent会话
         - Agent的执行结果中包含agent_number，每个agent都有唯一的编号，如有需要你可以用编号来称呼它们
+        - 子Agent若已通过写入工具真实保存内容，执行结果会附带saved_chapters（已持久化章节的chapter_id、标题与卷内序号）；这些章节归该子Agent所有且已落库，不要再用write_chapter新建同一章节，需要修改时用edit_chapter并通过chapter_ref指向它
         - 每次派发的Agent都从独立全新的上下文开始，因此Agent并不了解你所持有的信息或过去完成的任务
         - 派发Agent时，应在prompt中包含详尽、具体、可执行的任务描述，并明确指示Agent应在任务完成时返回什么信息，因为它并不了解用户意图
         - 一般情况下应信任Agent的输出
@@ -249,6 +259,18 @@ class DispatchSubagentTool(AgentTool):
             if request_row is None:
                 raise ToolExecutionError("initial subagent request not found")
             return request_row.id
+        finally:
+            await close_session(session)
+
+    async def _load_saved_chapter_writes(
+        self,
+        *,
+        configurable: dict[str, Any],
+        child_run: AgentChildRun,
+    ) -> list[SavedChapterWrite]:
+        session = await open_session(configurable.get("session_factory"))
+        try:
+            return await collect_saved_chapter_writes(session, [child_run])
         finally:
             await close_session(session)
 
@@ -407,4 +429,18 @@ class DispatchSubagentTool(AgentTool):
             **base_payload,
             "result": assistant_content,
         }
+        try:
+            saved_writes = await self._load_saved_chapter_writes(
+                configurable=configurable,
+                child_run=row,
+            )
+        except PersistenceLoadError:
+            # 交付物必须返回：已保存状态只是附加提示，取数失败不阻断派发。
+            logger.opt(exception=True).warning(
+                "Failed to load saved chapter writes for dispatch result"
+            )
+            saved_writes = []
+        if saved_writes:
+            payload["saved_chapters"] = [write.to_payload() for write in saved_writes]
+            payload["next_action"] = SAVED_CHAPTER_OWNERSHIP_NOTE
         return json.dumps(payload, ensure_ascii=False)

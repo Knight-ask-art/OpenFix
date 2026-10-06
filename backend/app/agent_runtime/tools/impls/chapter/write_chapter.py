@@ -25,12 +25,30 @@ from app.agent_runtime.tools.impls.chapter.refs import (
     resolve_volume_from_list,
 )
 from app.agent_runtime.tools.impls._locks import keyed_lock
+from app.agent_runtime.tools.impls.orchestration.saved_writes import (
+    SavedChapterWrite,
+    find_duplicate_saved_chapter,
+)
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
 from app.storage.models.chapter import Chapter
 from app.storage.repos import chapter_repo, volume_repo
 from app.storage.services.volume_service import refresh_volume_chapter_count
 from app.storage.services.version_control_service import refresh_project_stats
+
+
+def _duplicate_saved_chapter_message(write: SavedChapterWrite) -> str:
+    owner = write.agent_key or "子Agent"
+    if write.agent_number:
+        owner = f"{owner}({write.agent_number})"
+    return (
+        f"该章节已由本任务的 {owner} 通过 write_chapter 保存并持久化："
+        f"chapter_id={write.chapter_id}，标题=「{write.title}」，卷内序号={write.order}。"
+        "不要重复新建同一章节：需要修改请改用 edit_chapter 并通过 chapter_ref 指向该章节"
+        "（type=title 传精确标题，或 type=order 传卷内序号）；"
+        "确实要另外新建一章时，请改动标题或正文，使其与已保存章节不同。"
+        "这不是临时执行错误，原样重试不会成功。"
+    )
 
 
 class WriteChapterInput(BaseModel):
@@ -99,6 +117,21 @@ class WriteChapterTool(AgentTool):
             )
             async with await keyed_lock(volume.id):
                 max_order = await chapter_repo.get_max_order(session, volume.id)
+                if chapter_ref is None:
+                    duplicate = await find_duplicate_saved_chapter(
+                        session,
+                        parent_session_id=self.session_id,
+                        parent_task_id=str(self._state.get("task_id") or ""),
+                        project_id=self.project_id,
+                        volume_id=volume.id,
+                        title=title,
+                        content=content,
+                    )
+                    if duplicate is not None:
+                        raise ToolExecutionError(
+                            _duplicate_saved_chapter_message(duplicate),
+                            code="conflict",
+                        )
                 if chapter_ref is not None:
                     ref = ChapterRef.model_validate(chapter_ref)
                     matched = await chapter_repo.get_by_volume_ref(

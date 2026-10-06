@@ -76,6 +76,77 @@ def _assert_success_payload(result: str, tool_name: str) -> dict:
     return data
 
 
+def _stub_duplicate_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    """隔离子Agent已保存章节检查，专注被测的写入行为。"""
+    from app.agent_runtime.tools.impls.chapter import write_chapter as wc
+
+    async def no_duplicate(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(wc, "find_duplicate_saved_chapter", no_duplicate)
+
+
+def _install_saved_child_chapter(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    chapter,
+    parent_session_id: str = "sess-1",
+    parent_task_id: str = "task-1",
+    volume_title: str = "第一卷",
+) -> None:
+    """伪造「子Agent已通过 write_chapter 落库一章」的持久化状态。"""
+    from app.agent_runtime.tools.impls.orchestration import saved_writes
+
+    run = SimpleNamespace(
+        id="child-run-1",
+        child_thread_id=f"{parent_session_id}:child:dispatch-1",
+        parent_session_id=parent_session_id,
+        parent_task_id=parent_task_id,
+        agent_key="writer",
+        metadata_json={"agent_number": "#1001"},
+    )
+    row = SimpleNamespace(
+        id="msg-1",
+        role="tool",
+        tool_name="write_chapter",
+        content=json.dumps(
+            {
+                "success": True,
+                "word_count": chapter.word_count,
+                "metadata": {
+                    "chapter_diff": {
+                        "operation": "create",
+                        "chapter_id": chapter.id,
+                        "chapter_title": chapter.title,
+                        "order": chapter.order,
+                        "path": [volume_title],
+                        "sections": [],
+                    }
+                },
+            },
+            ensure_ascii=False,
+        ),
+        seq=1,
+    )
+
+    async def list_child_runs_for_parent(_session, session_id):
+        return [run] if session_id == parent_session_id else []
+
+    async def list_by_sessions(_session, _session_ids, **_kwargs):
+        return {run.child_thread_id: [row]}
+
+    async def get_by_id(_session, chapter_id):
+        return chapter if chapter_id == chapter.id else None
+
+    monkeypatch.setattr(
+        saved_writes, "list_child_runs_for_parent", list_child_runs_for_parent
+    )
+    monkeypatch.setattr(
+        saved_writes.message_repo, "list_by_sessions", list_by_sessions
+    )
+    monkeypatch.setattr(saved_writes.chapter_repo, "get_by_id", get_by_id)
+
+
 async def test_list_volumes_returns_project_volumes() -> None:
     from app.agent_runtime.tools.impls.chapter.list_volumes import ListVolumesTool
 
@@ -185,9 +256,12 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
     )
 
 
-async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
+async def test_write_chapter_appends_to_volume_and_returns_volume_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from app.agent_runtime.tools.impls.chapter.write_chapter import WriteChapterTool
 
+    _stub_duplicate_guard(monkeypatch)
     volume = _make_volume(chapter_count=3)
     created = _make_chapter(
         order=4,
@@ -257,10 +331,13 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
     refresh_volume_count.assert_awaited_once_with(mock_session, "vol-1")
 
 
-async def test_write_chapter_serializes_parallel_writes_per_volume() -> None:
+async def test_write_chapter_serializes_parallel_writes_per_volume(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from app.agent_runtime.tools.impls import _locks
     from app.agent_runtime.tools.impls.chapter import write_chapter as wc
 
+    _stub_duplicate_guard(monkeypatch)
     _locks._LOCKS.clear()
     volume = _make_volume(chapter_count=3)
     entered = asyncio.Event()
@@ -479,6 +556,189 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
         ((mock_session, "vol-1", 2), {}),
     ]
     mock_repo.shift_orders.assert_awaited_once_with(mock_session, "vol-1", 2, 5, 1)
+
+
+async def test_write_chapter_rejects_recreating_chapter_saved_by_subagent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.write_chapter import WriteChapterTool
+
+    volume = _make_volume(chapter_count=7)
+    saved = _make_chapter(
+        order=7,
+        title="第七章",
+        content="已保存正文",
+        word_count=5,
+        chapter_id="chap-7",
+    )
+    _install_saved_child_chapter(monkeypatch, chapter=saved)
+    tool = WriteChapterTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.write_chapter.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.chapter_repo"
+        ) as mock_repo:
+            mock_repo.get_max_order = AsyncMock(return_value=7)
+            mock_repo.create = AsyncMock()
+            result = await tool.ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "title": "第七章",
+                    "content": "已保存正文",
+                }
+            )
+
+    data = json.loads(result)
+    assert data["success"] is False
+    assert data["code"] == "conflict"
+    assert "chap-7" in data["message"]
+    assert "edit_chapter" in data["message"]
+    assert "不要重复新建同一章节" in data["message"]
+    mock_repo.create.assert_not_awaited()
+    mock_session.rollback.assert_awaited()
+
+
+async def test_write_chapter_allows_new_chapter_after_subagent_saved_earlier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.write_chapter import WriteChapterTool
+
+    volume = _make_volume(chapter_count=7)
+    saved = _make_chapter(
+        order=7, title="第七章", content="已保存正文", chapter_id="chap-7"
+    )
+    created = _make_chapter(
+        order=8,
+        title="第八章",
+        content="下一章正文",
+        word_count=5,
+        chapter_id="chap-8",
+    )
+    _install_saved_child_chapter(monkeypatch, chapter=saved)
+    tool = WriteChapterTool(_state=_make_state())
+
+    async def create_chapter(_session, chapter):
+        chapter.id = created.id
+        return chapter
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.write_chapter.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.chapter_repo"
+        ) as mock_repo, patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.record_chapter_diffs",
+            AsyncMock(return_value=["chap-8"]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.record_agent_activity_for_change",
+            AsyncMock(),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.refresh_volume_chapter_count",
+            AsyncMock(),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.refresh_project_stats",
+            AsyncMock(),
+        ), patch(
+            "app.retrieval.chapter_index.safe_maybe_enqueue_auto_index", AsyncMock()
+        ), patch(
+            "app.retrieval.index_status.schedule_emit_index_status", lambda *_a, **_k: None
+        ), patch(
+            "app.background.jobs.service.commit_and_notify", AsyncMock()
+        ):
+            mock_repo.list_by_project = AsyncMock(side_effect=[[], [created]])
+            mock_repo.get_max_order = AsyncMock(return_value=7)
+            mock_repo.create = AsyncMock(side_effect=create_chapter)
+            result = await tool.ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "title": "第八章",
+                    "content": "下一章正文",
+                }
+            )
+
+    data = json.loads(result)
+    assert data["success"] is True
+    assert data["metadata"]["chapter_diff"]["chapter_id"] == "chap-8"
+    mock_repo.create.assert_awaited_once()
+
+
+async def test_write_chapter_anchored_insert_skips_duplicate_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter import write_chapter as wc
+
+    volume = _make_volume()
+    existing = _make_chapter(order=2, title="已有章节", chapter_id="chap-existing")
+    created = _make_chapter(order=2, title="插入章节", chapter_id="chap-new")
+
+    async def duplicate_lookup_must_not_run(*_args, **_kwargs):
+        raise AssertionError("带锚点的插入不应触发重复写入检查")
+
+    monkeypatch.setattr(wc, "find_duplicate_saved_chapter", duplicate_lookup_must_not_run)
+    tool = wc.WriteChapterTool(_state=_make_state())
+
+    async def create_chapter(_session, chapter):
+        chapter.id = created.id
+        return chapter
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.write_chapter.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.chapter_repo"
+        ) as mock_repo, patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.record_chapter_diffs",
+            AsyncMock(return_value=["chap-new"]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.record_agent_activity_for_change",
+            AsyncMock(),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.refresh_volume_chapter_count",
+            AsyncMock(),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.refresh_project_stats",
+            AsyncMock(),
+        ), patch(
+            "app.retrieval.chapter_index.safe_maybe_enqueue_auto_index", AsyncMock()
+        ), patch(
+            "app.retrieval.index_status.schedule_emit_index_status", lambda *_a, **_k: None
+        ), patch(
+            "app.background.jobs.service.commit_and_notify", AsyncMock()
+        ):
+            mock_repo.get_by_volume_ref = AsyncMock(return_value=existing)
+            mock_repo.list_by_volume_from_order = AsyncMock(return_value=[existing])
+            mock_repo.get_max_order = AsyncMock(return_value=5)
+            mock_repo.shift_orders = AsyncMock()
+            mock_repo.create = AsyncMock(side_effect=create_chapter)
+            result = await tool.ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "title": "插入章节",
+                    "content": "插入内容",
+                    "chapter_ref": {"type": "order", "value": 2},
+                }
+            )
+
+    data = json.loads(result)
+    assert data["success"] is True
+    assert data["metadata"]["chapter_diff"]["chapter_id"] == "chap-new"
 
 
 async def test_edit_chapter_resolves_inside_volume() -> None:
