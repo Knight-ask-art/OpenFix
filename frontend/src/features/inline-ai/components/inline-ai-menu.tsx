@@ -444,7 +444,12 @@ export function InlineAiMenu({ editor, projectId, chapterId }: InlineAiMenuProps
           ref={floatingRef}
           className="inline-ai-menu"
           style={floatingStyle}
-          onMouseDown={(event) => event.preventDefault()}
+          onMouseDown={(event) => {
+            // 输入控件需要原生焦点；正文选区已经保存，无需阻止它们获得焦点。
+            const target = event.target;
+            if (target instanceof HTMLElement && target.closest("textarea, input, select")) return;
+            event.preventDefault();
+          }}
         >
           {phase === "menu" || phase === "custom" ? (
             <Box>

@@ -250,7 +250,11 @@ for (const language of LANGUAGES) {
     state.enqueue("inline-ai", { kind: "success", inlineResult: REGENERATED_TEXT });
 
     const { editor, menu } = await openInlineAiMenu(page, labels);
-    await menu.getByPlaceholder(labels.customPlaceholder).fill(CUSTOM_INSTRUCTION);
+    const customInput = menu.getByPlaceholder(labels.customPlaceholder);
+    await customInput.click();
+    await expect(customInput).toBeFocused();
+    await page.keyboard.type(CUSTOM_INSTRUCTION);
+    await expect(customInput).toHaveValue(CUSTOM_INSTRUCTION);
     await menu.getByRole("button", { name: labels.customSubmit, exact: true }).click();
 
     const result = menu.locator(".inline-ai-result");
