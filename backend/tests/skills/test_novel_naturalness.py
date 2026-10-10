@@ -223,6 +223,32 @@ def test_default_agent_skill_bundles_are_small_and_readonly_reviewer():
         )
 
 
+def test_continuity_audit_skill_keeps_ledger_protocol():
+    skill = _skill("continuity-audit")
+    assert skill.is_enabled
+    for marker in (
+        "伏笔账",
+        "人物状态账",
+        "设定与时间线账",
+        "Pass A",
+        "Pass B",
+        "Pass C",
+        "Pass D",
+        "Pass E",
+        "Pass F",
+        "分批建账",
+        "增量体检",
+        "双锚点",
+        "账本附录",
+        "待裁定",
+        "不做文学裁决",
+    ):
+        assert marker in skill.content
+    assert len(skill.references) >= 2
+    reviewer = get_default_agent_definition("reviewer")
+    assert "builtin-skill--continuity-audit" in reviewer.enabled_skills
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("agent", ["writer", "reviewer"])
 async def test_manifest_never_pushes_full_core_or_references(agent, monkeypatch):
