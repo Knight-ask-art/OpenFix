@@ -48,6 +48,7 @@ async def test_list_agent_definitions(client: AsyncClient):
         "builtin-skill--dialogue-design",
         "builtin-skill--fiction-prose-craft",
         "builtin-skill--humor-writing",
+        "builtin-skill--continuity-audit",
     ]
     assert build["color"] == "blue"
     assert build["icon"] == "pen-tool"

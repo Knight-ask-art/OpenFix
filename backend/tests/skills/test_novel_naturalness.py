@@ -212,7 +212,7 @@ def test_default_agent_skill_bundles_are_small_and_readonly_reviewer():
     assert "builtin-skill--narrative-deslop" in reviewer.enabled_skills
     assert "builtin-skill--deslop-lexicon" in reviewer.enabled_skills
     assert len(writer.enabled_skills) <= 4
-    assert len(reviewer.enabled_skills) <= 7
+    assert len(reviewer.enabled_skills) <= 8
     assert not any(
         category.endswith("_write") for category in reviewer.enabled_tool_categories
     )
