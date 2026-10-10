@@ -212,7 +212,7 @@ def test_default_agent_skill_bundles_are_small_and_readonly_reviewer():
     assert "builtin-skill--narrative-deslop" in reviewer.enabled_skills
     assert "builtin-skill--deslop-lexicon" in reviewer.enabled_skills
     assert len(writer.enabled_skills) <= 4
-    assert len(reviewer.enabled_skills) <= 7
+    assert len(reviewer.enabled_skills) <= 8
     assert not any(
         category.endswith("_write") for category in reviewer.enabled_tool_categories
     )
@@ -221,6 +221,32 @@ def test_default_agent_skill_bundles_are_small_and_readonly_reviewer():
             load_builtin_skill(skill_id)
             for skill_id in get_default_agent_definition(agent).enabled_skills
         )
+
+
+def test_continuity_audit_skill_keeps_ledger_protocol():
+    skill = _skill("continuity-audit")
+    assert skill.is_enabled
+    for marker in (
+        "伏笔账",
+        "人物状态账",
+        "设定与时间线账",
+        "Pass A",
+        "Pass B",
+        "Pass C",
+        "Pass D",
+        "Pass E",
+        "Pass F",
+        "分批建账",
+        "增量体检",
+        "双锚点",
+        "账本附录",
+        "待裁定",
+        "不做文学裁决",
+    ):
+        assert marker in skill.content
+    assert len(skill.references) >= 2
+    reviewer = get_default_agent_definition("reviewer")
+    assert "builtin-skill--continuity-audit" in reviewer.enabled_skills
 
 
 @pytest.mark.asyncio
