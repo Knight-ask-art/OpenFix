@@ -18,8 +18,10 @@ from app.core.inline_ai.prompts import build_inline_ai_messages
 from app.core.narrative_context import build_narrative_state_context
 from app.storage.repos import chapter_repo
 
-_CODE_FENCE_PATTERN = re.compile(r"^```[a-zA-Z0-9_-]*\n?([\s\S]*?)\n?```$", re.MULTILINE)
-_QUOTE_PAIRS = (("“", "”"), ("‘", "’"), ("\"", "\""), ("'", "'"))
+_CODE_FENCE_PATTERN = re.compile(
+    r"^```[a-zA-Z0-9_-]*\n?([\s\S]*?)\n?```$", re.MULTILINE
+)
+_QUOTE_PAIRS = (("“", "”"), ("‘", "’"), ('"', '"'), ("'", "'"))
 
 # 需要参考已确认叙事状态的改写动作：对话与扩写最容易与人物信念、场景计划失配。
 # 语法修复等表层动作一律不读取叙事状态，避免无谓的本地查询与上下文占用。
@@ -53,14 +55,23 @@ class InlineAiResult:
 
 
 def normalize_inline_ai_output(content: str) -> str:
-    """去掉模型输出中常见的代码块与成对引号包装。"""
+    """去掉完整代码围栏及单层引号包装，保留正文中的对白和撇号。"""
     text = content.strip()
-    fence_match = _CODE_FENCE_PATTERN.match(text)
+    fence_match = _CODE_FENCE_PATTERN.fullmatch(text)
     if fence_match:
         text = fence_match.group(1).strip()
     for left, right in _QUOTE_PAIRS:
-        if text.startswith(left) and text.endswith(right) and len(text) >= len(left) + len(right):
-            text = text[len(left) : len(text) - len(right)].strip()
+        if (
+            text.startswith(left)
+            and text.endswith(right)
+            and len(text) >= len(left) + len(right)
+        ):
+            inner = text[len(left) : len(text) - len(right)]
+            # 内部同类引号说明可能是多段对白或英文撇号，不能按包装清理。
+            if left not in inner and right not in inner:
+                text = inner.strip()
+            # 只处理原始最外层，不继续剥掉嵌套的正文引号。
+            break
     return text
 
 

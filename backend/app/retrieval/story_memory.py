@@ -19,13 +19,18 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from app.background.jobs import service as background_service
 from app.background.jobs.constants import JOB_TYPE_STORY_MEMORY_REBUILD
-from app.background.jobs.states import JOB_STATUS_PENDING, JOB_STATUS_RUNNING
+from app.background.jobs.models import BackgroundJob
+from app.background.jobs.states import (
+    JOB_STATUS_CANCEL_REQUESTED,
+    JOB_STATUS_PENDING,
+    JOB_STATUS_RUNNING,
+)
 from app.retrieval.chapter_index import (
     DEFAULT_INDEX_CHUNK_OVERLAP,
     DEFAULT_INDEX_CHUNK_SIZE,
@@ -497,7 +502,9 @@ async def collect_story_memory_source_tokens(
                 updated_at,
                 f"enabled={bool(is_enabled)}",
                 f"ai_visible={bool(ai_visible)}",
-                format_source_token(meta.updated_at, meta.id) if meta is not None else "-",
+                format_source_token(meta.updated_at, meta.id)
+                if meta is not None
+                else "-",
             )
 
     outline_rows = (
@@ -559,9 +566,13 @@ async def collect_story_memory_source_tokens(
             ).where(col(CharacterBelief.project_id) == project_id)
         )
     ).all()
-    for belief_id, updated_at, confirmation, superseded_by_id, invalidated_at in (
-        belief_rows
-    ):
+    for (
+        belief_id,
+        updated_at,
+        confirmation,
+        superseded_by_id,
+        invalidated_at,
+    ) in belief_rows:
         if not character_belief_is_retrievable(
             confirmation=confirmation,
             superseded_by_id=superseded_by_id,
@@ -744,15 +755,48 @@ async def compute_story_memory_status(
         subject_type="project",
         subject_id=project_id,
         job_type=JOB_TYPE_STORY_MEMORY_REBUILD,
-        statuses={JOB_STATUS_PENDING, JOB_STATUS_RUNNING},
+        statuses={JOB_STATUS_PENDING, JOB_STATUS_RUNNING, JOB_STATUS_CANCEL_REQUESTED},
         limit=1,
         offset=0,
     )
+    last_error = index_row.last_error if index_row is not None else None
+    if index_status == "building" and not active_jobs:
+        # Old installations may retain building after a process exits before
+        # its terminal hook. This is a read-only presentation fallback: do not
+        # mutate the index from a polling endpoint or race a newly queued job.
+        active_rebuild = exists(
+            select(col(BackgroundJob.id)).where(
+                col(BackgroundJob.type) == JOB_TYPE_STORY_MEMORY_REBUILD,
+                col(BackgroundJob.subject_type) == "project",
+                col(BackgroundJob.subject_id) == project_id,
+                col(BackgroundJob.status).in_(
+                    {
+                        JOB_STATUS_PENDING,
+                        JOB_STATUS_RUNNING,
+                        JOB_STATUS_CANCEL_REQUESTED,
+                    }
+                ),
+            )
+        )
+        # Recheck index and job together in one database snapshot. A worker
+        # may have queued or completed a rebuild since the initial reads.
+        orphaned = await session.scalar(
+            select(
+                exists().where(
+                    col(RetrievalIndex.index_key) == story_memory_index_key(project_id),
+                    col(RetrievalIndex.status) == "building",
+                    ~active_rebuild,
+                )
+            )
+        )
+        if orphaned:
+            index_status = "failed"
+            last_error = "故事记忆索引重建已中断，请重新重建。"
     return StoryMemoryStatus(
         project_id=project_id,
         embedding_configured=model is not None,
         index_status=index_status,
-        last_error=index_row.last_error if index_row is not None else None,
+        last_error=last_error,
         last_ready_at=index_row.last_ready_at if index_row is not None else None,
         rebuild_job_status=active_jobs[0].status if active_jobs else None,
         counts=counts,

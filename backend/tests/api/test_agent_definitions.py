@@ -48,6 +48,14 @@ async def test_list_agent_definitions(client: AsyncClient):
         "builtin-skill--dialogue-design",
         "builtin-skill--fiction-prose-craft",
         "builtin-skill--humor-writing",
+        "builtin-skill--continuity-audit",
+    ]
+    actor = next(d for d in data["definitions"] if d["key"] == "actor")
+    assert actor["enabled_skills"] == [
+        "builtin-skill--style-profile",
+        "builtin-skill--deslop-writing",
+        "builtin-skill--prose-format",
+        "builtin-skill--prose-polish",
     ]
     assert build["color"] == "blue"
     assert build["icon"] == "pen-tool"

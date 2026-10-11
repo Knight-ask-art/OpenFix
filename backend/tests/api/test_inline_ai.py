@@ -75,6 +75,37 @@ def test_normalize_strips_code_fence_and_quotes() -> None:
     assert normalize_inline_ai_output("普通文本") == "普通文本"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "“你来了。”\n\n他放下杯子。\n\n“坐吧。”",
+        "“你来了。”他说，“坐吧。”",
+        '"Come in."\n\nHe opened the door.\n\n"Sit down."',
+        "‘别动。’\n\n她停住了。\n\n‘听见没有？’",
+        "'Don't move.'",
+        "'It's John's book.'",
+        "‘Don’t move.’",
+    ],
+)
+def test_normalize_preserves_prose_quotes_and_apostrophes(text: str) -> None:
+    assert normalize_inline_ai_output(text) == text
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("“‘原文’”", "‘原文’"),
+        ('“"原文"”', '"原文"'),
+        ("'原文'", "原文"),
+        ("‘原文’", "原文"),
+        ("```text\n“你来了。”\n\n“坐吧。”\n```", "“你来了。”\n\n“坐吧。”"),
+        ("```text\n普通文本\n```\n后续正文", "```text\n普通文本\n```\n后续正文"),
+    ],
+)
+def test_normalize_removes_only_one_complete_wrapper(text: str, expected: str) -> None:
+    assert normalize_inline_ai_output(text) == expected
+
+
 @pytest.mark.asyncio
 async def test_transform_rejects_invalid_action(client: AsyncClient) -> None:
     project_id, chapter_id = await _create_project_with_chapter(client)
@@ -120,12 +151,26 @@ async def test_transform_without_model_returns_400(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("model_output", "expected_result"),
+    [
+        ("```text\n夜色轻柔地笼罩着小镇。\n```", "夜色轻柔地笼罩着小镇。"),
+        (
+            "“你来了。”\n\n他放下杯子。\n\n“坐吧。”",
+            "“你来了。”\n\n他放下杯子。\n\n“坐吧。”",
+        ),
+        ('“"原文"”', '"原文"'),
+    ],
+)
 async def test_transform_success_with_fake_model(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    model_output: str,
+    expected_result: str,
 ) -> None:
     project_id, chapter_id = await _create_project_with_chapter(client)
 
-    fake_client = _FakeLLMClient("```text\n夜色轻柔地笼罩着小镇。\n```")
+    fake_client = _FakeLLMClient(model_output)
     fake_model = Model(name="测试模型", provider_id="provider-1", model_id="test-model")
     captured_audit_logs: list[Any] = []
 
@@ -155,7 +200,7 @@ async def test_transform_success_with_fake_model(
     assert response.status_code == 200
     data = response.json()
     assert data["original"] == "夜色笼罩着小镇。"
-    assert data["result"] == "夜色轻柔地笼罩着小镇。"
+    assert data["result"] == expected_result
     assert data["model"] == "测试模型"
     assert data["usage"]["total_tokens"] == 15
     assert fake_client.messages[0]["role"] == "system"

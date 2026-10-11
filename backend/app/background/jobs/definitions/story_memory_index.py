@@ -3,6 +3,8 @@
 from pydantic import BaseModel
 
 from loguru import logger
+from sqlalchemy import exists, select, update
+from sqlmodel import col
 
 from app.background.jobs.base import EmptyJobResult, JobDefinition
 from app.background.jobs.constants import (
@@ -13,6 +15,13 @@ from app.background.jobs.definitions.retrieval_chapter_index_batch import (
     _build_embedding_client,
 )
 from app.background.runtime.context import JobContext
+from app.background.jobs.models import BackgroundJob
+from app.background.jobs.states import (
+    JOB_STATUS_CANCEL_REQUESTED,
+    JOB_STATUS_PENDING,
+    JOB_STATUS_RUNNING,
+)
+from app.storage.models.retrieval_index import RetrievalIndex
 from app.retrieval.service import OpenFicRetrievalService
 from app.retrieval.story_memory import (
     build_story_memory_documents,
@@ -23,6 +32,53 @@ from app.retrieval.story_memory import (
 from app.storage.repos import retrieval_index_repo, setting_repo
 
 SETTING_KEY_DEFAULT_EMBEDDING_MODEL = "default_embedding_model"
+
+
+async def mark_story_memory_rebuild_interrupted(
+    context: JobContext, _reason: str
+) -> None:
+    """Finalize a persisted building state without touching a replacement job.
+
+    The engine commits building before network I/O. Runtime failure, cancellation
+    and restart recovery therefore need a terminal hook even after rollback.
+    The conditional update also protects a newer rebuild between the read and
+    write; ready indexes are never downgraded by a late lifecycle callback.
+    """
+    job_input = StoryMemoryRebuildInput.model_validate(context.input)
+    project_id = job_input.project_id
+    if context.subject_type != "project" or context.subject_id != project_id:
+        return
+    replacement = exists(
+        select(col(BackgroundJob.id)).where(
+            col(BackgroundJob.type) == JOB_TYPE_STORY_MEMORY_REBUILD,
+            col(BackgroundJob.subject_type) == "project",
+            col(BackgroundJob.subject_id) == project_id,
+            col(BackgroundJob.id) != context.job_id,
+            (
+                col(BackgroundJob.status).in_(
+                    {
+                        JOB_STATUS_PENDING,
+                        JOB_STATUS_RUNNING,
+                        JOB_STATUS_CANCEL_REQUESTED,
+                    }
+                )
+                | (col(BackgroundJob.created_at) > context.job.created_at)
+            ),
+        )
+    )
+    await context.session.execute(
+        update(RetrievalIndex)
+        .where(
+            col(RetrievalIndex.index_key) == story_memory_index_key(project_id),
+            col(RetrievalIndex.status) == "building",
+            ~replacement,
+        )
+        .values(
+            status="failed",
+            last_error="故事记忆索引重建已中断，请重新重建。",
+            source_fingerprint=None,
+        )
+    )
 
 
 class StoryMemoryRebuildInput(BaseModel):
@@ -96,6 +152,9 @@ STORY_MEMORY_REBUILD_JOB = JobDefinition(
     description="把人物、世界设定、大纲、笔记，以及已确认的世界事实、人物信念、情节线与场景计划全量重建到检索索引",
     input_model=StoryMemoryRebuildInput,
     handler=handle_story_memory_rebuild,
+    on_failed=mark_story_memory_rebuild_interrupted,
+    on_timeout=mark_story_memory_rebuild_interrupted,
+    on_cancelled=mark_story_memory_rebuild_interrupted,
     result_model=EmptyJobResult,
     default_queue=JOB_QUEUE_LLM,
     default_timeout_seconds=600,

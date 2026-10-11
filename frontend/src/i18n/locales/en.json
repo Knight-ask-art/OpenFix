@@ -4,6 +4,8 @@
     "cancel": "Cancel",
     "close": "Close",
     "back": "Back",
+    "expand": "Expand",
+    "collapse": "Collapse",
     "import": "Import",
     "edit": "Edit",
     "delete": "Delete",
