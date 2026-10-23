@@ -51,6 +51,34 @@ Plan/Build 尊重作者章节和篇幅要求，对单个需核验完整候选派
 * 数据库中用户自定义 Prompt 优先于 YAML 默认值，重发不会强行覆盖；使用自定义版本者需自行合并新规则。未新增数据库迁移。
 * 动作安全、人物认知、讲义密度仍需真实模型审稿与人工复核；本轮不宣称文学质量提升百分比，也不把合成回归当作新三章试写验收。
 
-## 验证进度
+## 真实验证
 
-前后端定向回归、应用代码 lint/typecheck 与构建已通过；完整后端测试、双架构打包和公开重发仍在执行，最终结果将在发布前补齐。
+源码冻结提交：`71377c3`。后端测试和 wheel 启动使用独立 `OPENFIC_DATA_DIR`，没有使用正式小说数据库。
+
+| 范围 | 实际命令（对应子目录） | 结果 |
+| --- | --- | --- |
+| 后端完整回归 | `.venv/Scripts/python.exe -m pytest tests -q` | 2924 passed，479.85s |
+| 合同、工具 schema 与 Prompt 定向回归 | `pytest` 指定四个合同测试、test_registry、test_chapter_acceptance_prompts | 104 passed，3.72s |
+| 后端应用 lint | `.venv/Scripts/ruff.exe check app` | 通过 |
+| 后端应用类型 | `.venv/Scripts/ty.exe check app` | 通过 |
+| 桌面 Node 回归 | `node --experimental-vm-modules --test tests/main/*.test.mjs tests/scripts/*.test.mjs` | 155 passed，2 skipped，0 failed |
+| 桌面主进程、renderer 类型 | `tsc -p tsconfig.main.json --noEmit`、`tsc -p tsconfig.renderer.json --noEmit` | 通过 |
+| 桌面 lint | `node node_modules/eslint/bin/eslint.js . --ext .js,.jsx,.mjs,.ts,.tsx,.mts` | 通过 |
+| 前端类型与 lint | `oxlint . --type-aware --type-check` | 0 warnings，0 errors |
+| 前端与启动页构建 | 前端 `vp build` + `generate-precachelist.mjs`；桌面 `vp build` 和 `tsc -p tsconfig.main.json` | 通过 |
+| 新 wheel 隔离启动 | 从新 wheel 解包导入 app，启动 TestClient；GET health、GET / | 200 / 200，版本0.12.5 |
+| 新 wheel 合同验收 | 真实 measure_text 配对、精确全文、测后加字 | 原稿通过，测后加字拒绝 |
+
+桌面跳过项分别为宿主机缺少创建符号链接权限，以及 Windows 不适用的 POSIX 大小写敏感测试。主进程续启的7项初次因测试 linker 缺声明失败，补齐严格 synthetic 依赖后实际通过；未放宽真实文件、网络或进程边界。后端全量首次发现合同字段缺 schema 描述，修复后重新完整运行得出上表结果。
+
+类型门禁范围为后端 `app`；额外尝试的全仓 `ty check --project backend` 包含 tests 与 hatch 构建环境的类型诊断，不宣称全仓所有 Python 文件类型零诊断。
+
+wheel 从已跟踪后端源码与新增合同模块的隔离 staging 构建，复用本轮新构建 frontend/dist；验证695份源输入并逐个核对 app 文件与 wheel 字节，避免 pnpm 在非交互运行前尝试重装依赖。两种架构复用本机已缓存 Electron43.4.0，重核解包 electron.exe 与对应缓存 ZIP 字节一致。
+
+## 本地发布包核验
+
+Windows x64 / ARM64 的 NSIS、便携 ZIP 和 blockmap 已重新生成，三份更新清单也已重新计算。`verify-release.mjs` 普通及 `--prepared-update-assets` 两种模式均为 ALL CHECKS PASSED。
+
+补充解包核验两种架构的 ZIP CRC、OpenFix.exe PE machine、前端 index、app-update.yml、uv 压缩资源与内置 wheel；两份 app.asar 内 openfic.js、uv-cache.js 与本轮 TypeScript 编译输出逐字一致。wheel SHA-256：`7633c495fc94295237ec257547e459ca953389da42beaa45f12778732e11b1b7`。待上传资产为9个，未使用上一次打包产物。
+
+本轮未在 ARM64 真机运行，也未在用户现有安装上执行覆盖安装或新增小说试写。发布资产替换与在线发现结果待公开后回读记录；本地通过不等于已公开。
