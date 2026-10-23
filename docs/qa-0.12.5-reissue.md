@@ -81,4 +81,26 @@ Windows x64 / ARM64 的 NSIS、便携 ZIP 和 blockmap 已重新生成，三份�
 
 补充解包核验两种架构的 ZIP CRC、OpenFix.exe PE machine、前端 index、app-update.yml、uv 压缩资源与内置 wheel；两份 app.asar 内 openfic.js、uv-cache.js 与本轮 TypeScript 编译输出逐字一致。wheel SHA-256：`7633c495fc94295237ec257547e459ca953389da42beaa45f12778732e11b1b7`。待上传资产为9个，未使用上一次打包产物。
 
-本轮未在 ARM64 真机运行，也未在用户现有安装上执行覆盖安装或新增小说试写。发布资产替换与在线发现结果待公开后回读记录；本地通过不等于已公开。
+本轮未在 ARM64 真机运行，也未在用户现有安装上执行覆盖安装或新增小说试写。两份安装包的 Authenticode 状态为 NotSigned，不宣称具备可信代码签名。
+
+## 公开重发回执
+
+2026-10-24 已重新公开 [v0.12.5](https://github.com/Knight-ask-art/OpenFix/releases/tag/v0.12.5)，标记 latest，非 draft、非 prerelease。远端标签与 Release target 均为 `dbae53f34f1d455bfd1c06778c8ca4b0685c06de`（代码冻结71377c3之后仅补文档）。旧标签目标f5d4240仅作为历史记录，不再代表本次资产。
+
+替换期间暂置草稿，9个资产全部上传后，逐一比较 GitHub asset digest（SHA-256）与 size，全部与本地核验包匹配，再公开。未运行另一个 Package workflow 覆盖资产。
+
+* x64安装包：`OpenFix-0.12.5-win-x86_64-setup.exe`，181799071 bytes。
+* ARM64安装包：`OpenFix-0.12.5-win-aarch64-setup.exe`，179786677 bytes。
+* 三份公开 latest YAML 均返回HTTP200，字节与本地新清单完全一致。
+* 两种架构安装包公开Range请求返回HTTP206，MZ头正确；完整资产一致性使用GitHub返回的digest核对，没有冒称重新完整下载全部远端二进制。
+
+使用实际 `electron-updater` NsisUpdater、隔离 AppAdapter / NodeHttpExecutor 探针，仅检查公开渠道、不下载或安装：
+
+| 当前版本 | 渠道 | 发现版本 | available |
+| --- | --- | --- | --- |
+| 0.12.3 | latest-win-x86_64 | 0.12.5 | true |
+| 0.12.4 | latest-win-x86_64 | 0.12.5 | true |
+| 0.12.5 | latest-win-x86_64 | 0.12.5 | false |
+| 0.12.4 | latest-win-aarch64 | 0.12.5 | true |
+
+因此旧0.12.5需下载重发安装包覆盖安装；不能把相同semver的available=false误报为更新渠道未配置。本回执是公开资产与渠道发现验收，不等于用户现有安装或ARM64真机的运行验收。
