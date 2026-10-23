@@ -25,6 +25,12 @@ from app.agent_runtime.tools.impls.orchestration.common import (
     resolve_child_run,
     wait_for_request_resolution,
 )
+from app.agent_runtime.tools.impls.orchestration.author_request import (
+    compose_author_task,
+    enforce_author_request_budget,
+    enforce_composed_task_budget,
+    resolve_author_request,
+)
 from app.agent_runtime.tools.registry import ToolRegistry
 
 
@@ -103,9 +109,35 @@ class NotifySubagentTool(AgentTool):
         if not row.is_active:
             raise ToolExecutionError("subagent thread is inactive")
         current_revision_id = self._state.get("current_revision_id")
+        if current_revision_id is not None and (
+            not isinstance(current_revision_id, str) or not current_revision_id.strip()
+        ):
+            raise ToolExecutionError(
+                "current revision id is invalid for author request capture",
+                code="validation_error",
+            )
         parent_revision_id = (
             current_revision_id if isinstance(current_revision_id, str) else None
         )
+        content = prompt
+        if parent_revision_id:
+            # 本轮作者原始要求同样写入持久化请求与子用户消息，与新建派发一致：
+            # 解析 -> 原文上限 -> 组合（含证明头）-> 整体上限，全部通过后才入队。
+            session = await open_session(configurable.get("session_factory"))
+            try:
+                capture = await resolve_author_request(
+                    session,
+                    revision_id=parent_revision_id,
+                    project_id=str(self._state.get("project_id") or ""),
+                    task_id=str(self._state["task_id"]),
+                    session_id=self.session_id,
+                )
+            finally:
+                await close_session(session)
+            tokens = enforce_author_request_budget(capture)
+            metadata = capture.to_metadata(token_counter=lambda _text: tokens)
+            content = compose_author_task(prompt, capture, metadata=metadata)
+        enforce_composed_task_budget(content)
         pre_request_checkpoint_id = await latest_checkpoint_id_for_thread(
             row.child_thread_id
         )
@@ -116,7 +148,7 @@ class NotifySubagentTool(AgentTool):
                 session,
                 child_run_id=row.id,
                 request_kind="notify",
-                content=prompt,
+                content=content,
                 parent_revision_id=parent_revision_id,
                 pre_request_checkpoint_id=pre_request_checkpoint_id,
             )
@@ -128,7 +160,7 @@ class NotifySubagentTool(AgentTool):
             child_thread_id=row.child_thread_id,
             task_id=str(self._state["task_id"]),
             project_id=str(self._state["project_id"]),
-            content=prompt,
+            content=content,
         )
         session = await open_session(configurable.get("session_factory"))
         try:

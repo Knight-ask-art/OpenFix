@@ -479,6 +479,11 @@ async def test_dispatch_subagent_without_reference_ids_keeps_plain_request(
     assert created[0]["request"] == {
         "description": "写场景",
         "task": "写一个雨夜场景。",
+        "author_request": {
+            "status": "unavailable",
+            "reason": "no_revision",
+            "source_consumption": "unverified",
+        },
     }
     assert persisted == ["写一个雨夜场景。"]
     assert emitted[0][1]["input"] == {

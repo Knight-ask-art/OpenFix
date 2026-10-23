@@ -3,14 +3,16 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import delete as sql_delete
-from sqlalchemy import select
+from sqlalchemy import and_, delete as sql_delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
+from app.core.character_state_context import StateAtAnchor
 from app.storage.models.character import Character
 from app.storage.models.character_profile import CharacterProfile
 from app.storage.models.character_state import CharacterState
+from app.storage.models.chapter import Chapter
+from app.storage.models.volume import Volume
 
 PROFILE_TEXT_FIELDS: tuple[str, ...] = (
     "alias",
@@ -123,6 +125,65 @@ async def get_state(
         statement = statement.where(col(CharacterState.chapter_id) == chapter_id)
     result = await session.execute(statement.order_by(col(CharacterState.updated_at).desc()))
     return result.scalars().first()
+
+
+async def get_latest_state_at_anchor(
+    session: AsyncSession,
+    *,
+    project_id: str,
+    character_id: str,
+    volume_order: int,
+    chapter_order: int,
+) -> StateAtAnchor | None:
+    """读取角色在锚点及之前最近保存的章级状态，并返回其真实来源章节/卷。
+
+    阅读顺序是 ``(Volume.order, Chapter.order)``：章节 order 只在卷内唯一，
+    必须与卷 order 一起比较。这里使用真正的字典序比较而不是乘以固定基数
+    的魔术数，因为章节 order 没有上限，``order * 1_000_000 + chapter`` 会把
+    未来卷误判为锚点之前。同一锚点恰好有本章记录时它最新；否则取之前最近
+    的一条。角色、状态、章节、卷都必须属于同一项目；锚点之后、未来卷或
+    项目级（``chapter_id IS NULL``）记录一律不参与，绝不回退到常设状态。
+    """
+    statement = (
+        select(CharacterState, Chapter, Volume)
+        .join(Character, col(CharacterState.character_id) == col(Character.id))
+        .join(Chapter, col(CharacterState.chapter_id) == col(Chapter.id))
+        .join(Volume, col(Chapter.volume_id) == col(Volume.id))
+        .where(
+            col(Character.project_id) == project_id,
+            col(CharacterState.project_id) == project_id,
+            col(CharacterState.character_id) == character_id,
+            col(CharacterState.chapter_id).is_not(None),
+            col(Chapter.project_id) == project_id,
+            col(Volume.project_id) == project_id,
+            or_(
+                col(Volume.order) < volume_order,
+                and_(
+                    col(Volume.order) == volume_order,
+                    col(Chapter.order) <= chapter_order,
+                ),
+            ),
+        )
+        .order_by(
+            col(Volume.order).desc(),
+            col(Chapter.order).desc(),
+            col(CharacterState.updated_at).desc(),
+        )
+        .limit(1)
+    )
+    row = (await session.execute(statement)).first()
+    if row is None:
+        return None
+    state, chapter, volume = row
+    return StateAtAnchor(
+        state=state,
+        chapter_id=chapter.id,
+        chapter_title=chapter.title,
+        chapter_order=chapter.order,
+        volume_id=volume.id,
+        volume_title=volume.title,
+        volume_order=volume.order,
+    )
 
 
 async def upsert_state(

@@ -34,6 +34,13 @@ from app.agent_runtime.tools.impls.orchestration.common import (
     persist_child_user_message,
     wait_for_request_resolution,
 )
+from app.agent_runtime.tools.impls.orchestration.author_request import (
+    compose_author_task,
+    enforce_author_request_budget,
+    enforce_composed_task_budget,
+    resolve_author_request,
+    unavailable_metadata,
+)
 from app.agent_runtime.tools.impls.orchestration.handoff import (
     MAX_SOURCE_DISPATCHES,
     build_handoff_metadata,
@@ -172,6 +179,7 @@ class DispatchSubagentTool(AgentTool):
         request: dict[str, Any],
         configurable: dict[str, Any],
         tool_call_id: str,
+        parent_revision_id: str | None = None,
     ):
         dispatch_id = generate_id()
         parent_thread_id = str(configurable.get("thread_id") or self.session_id)
@@ -188,9 +196,7 @@ class DispatchSubagentTool(AgentTool):
                 dispatch_id=dispatch_id,
                 tool_call_id=tool_call_id,
                 request=request,
-                parent_revision_id=self._state.get("current_revision_id")
-                if isinstance(self._state.get("current_revision_id"), str)
-                else None,
+                parent_revision_id=parent_revision_id,
             )
         finally:
             await close_session(session)
@@ -202,30 +208,60 @@ class DispatchSubagentTool(AgentTool):
         prompt: str,
         source_dispatch_ids: list[str],
         configurable: dict[str, Any],
-    ) -> dict[str, Any]:
-        """组装初始请求；引用交付物时把参考数据附在任务末尾。
+    ) -> tuple[dict[str, Any], str | None]:
+        """组装初始请求；作者原文在前，引用交付物附在任务末尾。
 
-        只在新建子运行时解析来源，审批恢复路径复用已持久化的请求，不重复解析。
+        只在新建子运行时解析作者原文与来源，审批恢复路径复用已持久化的请求，
+        不重复解析、也不重新读取最新用户消息。无版本且无引用时保持历史行为，
+        不打开数据库。
         """
         request: dict[str, Any] = {"description": description, "task": prompt}
-        if not source_dispatch_ids:
-            return request
-
-        session = await open_session(configurable.get("session_factory"))
-        try:
-            sources = await resolve_handoff_sources(
-                session,
-                parent_session_id=self.session_id,
-                parent_task_id=str(self._state["task_id"]),
-                dispatch_ids=source_dispatch_ids,
+        revision_id = self._state.get("current_revision_id")
+        if revision_id is not None and (
+            not isinstance(revision_id, str) or not revision_id.strip()
+        ):
+            raise ToolExecutionError(
+                "current revision id is invalid for author request capture",
+                code="validation_error",
             )
-        finally:
-            await close_session(session)
+        parent_revision_id = (
+            revision_id if isinstance(revision_id, str) and revision_id else None
+        )
+        task = prompt
+        metadata: dict[str, Any] = {}
+        if parent_revision_id or source_dispatch_ids:
+            session = await open_session(configurable.get("session_factory"))
+            try:
+                if parent_revision_id:
+                    capture = await resolve_author_request(
+                        session,
+                        revision_id=parent_revision_id,
+                        project_id=str(self._state.get("project_id") or ""),
+                        task_id=str(self._state["task_id"]),
+                        session_id=self.session_id,
+                    )
+                    tokens = enforce_author_request_budget(capture)
+                    metadata = capture.to_metadata(token_counter=lambda _text: tokens)
+                    task = compose_author_task(prompt, capture, metadata=metadata)
+                if source_dispatch_ids:
+                    sources = await resolve_handoff_sources(
+                        session,
+                        parent_session_id=self.session_id,
+                        parent_task_id=str(self._state["task_id"]),
+                        dispatch_ids=source_dispatch_ids,
+                    )
+                    task = compose_handoff_task(task, sources)
+                    request["original_task"] = prompt
+                    request["handoff"] = build_handoff_metadata(sources)
+            finally:
+                await close_session(session)
 
-        request["task"] = compose_handoff_task(prompt, sources)
-        request["original_task"] = prompt
-        request["handoff"] = build_handoff_metadata(sources)
-        return request
+        enforce_composed_task_budget(task)
+        request["task"] = task
+        request["author_request"] = (
+            metadata if metadata else unavailable_metadata("no_revision")
+        )
+        return request, parent_revision_id
 
     async def _load_waiting_child_run(
         self,
@@ -346,7 +382,7 @@ class DispatchSubagentTool(AgentTool):
                 child_run_id=row.id,
             )
         if row is None:
-            request = await self._build_dispatch_request(
+            request, parent_revision_id = await self._build_dispatch_request(
                 description=description,
                 prompt=prompt,
                 source_dispatch_ids=handoff_ids,
@@ -357,6 +393,7 @@ class DispatchSubagentTool(AgentTool):
                 request=request,
                 configurable=configurable,
                 tool_call_id=tool_call_id,
+                parent_revision_id=parent_revision_id,
             )
             pre_request_checkpoint_id = await latest_checkpoint_id_for_thread(
                 row.child_thread_id

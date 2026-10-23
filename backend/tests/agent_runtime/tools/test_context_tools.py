@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 
-def _make_state() -> dict:
+def _make_state(project_id: str = "proj-1") -> dict:
     return {
         "session_id": "sess-1",
-        "project_id": "proj-1",
+        "project_id": project_id,
         "model_config": {},
         "active_agent": "writer",
         "is_completed": False,
@@ -227,6 +227,839 @@ async def test_read_character_reads_description_by_name() -> None:
         "name": "林舟",
         "description": "1|主角\n2|旧友",
     }
+
+
+# ============================================
+# read_character 可选人物状态（LF-01）
+# ============================================
+
+CHARACTER_STATE_PROJECT_ID = "project-character-state"
+CHARACTER_STATE_OTHER_PROJECT_ID = "project-character-state-other"
+HUGE_CHAPTER_ORDER = 1_500_000
+
+
+async def _invoke_character_tool(tool, session, payload: dict) -> dict:
+    raw = await tool.ainvoke(
+        payload,
+        config={"configurable": {"db_session": session}},
+    )
+    return json.loads(raw)
+
+
+def _character_state_tool(project_id: str = CHARACTER_STATE_PROJECT_ID):
+    from app.agent_runtime.tools.impls.context.character import ReadCharacterTool
+
+    return ReadCharacterTool(_state=_make_state(project_id))
+
+
+async def _seed_character_state_project(session) -> None:
+    from app.storage.models.character import Character
+    from app.storage.models.character_profile import CharacterProfile
+    from app.storage.models.character_state import CharacterState
+    from app.storage.models.chapter import Chapter
+    from app.storage.models.project import Project
+    from app.storage.models.volume import Volume
+
+    session.add(Project(id=CHARACTER_STATE_PROJECT_ID, title="人物状态项目"))
+    session.add(
+        Project(id=CHARACTER_STATE_OTHER_PROJECT_ID, title="人物状态其他项目")
+    )
+    session.add(
+        Volume(
+            id="volume-a1",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            title="第一卷",
+            order=1,
+        )
+    )
+    session.add(
+        Volume(
+            id="volume-a2",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            title="第二卷",
+            order=2,
+        )
+    )
+    session.add(
+        Volume(
+            id="volume-b1",
+            project_id=CHARACTER_STATE_OTHER_PROJECT_ID,
+            title="外卷",
+            order=1,
+        )
+    )
+    # 章节 order 只在卷内唯一：两个卷都有 order=1 的章节；第一卷还有一个
+    # 超过 1_000_000 的章节 order，用于证明字典序比较不依赖固定基数。
+    chapters = [
+        ("chapter-a1c1", CHARACTER_STATE_PROJECT_ID, "volume-a1", "雨夜", 1),
+        ("chapter-a1c2", CHARACTER_STATE_PROJECT_ID, "volume-a1", "渡口", 2),
+        ("chapter-a1c3", CHARACTER_STATE_PROJECT_ID, "volume-a1", "关城", 3),
+        ("chapter-a1c4", CHARACTER_STATE_PROJECT_ID, "volume-a1", "雪山", 4),
+        # 紧邻超长章序的锚点章节，用于验证工具层能解析巨大章序而不做固定基数猜测。
+        ("chapter-a1hi-prev", CHARACTER_STATE_PROJECT_ID, "volume-a1", "前篇", HUGE_CHAPTER_ORDER - 1),
+        ("chapter-a1hi", CHARACTER_STATE_PROJECT_ID, "volume-a1", "长篇", HUGE_CHAPTER_ORDER),
+        ("chapter-a2c1", CHARACTER_STATE_PROJECT_ID, "volume-a2", "旧城", 1),
+        ("chapter-a2c2", CHARACTER_STATE_PROJECT_ID, "volume-a2", "王都", 2),
+        ("chapter-b1c1", CHARACTER_STATE_OTHER_PROJECT_ID, "volume-b1", "外章", 1),
+    ]
+    for chapter_id, project_id, volume_id, title, order in chapters:
+        session.add(
+            Chapter(
+                id=chapter_id,
+                project_id=project_id,
+                volume_id=volume_id,
+                title=title,
+                content="",
+                order=order,
+            )
+        )
+    session.add(
+        Character(
+            id="char-a",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            name="林舟",
+            description="镖师",
+        )
+    )
+    session.add(
+        Character(
+            id="char-b",
+            project_id=CHARACTER_STATE_OTHER_PROJECT_ID,
+            name="林舟",
+            description="旅人",
+        )
+    )
+    session.add(
+        Character(
+            id="char-hi",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            name="迟舟",
+            description="远行",
+        )
+    )
+    # 只在锚点之后存在状态的同行角色：锚点及之前应显示未记录。
+    session.add(
+        Character(
+            id="char-late",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            name="沈墨",
+            description="同行",
+        )
+    )
+    # 扩展档案仍写入库中，但 opt-in 输出不再展开这 15 个字段。
+    session.add(
+        CharacterProfile(
+            id="profile-a",
+            character_id="char-a",
+            identity="镖师",
+            abilities="擅长搬运",
+        )
+    )
+    session.add(
+        CharacterProfile(
+            id="profile-b",
+            character_id="char-b",
+            identity="其他项目身份",
+        )
+    )
+    states = [
+        ("state-a-project", "char-a", CHARACTER_STATE_PROJECT_ID, None, "左手旧伤"),
+        ("state-a1c1", "char-a", CHARACTER_STATE_PROJECT_ID, "chapter-a1c1", "手腕轻伤"),
+        ("state-a1c2", "char-a", CHARACTER_STATE_PROJECT_ID, "chapter-a1c2", "左肩受伤"),
+        ("state-a2c1", "char-a", CHARACTER_STATE_PROJECT_ID, "chapter-a2c1", "左眼失明"),
+        # 锚点 (1,3) 之后的死亡与能力觉醒：回改时不得灌入。
+        ("state-a1c4", "char-a", CHARACTER_STATE_PROJECT_ID, "chapter-a1c4", "已死亡"),
+        # 超过 1_000_000 的章序，以及第二卷的未来状态。
+        ("state-a1hi", "char-hi", CHARACTER_STATE_PROJECT_ID, "chapter-a1hi", "长章旧伤"),
+        ("state-hi-future", "char-hi", CHARACTER_STATE_PROJECT_ID, "chapter-a2c2", "未来卷状态"),
+        ("state-late", "char-late", CHARACTER_STATE_PROJECT_ID, "chapter-a1c2", "后章受伤"),
+        ("state-late-project", "char-late", CHARACTER_STATE_PROJECT_ID, None, "常设受伤"),
+        ("state-b-project", "char-b", CHARACTER_STATE_OTHER_PROJECT_ID, None, "其他项目常设状态"),
+        ("state-b1c1", "char-b", CHARACTER_STATE_OTHER_PROJECT_ID, "chapter-b1c1", "其他项目章级状态"),
+    ]
+    for state_id, character_id, project_id, chapter_id, physical_state in states:
+        notes = "觉醒异能" if state_id == "state-a1c4" else ""
+        session.add(
+            CharacterState(
+                id=state_id,
+                character_id=character_id,
+                project_id=project_id,
+                chapter_id=chapter_id,
+                physical_state=physical_state,
+                notes=notes,
+            )
+        )
+    await session.flush()
+
+
+def _anchor(volume_order: int, chapter_order: int) -> dict:
+    return {
+        "volume_ref": {"type": "order", "value": volume_order},
+        "chapter_ref": {"type": "order", "value": chapter_order},
+    }
+
+
+@pytest.mark.asyncio
+async def test_read_character_without_state_keeps_exact_default_output(
+    session,
+) -> None:
+    await _seed_character_state_project(session)
+
+    result = await _invoke_character_tool(
+        _character_state_tool(), session, {"name": "林舟"}
+    )
+
+    assert result == {"name": "林舟", "description": "1|镖师"}
+    assert "state_context" not in result
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_anchor_selects_exact_chapter_across_volumes(
+    session,
+) -> None:
+    await _seed_character_state_project(session)
+    tool = _character_state_tool()
+
+    early = await _invoke_character_tool(
+        tool, session, {"name": "林舟", "include_state": True, **_anchor(1, 1)}
+    )
+    later = await _invoke_character_tool(
+        tool, session, {"name": "林舟", "include_state": True, **_anchor(1, 2)}
+    )
+    second_volume = await _invoke_character_tool(
+        tool, session, {"name": "林舟", "include_state": True, **_anchor(2, 1)}
+    )
+
+    early_context = early["state_context"]
+    later_context = later["state_context"]
+    second_context = second_volume["state_context"]
+
+    assert early["description"] == "1|镖师"
+    assert early["description_kind"] == "static_profile"
+    assert early_context["scope"]["chapter_id"] == "chapter-a1c1"
+    assert early_context["scope"]["chapter_label"] == "第1卷第1章 雨夜"
+    assert early_context["chapter_state"]["state_id"] == "state-a1c1"
+    assert early_context["chapter_state"]["fields"]["physical_state"] == "手腕轻伤"
+    assert early_context["chapter_state"]["is_exact_anchor"] is True
+
+    assert later_context["scope"]["chapter_id"] == "chapter-a1c2"
+    assert later_context["scope"]["chapter_label"] == "第1卷第2章 渡口"
+    assert later_context["chapter_state"]["state_id"] == "state-a1c2"
+    assert later_context["chapter_state"]["fields"]["physical_state"] == "左肩受伤"
+
+    # 第二卷的 order=1 不能被误解析为第一卷的 order=1。
+    assert second_context["scope"]["chapter_id"] == "chapter-a2c1"
+    assert second_context["scope"]["chapter_label"] == "第2卷第1章 旧城"
+    assert second_context["chapter_state"]["fields"]["physical_state"] == "左眼失明"
+    assert second_context["chapter_state"]["is_exact_anchor"] is True
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_uses_latest_saved_chapter_at_or_before_anchor(
+    session,
+) -> None:
+    await _seed_character_state_project(session)
+
+    # (1,3) 本身没有状态；最近的已保存记录是 (1,2)，而不是后续的 (1,4) 或第二卷。
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "林舟", "include_state": True, **_anchor(1, 3)},
+    )
+
+    context = result["state_context"]
+    chapter_state = context["chapter_state"]
+    assert context["scope"]["chapter_id"] == "chapter-a1c3"
+    assert context["scope"]["chapter_label"] == "第1卷第3章 关城"
+    assert chapter_state["state_id"] == "state-a1c2"
+    assert chapter_state["chapter_id"] == "chapter-a1c2"
+    assert chapter_state["is_exact_anchor"] is False
+    assert chapter_state["requested_anchor"]["chapter_id"] == "chapter-a1c3"
+    assert chapter_state["requested_anchor"]["chapter_label"] == "第1卷第3章 关城"
+    assert chapter_state["fields"]["physical_state"] == "左肩受伤"
+    assert "最近记录，非本章新确认" in chapter_state["provenance_note"]
+    text = json.dumps(context, ensure_ascii=False)
+    assert "最近记录，非本章新确认" in text
+    assert "已死亡" not in text
+    assert "觉醒异能" not in text
+    assert "左眼失明" not in text
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_orders_source_by_volume_before_repeated_chapter_order(
+    session,
+) -> None:
+    await _seed_character_state_project(session)
+
+    # 第二卷第 2 章：第二卷第 1 章才在锚点及之前最近；章序同为 2 的第一卷
+    # 第 2 章不能被误选。
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "林舟", "include_state": True, **_anchor(2, 2)},
+    )
+
+    chapter_state = result["state_context"]["chapter_state"]
+    assert chapter_state["state_id"] == "state-a2c1"
+    assert chapter_state["volume_order"] == 2
+    assert chapter_state["chapter_order"] == 1
+    assert chapter_state["chapter_label"] == "第2卷第1章 旧城"
+    assert chapter_state["requested_anchor"]["chapter_label"] == "第2卷第2章 王都"
+    assert chapter_state["is_exact_anchor"] is False
+    assert chapter_state["fields"]["physical_state"] == "左眼失明"
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_without_prior_record_is_unknown_despite_future_and_project_state(
+    session,
+) -> None:
+    await _seed_character_state_project(session)
+
+    # 沈墨只有 (1,2) 的后章状态与项目级常设状态，锚点 (1,1) 之前没有记录。
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "沈墨", "include_state": True, **_anchor(1, 1)},
+    )
+
+    context = result["state_context"]
+    assert context["chapter_state"] is None
+    assert context["status"] == "no_records"
+    assert any(
+        "第1卷第1章 雨夜 的章级状态：未记录" in note for note in context["unknowns"]
+    )
+    # 项目级常设状态不被读取，也不充当锚点前的历史证据。
+    assert "project_state" not in context
+    assert any(
+        "项目级常设状态没有章节来源" in note and "不作为历史证据" in note
+        for note in context["unknowns"]
+    )
+    text = json.dumps(context, ensure_ascii=False)
+    assert "后章受伤" not in text
+    assert "常设受伤" not in text
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_excludes_future_volume_with_huge_chapter_order(
+    session,
+) -> None:
+    from app.storage.repos import character_extension_repo
+
+    await _seed_character_state_project(session)
+
+    # 旧实现用 Volume.order * 1_000_000 + Chapter.order，锚点 (1, 1_499_999)
+    # 的值 2_499_999 会把第二卷（2_000_001 / 2_000_002）误判为锚点之前。
+    before_huge = await character_extension_repo.get_latest_state_at_anchor(
+        session,
+        project_id=CHARACTER_STATE_PROJECT_ID,
+        character_id="char-hi",
+        volume_order=1,
+        chapter_order=HUGE_CHAPTER_ORDER - 1,
+    )
+    assert before_huge is None
+
+    # 锚点 (2,1) 之前最近的是第一卷超过 1_000_000 的章节，而不是第二卷。
+    cross_volume = await character_extension_repo.get_latest_state_at_anchor(
+        session,
+        project_id=CHARACTER_STATE_PROJECT_ID,
+        character_id="char-hi",
+        volume_order=2,
+        chapter_order=1,
+    )
+    assert cross_volume is not None
+    assert cross_volume.state.id == "state-a1hi"
+    assert cross_volume.volume_order == 1
+    assert cross_volume.chapter_order == HUGE_CHAPTER_ORDER
+
+    tool = _character_state_tool()
+    unknown = await _invoke_character_tool(
+        tool,
+        session,
+        {"name": "迟舟", "include_state": True, **_anchor(1, HUGE_CHAPTER_ORDER - 1)},
+    )
+    assert unknown["state_context"]["chapter_state"] is None
+    assert "未来卷状态" not in json.dumps(unknown, ensure_ascii=False)
+
+    exact = await _invoke_character_tool(
+        tool, session, {"name": "迟舟", "include_state": True, **_anchor(1, HUGE_CHAPTER_ORDER)}
+    )
+    chapter_state = exact["state_context"]["chapter_state"]
+    assert chapter_state["state_id"] == "state-a1hi"
+    assert chapter_state["chapter_order"] == HUGE_CHAPTER_ORDER
+    assert chapter_state["is_exact_anchor"] is True
+    assert chapter_state["fields"]["physical_state"] == "长章旧伤"
+    assert "未来卷状态" not in json.dumps(exact, ensure_ascii=False)
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_query_excludes_future_death_and_ability(
+    session,
+) -> None:
+    await _seed_character_state_project(session)
+
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "林舟", "include_state": True, **_anchor(1, 3)},
+    )
+
+    text = json.dumps(result, ensure_ascii=False)
+    # 锚点 (1,3) 能读到的是 (1,2) 的已伤状态；更早的 (1,1) 不是最近记录。
+    chapter_state = result["state_context"]["chapter_state"]
+    assert chapter_state["state_id"] == "state-a1c2"
+    assert chapter_state["fields"]["physical_state"] == "左肩受伤"
+    assert "手腕轻伤" not in text
+    assert "已死亡" not in text
+    assert "觉醒异能" not in text
+    assert "左眼失明" not in text
+
+
+@pytest.mark.asyncio
+async def test_repo_state_at_anchor_returns_real_sql_source(session) -> None:
+    from app.storage.repos import character_extension_repo
+
+    await _seed_character_state_project(session)
+
+    # 同一锚点：本章记录优先。
+    exact = await character_extension_repo.get_latest_state_at_anchor(
+        session,
+        project_id=CHARACTER_STATE_PROJECT_ID,
+        character_id="char-a",
+        volume_order=1,
+        chapter_order=2,
+    )
+    assert exact is not None
+    assert exact.chapter_id == "chapter-a1c2"
+    assert exact.state.id == "state-a1c2"
+    assert exact.volume_id == "volume-a1"
+    assert exact.volume_order == 1
+    assert exact.chapter_title == "渡口"
+
+    # 锚点前最近一条；章节 order 跨卷重复时按 (卷序, 章序) 比较。
+    prior = await character_extension_repo.get_latest_state_at_anchor(
+        session,
+        project_id=CHARACTER_STATE_PROJECT_ID,
+        character_id="char-a",
+        volume_order=1,
+        chapter_order=3,
+    )
+    assert prior is not None
+    assert prior.state.id == "state-a1c2"
+    across_volumes = await character_extension_repo.get_latest_state_at_anchor(
+        session,
+        project_id=CHARACTER_STATE_PROJECT_ID,
+        character_id="char-a",
+        volume_order=2,
+        chapter_order=2,
+    )
+    assert across_volumes is not None
+    assert across_volumes.state.id == "state-a2c1"
+    assert (across_volumes.volume_order, across_volumes.chapter_order) == (2, 1)
+
+    # 锚点之前没有记录时返回 None，不会回退到后章或项目级常设状态。
+    missing = await character_extension_repo.get_latest_state_at_anchor(
+        session,
+        project_id=CHARACTER_STATE_PROJECT_ID,
+        character_id="char-late",
+        volume_order=1,
+        chapter_order=1,
+    )
+    assert missing is None
+
+    # 项目、角色归属不一致时查不到。
+    cross_project = await character_extension_repo.get_latest_state_at_anchor(
+        session,
+        project_id=CHARACTER_STATE_OTHER_PROJECT_ID,
+        character_id="char-a",
+        volume_order=2,
+        chapter_order=2,
+    )
+    assert cross_project is None
+
+
+@pytest.mark.asyncio
+async def test_read_character_historical_anchor_never_includes_future_chapter_state(
+    session,
+) -> None:
+    await _seed_character_state_project(session)
+
+    early = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "林舟", "include_state": True, **_anchor(1, 1)},
+    )
+
+    text = json.dumps(early["state_context"], ensure_ascii=False)
+    assert "手腕轻伤" in text
+    assert "左肩受伤" not in text
+    assert "左眼失明" not in text
+    # 项目级常设状态完全不进入章节状态输出。
+    assert early["state_context"]["chapter_state"]["state_id"] == "state-a1c1"
+    assert "state-a-project" not in text
+
+
+@pytest.mark.asyncio
+async def test_read_character_rejects_partial_chapter_anchor(session) -> None:
+    await _seed_character_state_project(session)
+
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "林舟", "include_state": True, "chapter_ref": {"type": "order", "value": 1}},
+    )
+
+    assert result["success"] is False
+    assert "必须同时提供" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_read_character_unknown_anchor_fails_instead_of_guessing(
+    session,
+) -> None:
+    await _seed_character_state_project(session)
+
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "林舟", "include_state": True, **_anchor(1, 99)},
+    )
+
+    assert result["success"] is False
+    assert "未找到章节" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_is_strictly_project_isolated(session) -> None:
+    from app.storage.models.character_state import CharacterState
+
+    await _seed_character_state_project(session)
+    # 即使库里存在归属错配的状态行，也不能通过当前项目查询读到。
+    # 1) 状态自身属于其他项目；2) 状态项目正确但绑定的章节属于其他项目。
+    session.add(
+        CharacterState(
+            id="state-cross",
+            character_id="char-a",
+            project_id=CHARACTER_STATE_OTHER_PROJECT_ID,
+            chapter_id="chapter-a1c1",
+            physical_state="跨项目越权状态",
+        )
+    )
+    session.add(
+        CharacterState(
+            id="state-cross-chapter",
+            character_id="char-a",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            chapter_id="chapter-b1c1",
+            physical_state="跨项目章节状态",
+        )
+    )
+    await session.flush()
+
+    own = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "林舟", "include_state": True, **_anchor(1, 1)},
+    )
+    other = await _invoke_character_tool(
+        _character_state_tool(CHARACTER_STATE_OTHER_PROJECT_ID),
+        session,
+        {"name": "林舟", "include_state": True, **_anchor(1, 1)},
+    )
+
+    own_text = json.dumps(own, ensure_ascii=False)
+    other_text = json.dumps(other, ensure_ascii=False)
+    assert own["state_context"]["character_id"] == "char-a"
+    assert own["state_context"]["chapter_state"]["state_id"] == "state-a1c1"
+    assert "其他项目章级状态" not in own_text
+    assert "跨项目越权状态" not in own_text
+    assert "跨项目章节状态" not in own_text
+    assert "其他项目身份" not in own_text
+
+    assert other["state_context"]["character_id"] == "char-b"
+    assert other["description"] == "1|旅人"
+    assert other["state_context"]["chapter_state"]["state_id"] == "state-b1c1"
+    assert "手腕轻伤" not in other_text
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_reports_unknowns_for_legacy_character_without_state(
+    session,
+) -> None:
+    from app.storage.models.character import Character
+    from app.storage.models.project import Project
+
+    session.add(Project(id=CHARACTER_STATE_PROJECT_ID, title="旧项目"))
+    session.add(
+        Character(
+            id="char-legacy",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            name="无状态角色",
+            description="旧项目角色",
+        )
+    )
+    await session.flush()
+
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "无状态角色", "include_state": True},
+    )
+
+    context = result["state_context"]
+    assert result["name"] == "无状态角色"
+    assert context["status"] == "no_records"
+    assert context["chapter_state"] is None
+    assert context["scope"] is None
+    assert context["unknowns"]
+    assert context["budget"]["chars"] <= context["budget"]["max_chars"]
+    assert context["budget"]["tokens"] <= context["budget"]["max_tokens"]
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_respects_budget_and_marks_omitted_fields(
+    session,
+) -> None:
+    from app.storage.models.character import Character
+    from app.storage.models.character_profile import CharacterProfile
+    from app.storage.models.character_state import CharacterState
+    from app.storage.models.chapter import Chapter
+    from app.storage.models.project import Project
+    from app.storage.models.volume import Volume
+
+    session.add(Project(id=CHARACTER_STATE_PROJECT_ID, title="长状态项目"))
+    session.add(
+        Volume(id="volume-long", project_id=CHARACTER_STATE_PROJECT_ID, title="长卷", order=1)
+    )
+    session.add(
+        Chapter(
+            id="chapter-long",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            volume_id="volume-long",
+            title="长章",
+            content="",
+            order=1,
+        )
+    )
+    session.add(
+        Character(
+            id="char-long",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            name="沈墨",
+            description="旧档",
+        )
+    )
+    session.add(
+        CharacterProfile(
+            id="profile-long",
+            character_id="char-long",
+            identity="镖师",
+            background="旧事" * 600,
+        )
+    )
+    session.add(
+        CharacterState(
+            id="state-long",
+            character_id="char-long",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            chapter_id="chapter-long",
+            location="渡口",
+            physical_state="手腕轻伤",
+            mental_state="",
+            notes="雨夜" * 4_000,
+        )
+    )
+    session.add(
+        CharacterState(
+            id="state-long-project",
+            character_id="char-long",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            chapter_id=None,
+            physical_state="左手旧伤",
+        )
+    )
+    await session.flush()
+
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "沈墨", "include_state": True, **_anchor(1, 1)},
+    )
+    context = result["state_context"]
+    chapter_state = context["chapter_state"]
+
+    assert context["budget"]["chars"] <= context["budget"]["max_chars"]
+    assert context["budget"]["tokens"] <= context["budget"]["max_tokens"]
+    assert context["status"] == "truncated"
+    assert context["budget"]["truncated"] is True
+    assert chapter_state["state_id"] == "state-long"
+    assert chapter_state["chapter_id"] == "chapter-long"
+    assert chapter_state["fields"]["physical_state"] == "手腕轻伤"
+    assert chapter_state["fields"]["location"] == "渡口"
+    # 空字段与预算省略分开：mental_state 未记录，notes 因预算整项省略。
+    assert "mental_state" in chapter_state["unknown_fields"]
+    assert "notes" in chapter_state["omitted_fields"]
+    assert "notes" not in chapter_state["fields"]
+    text = json.dumps(result, ensure_ascii=False)
+    assert "雨夜" * 10 not in text
+    # 扩展档案不再展开；项目级常设状态也不读取。
+    assert "旧事" not in text
+    assert "左手旧伤" not in text
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_negation_is_whole_field_or_omitted(session) -> None:
+    from app.storage.models.character import Character
+    from app.storage.models.character_state import CharacterState
+    from app.storage.models.chapter import Chapter
+    from app.storage.models.project import Project
+    from app.storage.models.volume import Volume
+
+    session.add(Project(id=CHARACTER_STATE_PROJECT_ID, title="否定词项目"))
+    session.add(
+        Volume(id="volume-n", project_id=CHARACTER_STATE_PROJECT_ID, title="卷", order=1)
+    )
+    session.add(
+        Chapter(
+            id="chapter-n",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            volume_id="volume-n",
+            title="章",
+            content="",
+            order=1,
+        )
+    )
+    session.add(
+        Character(
+            id="char-n",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            name="白露",
+            description="医者",
+        )
+    )
+    session.add(
+        CharacterState(
+            id="state-n",
+            character_id="char-n",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            chapter_id="chapter-n",
+            physical_state="伤势稳定",
+            notes="伤势记录：" + "平稳。" * 3_000 + "并未死亡，意识清醒。",
+        )
+    )
+    await session.flush()
+
+    result = await _invoke_character_tool(
+        _character_state_tool(),
+        session,
+        {"name": "白露", "include_state": True, **_anchor(1, 1)},
+    )
+    chapter_state = result["state_context"]["chapter_state"]
+    assert chapter_state["fields"]["physical_state"] == "伤势稳定"
+    assert "notes" in chapter_state["omitted_fields"]
+    assert "notes" not in chapter_state["fields"]
+    text = json.dumps(result, ensure_ascii=False)
+    # 省略是整项省略：不会只留下否定词后缀造成误导，也不会保留半句。
+    assert "伤势记录" not in text
+    assert "平稳。" not in text
+
+
+@pytest.mark.asyncio
+async def test_read_character_state_whole_opt_in_output_is_hard_bounded(session) -> None:
+    from app.core.character_state_context import MAX_CONTEXT_CHARS, MAX_CONTEXT_TOKENS
+    from app.storage.models.character import Character
+    from app.storage.models.character_profile import CharacterProfile
+    from app.storage.models.character_state import CharacterState
+    from app.storage.models.chapter import Chapter
+    from app.storage.models.project import Project
+    from app.storage.models.volume import Volume
+
+    long_name = "长名" * 300
+    huge = "旧事" * 50_000
+    session.add(Project(id=CHARACTER_STATE_PROJECT_ID, title="超长输出项目"))
+    session.add(
+        Volume(id="volume-huge", project_id=CHARACTER_STATE_PROJECT_ID, title="长卷", order=1)
+    )
+    session.add(
+        Chapter(
+            id="chapter-huge",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            volume_id="volume-huge",
+            title="长章",
+            content="",
+            order=1,
+        )
+    )
+    session.add(
+        Character(
+            id="char-huge",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            name=long_name,
+            description="\n".join("描述内容" * 20 for _ in range(400)),
+        )
+    )
+    session.add(
+        CharacterProfile(
+            id="profile-huge",
+            character_id="char-huge",
+            identity="镖师",
+            background=huge,
+        )
+    )
+    session.add(
+        CharacterState(
+            id="state-huge",
+            character_id="char-huge",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            chapter_id="chapter-huge",
+            location="渡口",
+            physical_state="手腕轻伤",
+            mental_state=huge,
+            goal=huge,
+            relationship_note=huge,
+            notes=huge,
+        )
+    )
+    session.add(
+        CharacterState(
+            id="state-huge-project",
+            character_id="char-huge",
+            project_id=CHARACTER_STATE_PROJECT_ID,
+            chapter_id=None,
+            physical_state="左手旧伤",
+        )
+    )
+    await session.flush()
+
+    raw = await _character_state_tool().ainvoke(
+        {"name": long_name, "include_state": True, **_anchor(1, 1)},
+        config={"configurable": {"db_session": session}},
+    )
+    result = json.loads(raw)
+    context = result["state_context"]
+
+    # 硬上限覆盖整份 JSON，包括名称、描述、来源、unknowns 与预算数字。
+    assert len(raw) <= MAX_CONTEXT_CHARS
+    assert context["budget"]["chars"] == len(raw)
+    assert context["budget"]["tokens"] <= MAX_CONTEXT_TOKENS
+    assert context["budget"]["truncated"] is True
+    assert context["status"] == "truncated"
+    assert result["name"] is None
+    assert result["name_omitted"] is True
+    assert result["description"] is None
+    assert result["description_omitted"] is True
+    assert any("描述超出读取预算未列出" in note for note in context["unknowns"])
+    # 来源不可被静默丢弃；地点 / 身体状态优先于描述。
+    chapter_state = context["chapter_state"]
+    assert chapter_state["chapter_id"] == "chapter-huge"
+    assert chapter_state["requested_anchor"]["chapter_id"] == "chapter-huge"
+    assert chapter_state["fields"]["physical_state"] == "手腕轻伤"
+    assert chapter_state["fields"]["location"] == "渡口"
+    # 预算丢弃的字段显式列出，且巨大文本没有被截半输出。
+    assert set(chapter_state["omitted_fields"]) == {
+        "mental_state", "goal", "relationship_note", "notes"
+    }
+    assert "旧事" not in raw
+    assert "长名" not in raw
 
 
 @pytest.mark.asyncio

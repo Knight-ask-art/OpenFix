@@ -11,6 +11,16 @@ from app.agent_runtime.revisions import (
 )
 from app.agent_runtime.revision_extensions import capture_character_extensions
 from app.agent_runtime.tools.base import AgentTool
+from app.agent_runtime.tools.impls.chapter.refs import (
+    ChapterRef,
+    VolumeRef,
+    resolve_chapter_from_list,
+    resolve_volume_from_list,
+)
+from app.core.character_state_context import (
+    ChapterAnchor,
+    build_character_state_context,
+)
 from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls._locks import keyed_lock
@@ -18,7 +28,7 @@ from app.agent_runtime.tools.registry import ToolRegistry
 from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
 from app.storage.models.character import Character
-from app.storage.repos import character_repo
+from app.storage.repos import chapter_repo, character_repo, volume_repo
 from app.storage.services import character_service
 
 
@@ -28,6 +38,28 @@ class ListCharactersInput(BaseModel):
 
 class ReadCharacterInput(BaseModel):
     name: str = Field(description="要读取的角色完整名称，须与 list_characters 返回名称一致；不要省略姓氏")
+    include_state: bool = Field(
+        default=False,
+        description=(
+            "可选：是否附带人物静态档案与动态状态。默认关闭，只返回 name/description。"
+            "开启后需配合 volume_ref + chapter_ref 指定章节；"
+            "不提供锚点时只返回静态档案，不返回章级状态或项目级常设状态"
+        ),
+    )
+    volume_ref: VolumeRef | None = Field(
+        default=None,
+        description=(
+            "可选：人物状态所在卷（卷序号或精确卷标题）。"
+            "与 chapter_ref 同时提供时自动附带状态；只提供其中一个按参数错误处理"
+        ),
+    )
+    chapter_ref: ChapterRef | None = Field(
+        default=None,
+        description=(
+            "可选：人物状态所在的精确章节（卷内序号或精确标题），"
+            "必须是卷内的章节，不使用全书不唯一的 order"
+        ),
+    )
 
 
 class CreateCharacterInput(BaseModel):
@@ -188,6 +220,41 @@ def _require_revision_id(state: dict) -> str:
     return revision_id
 
 
+async def _resolve_character_state_anchor(
+    session,
+    *,
+    project_id: str,
+    volume_ref: VolumeRef,
+    chapter_ref: ChapterRef,
+) -> ChapterAnchor:
+    """把显式卷 / 章节定位解析成当前项目内的章节锚点；解析不到就报错。
+
+    章节 order 只在卷内唯一，因此必须先按项目解析卷，再在该卷内解析章节；
+    不按全书 order 猜测，也不退回「最新一章」。
+    """
+    volumes = await volume_repo.list_by_project(session, project_id)
+    resolved_volume = resolve_volume_from_list(volumes, volume_ref)
+    matched = await chapter_repo.get_by_volume_ref(
+        session,
+        resolved_volume.id,
+        ref_type=chapter_ref.type,
+        ref_value=chapter_ref.value,
+    )
+    chapter = resolve_chapter_from_list(
+        [matched] if matched is not None else [], chapter_ref
+    )
+    if chapter.project_id != project_id:
+        raise ToolExecutionError("章节不属于当前项目")
+    return ChapterAnchor(
+        chapter_id=chapter.id,
+        chapter_title=chapter.title,
+        chapter_order=chapter.order,
+        volume_id=resolved_volume.id,
+        volume_title=resolved_volume.title,
+        volume_order=resolved_volume.order,
+    )
+
+
 @ToolRegistry.register
 class ListCharactersTool(AgentTool):
     name: str = "list_characters"
@@ -215,23 +282,79 @@ class ListCharactersTool(AgentTool):
 @ToolRegistry.register
 class ReadCharacterTool(AgentTool):
     name: str = "read_character"
-    description: str = "根据完整名称读取当前项目中的单个角色描述；名称须与 list_characters 返回值一致。"
+    description: str = (
+        "根据完整名称读取当前项目中的单个角色描述；名称须与 list_characters 返回值一致。"
+        "只传 name 时仅返回 name/description。"
+        "需要人物状态时可选提供 include_state=true，并用 volume_ref + chapter_ref "
+        "精确指定章节（卷序号/标题 + 卷内章节序号/标题）：返回静态档案描述、"
+        "锚定章节状态与请求锚点，并分别标注真实来源。章级状态取锚点及之前最近"
+        "保存的一条，按卷序、章序比较；来源早于锚点时标为「最近记录，非本章新确认」，"
+        "锚点及之前没有记录时显示未记录，后章不会代替。"
+        "项目级常设状态没有章节来源，本工具不读取，也不作为某一章的历史证据。"
+        "空字段列入 unknown_fields，超出预算而整项省略的字段列入 omitted_fields；"
+        "字段不会在句子或否定词中间被截断。"
+        "整份 opt-in 输出（含 name/description）受固定字符与 token 上限约束。"
+        "人物信念与世界事实不在本工具内，请用 read_narrative_state。"
+    )
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadCharacterInput
 
-    async def _execute(self, name: str) -> str:
-        session = await create_session()
+    async def _execute(
+        self,
+        name: str,
+        include_state: bool = False,
+        volume_ref: dict[str, Any] | None = None,
+        chapter_ref: dict[str, Any] | None = None,
+    ) -> str:
+        has_anchor = volume_ref is not None or chapter_ref is not None
+        if (volume_ref is None) != (chapter_ref is None):
+            raise ToolExecutionError(
+                "读取人物状态时 volume_ref 与 chapter_ref 必须同时提供；"
+                "只读取静态档案与项目级状态时不要提供章节锚点"
+            )
+        wants_state = include_state or has_anchor
+        parsed_volume_ref = (
+            VolumeRef.model_validate(volume_ref) if volume_ref is not None else None
+        )
+        parsed_chapter_ref = (
+            ChapterRef.model_validate(chapter_ref) if chapter_ref is not None else None
+        )
+
+        session = self.get_runtime_db_session()
+        owns_session = session is None
+        if session is None:
+            session = await create_session()
         try:
             character = await _resolve_character_by_name(session, self.project_id, name)
-            return json.dumps(
-                {
-                    "name": character.name,
-                    "description": _format_content_with_line_numbers(character.description),
-                },
-                ensure_ascii=False,
+            if not wants_state:
+                return json.dumps(
+                    {
+                        "name": character.name,
+                        "description": _format_content_with_line_numbers(character.description),
+                    },
+                    ensure_ascii=False,
+                )
+            anchor = None
+            if parsed_volume_ref is not None and parsed_chapter_ref is not None:
+                anchor = await _resolve_character_state_anchor(
+                    session,
+                    project_id=self.project_id,
+                    volume_ref=parsed_volume_ref,
+                    chapter_ref=parsed_chapter_ref,
+                )
+            state_context = await build_character_state_context(
+                session,
+                project_id=self.project_id,
+                character=character,
+                description=_format_content_with_line_numbers(character.description),
+                anchor=anchor,
+                state_requested=include_state,
             )
+            # core 已返回整份有界 JSON 字符串，直接返回以保证预算按同一序列化计算。
+            return state_context
         finally:
-            await session.close()
+            if owns_session:
+                await session.close()
 
 
 @ToolRegistry.register
