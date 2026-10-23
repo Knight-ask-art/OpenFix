@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "affectedLayers": [],
+  "owners": [
+    "codex-coordinator"
+  ],
+  "invariants": [
+    "No silent manuscript or Canon writes; preserve defaults, old data and upstream compatibility"
+  ],
+  "compatBoundary": "Additive optional inputs; explicit chapter scope; no second RAG or runtime rewrite",
+  "nonGoals": [
+    "Novel generation or modification, private-data publication, unrelated desktop redesign"
+  ]
+}

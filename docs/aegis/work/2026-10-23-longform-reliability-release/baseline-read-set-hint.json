@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "candidateDocs": [
+    "docs/next-release-longform-reliability.md"
+  ],
+  "whyRelevant": "Baseline read-set requires agent review.",
+  "missingAuthority": []
+}

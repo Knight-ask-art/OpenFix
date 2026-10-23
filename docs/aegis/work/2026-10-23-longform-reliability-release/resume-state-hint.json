@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-10-23-longform-reliability-release",
+  "lastCheckpointRef": "docs/aegis/work/2026-10-23-longform-reliability-release/todo-checkpoint-draft.json",
+  "resumeInstruction": "Reuse existing packages and local-assets.json hashes; inspect current remote draft/tag before mutating; never publish missing or changed assets",
+  "knownPartialWork": [
+    "LF01-LF07 minimum reliability slices; source reviews; full2843 tests; app ty and ruff; frontend/desktop builds; dual Windows packages and channel validation"
+  ],
+  "mustReadBeforeContinuing": [
+    "docs/aegis/work/2026-10-23-longform-reliability-release/10-intent.md",
+    "docs/aegis/work/2026-10-23-longform-reliability-release/20-checkpoint.md",
+    "docs/aegis/work/2026-10-23-longform-reliability-release/todo-checkpoint-draft.json"
+  ],
+  "unsafeToAssume": [
+    "Local validation is not installed-user upgrade or literary quality benchmark"
+  ]
+}

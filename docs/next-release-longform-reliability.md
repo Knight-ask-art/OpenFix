@@ -1,5 +1,19 @@
 # 下一版本：长篇写作可靠性修复清单
 
+## 0.12.5 实施更新（2026-10-23）
+
+下文保留原始审计时的证据与验收要求，不能把其中“尚未实现”当成当前状态。
+本次已落实：LF01 的有界章级人物状态读取，LF02 的原始作者要求来源校验与派发保留，
+LF03 的持久化 primary 轮次上限，LF04 的可选基稿/结果哈希及字面保留预览与执行校验，
+LF05 的测量稿哈希、显式修订系列和无进展退出，LF06 的模型/文风生效状态面板，
+LF07 的既有质量 Skill 按需 reference 与三文风/相邻章合成合同回归。
+
+实施没有把全部长篇质量问题判为已解决。尚未实现：父子共享费用预算、作者要求永久跨
+compaction 保留、全部结构化作者约束自动提取、语义 preserve 自动证明、检索 stale 跳过来源
+的完整 UI。哈希保护为显式可选参数，不宣称已建立所有写入口的并发 CAS。
+没有真实模型质量 A/B benchmark，也没有 Token 节省百分比结论。
+具体命令、发布状态和未覆盖边界见 [qa-0.12.5.md](qa-0.12.5.md)。
+
 日期：2026-10-22。审查基线：本地 OpenFix `0742a59`，三个包版本均为 `0.12.4`。下一版本号尚未指定。
 
 ## 范围与实际完成情况
@@ -34,7 +48,7 @@
 现状：
 
 - `backend/app/agent_runtime/tools/impls/context/character.py:218` 的契约明确是读角色描述；`:222` 仅返回`name/description`。
-- `backend/app/retrieval/story_memory.py:148` 已把人物profile和最新CharacterState合入索引，不能报告为“人物状态没有实现”。
+- `backend/app/retrieval/story_memory.py:148` 已把人物profile与项目级CharacterState合入索引；本轮实施前再次核查`character_extension_repo.py:202`，该批量方法实际仅选`chapter_id IS NULL`，并不读取章级state。因此不能把“存在状态存储/项目级索引”说成“章级状态已进入检索”，也不能报告为整个人物状态功能不存在。
 - `backend/app/agent_runtime/tools/impls/context/narrative_state.py:99` 和 `backend/app/core/narrative_context.py:246` 读取世界事实、人物信念、情节线、场景计划；不等于读取原有CharacterState。
 - 本轮用一个人工维护的短世界条目补充当前状态，属于验收补救，不能作为产品能力完成证明。
 

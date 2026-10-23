@@ -260,9 +260,10 @@ if (verifyPreparedUpdateAssets) {
 
 // 1. 产物齐全 + 架构后缀已规范化
 const artifacts = listFiles(outputDir);
-const setupExe = artifacts.find((name) => /^.+-win-x86_64-setup\.exe$/.test(name));
-const portableZip = artifacts.find((name) => /^.+-win-x86_64\.zip$/.test(name));
-const blockmap = artifacts.find((name) => /^.+-win-x86_64-setup\.exe\.blockmap$/.test(name));
+// Old release artifacts may coexist locally; validate the requested version.
+const setupExe = artifacts.find((name) => name === `OpenFix-${version}-win-x86_64-setup.exe`);
+const portableZip = artifacts.find((name) => name === `OpenFix-${version}-win-x86_64.zip`);
+const blockmap = artifacts.find((name) => name === `OpenFix-${version}-win-x86_64-setup.exe.blockmap`);
 
 check("setup 安装包存在且架构后缀为 x86_64", Boolean(setupExe), artifacts.join(", "));
 check("setup 安装包使用 OpenFix 产品名", Boolean(setupExe?.startsWith(`OpenFix-${version}-`)), setupExe ?? "缺少 setup");

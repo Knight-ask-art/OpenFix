@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "baselineRefs": [
+    "docs/next-release-longform-reliability.md"
+  ],
+  "impactStatement": "docs/aegis/work/2026-10-23-longform-reliability-release/impact-statement-draft.json",
+  "compatPlan": "Additive optional inputs; explicit chapter scope; no second RAG or runtime rewrite",
+  "retirementPlan": "not-yet-verified",
+  "evidenceBundle": []
+}

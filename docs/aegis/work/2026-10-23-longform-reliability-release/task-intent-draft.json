@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "requestedOutcome": "Implement LF01-LF07 using real Claude Code, independently verify, and publish next Windows patch with automatic update metadata",
+  "goal": "Implement LF01-LF07 using real Claude Code, independently verify, and publish next Windows patch with automatic update metadata",
+  "successEvidence": [],
+  "stopCondition": "Stop when success evidence is satisfied or a blocker/risk requires pause.",
+  "nonGoals": [
+    "Novel generation or modification, private-data publication, unrelated desktop redesign"
+  ],
+  "scope": "Existing OpenFix writing state, handoff, iteration budget, candidate repair, observability, quality regression, release",
+  "changeKinds": [],
+  "riskHints": [
+    "high"
+  ]
+}

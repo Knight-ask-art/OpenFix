@@ -55,3 +55,16 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-10-04 | plan | docs/aegis/plans/2026-10-04-real-author-model-validation.md | 作者样本与真实模型验证 |
 | 2026-10-04 | report | docs/aegis/reports/2026-10-04-author-model-validation.md | 作者文风档案与真实模型实测 |
 | 2026-10-04 | artifact | docs/aegis/reports/2026-10-04-author-model-benchmark.json | 匿名作者模型实测指标 |
+| 2026-10-23 | work | docs/aegis/work/2026-10-23-longform-reliability-release/10-intent.md | Long-form reliability implementation and release intent |
+| 2026-10-23 | work | docs/aegis/work/2026-10-23-longform-reliability-release/20-checkpoint.md | Long-form reliability implementation and release checkpoint |
+| 2026-10-23 | work | docs/aegis/work/2026-10-23-longform-reliability-release/90-evidence.md | Long-form reliability implementation and release evidence |
+| 2026-10-23 | work | docs/aegis/work/2026-10-23-longform-reliability-release/99-reflection.md | Long-form reliability implementation and release reflection |
+| 2026-10-23 | artifact | docs/aegis/work/2026-10-23-longform-reliability-release/task-intent-draft.json | Long-form reliability implementation and release task intent draft |
+| 2026-10-23 | artifact | docs/aegis/work/2026-10-23-longform-reliability-release/baseline-read-set-hint.json | Long-form reliability implementation and release baseline read-set hint |
+| 2026-10-23 | artifact | docs/aegis/work/2026-10-23-longform-reliability-release/baseline-usage-draft.json | Long-form reliability implementation and release baseline usage draft |
+| 2026-10-23 | artifact | docs/aegis/work/2026-10-23-longform-reliability-release/impact-statement-draft.json | Long-form reliability implementation and release impact statement draft |
+| 2026-10-23 | artifact | docs/aegis/work/2026-10-23-longform-reliability-release/todo-checkpoint-draft.json | Long-form reliability implementation and release todo checkpoint draft |
+| 2026-10-23 | artifact | docs/aegis/work/2026-10-23-longform-reliability-release/drift-check-draft.json | Long-form reliability implementation and release drift check draft |
+| 2026-10-23 | artifact | docs/aegis/work/2026-10-23-longform-reliability-release/resume-state-hint.json | 2026-10-23-longform-reliability-release resume state hint |
+| 2026-10-23 | artifact | docs/aegis/work/2026-10-23-longform-reliability-release/gate-input-pack.json | 2026-10-23-longform-reliability-release gate input pack |
+| 2026-10-23 | work | docs/aegis/work/2026-10-23-longform-reliability-release/proof-bundle.md | 2026-10-23-longform-reliability-release proof bundle |

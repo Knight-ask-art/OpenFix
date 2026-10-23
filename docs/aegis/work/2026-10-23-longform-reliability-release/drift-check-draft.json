@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-10-23-longform-reliability-release",
+  "taskIntentRef": "docs/aegis/work/2026-10-23-longform-reliability-release/task-intent-draft.json",
+  "baselineRefs": [
+    "docs/next-release-longform-reliability.md"
+  ],
+  "scopeStatus": "not-yet-verified",
+  "compatStatus": "not-yet-verified",
+  "retirementStatus": "not-yet-verified",
+  "newRiskSignals": [
+    "high"
+  ],
+  "decision": "needs-baseline-readback"
+}

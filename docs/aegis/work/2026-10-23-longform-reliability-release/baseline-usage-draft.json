@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-10-23-longform-reliability-release",
+  "requiredBaselineRefs": [
+    "docs/next-release-longform-reliability.md"
+  ],
+  "deliveredContextRefs": [],
+  "acknowledgedBeforePlanRefs": [],
+  "citedInPlanRefs": [],
+  "missingRefs": [
+    "docs/next-release-longform-reliability.md"
+  ],
+  "decision": "needs-baseline-readback"
+}
