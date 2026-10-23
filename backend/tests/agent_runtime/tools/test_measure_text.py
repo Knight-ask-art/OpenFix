@@ -1,5 +1,6 @@
 """Tests for the deterministic measure_text tool."""
 
+import hashlib
 import json
 from typing import Any
 
@@ -47,9 +48,14 @@ def test_measure_text_is_registered_with_schema_and_default_permission() -> None
 
     assert tool.name == "measure_text"
     assert tool.access_level == "readonly"
-    assert set(schema["properties"].keys()) == {"text", "min_words", "max_words"}
+    assert set(schema["properties"].keys()) == {
+        "text",
+        "min_words",
+        "max_words",
+        "revision_series",
+    }
     assert schema["required"] == ["text"]
-    for field_name in ("text", "min_words", "max_words"):
+    for field_name in ("text", "min_words", "max_words", "revision_series"):
         assert schema["properties"][field_name]["description"]
     assert get_default_tool_permission_mode("measure_text") == "allow"
     assert {"tool_name": "measure_text", "mode": "allow"} in (
@@ -194,6 +200,30 @@ async def test_measure_text_accepts_text_at_character_limit() -> None:
     assert data["within_range"] is True
 
 
+async def test_measure_text_returns_exact_input_hash_and_character_count() -> None:
+    text = "你好，世界。\r\n第二行  with  spaces\n"
+
+    data = await _measure(text=text, min_words=1)
+
+    assert data["content_sha256"] == hashlib.sha256(text.encode("utf-8")).hexdigest()
+    assert data["character_count"] == len(text)
+    # 不做规范化：换行与空白不同的文本得到不同哈希。
+    normalized = await _measure(text=text.replace("\r\n", "\n"), min_words=1)
+    assert normalized["content_sha256"] != data["content_sha256"]
+    assert normalized["character_count"] == len(text) - 1
+
+
+async def test_measure_text_hash_output_never_echoes_text() -> None:
+    text = "独一无二的正文标记串甲乙丙丁"
+
+    data = await _measure(text=text)
+
+    serialized = json.dumps(data, ensure_ascii=False)
+    assert text not in serialized
+    assert "独一无二" not in serialized
+    assert data["content_sha256"] == hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 async def test_measure_text_rejects_text_over_character_limit() -> None:
     text = "字" * (MAX_MEASURE_TEXT_CHARACTERS + 1)
 
@@ -204,6 +234,27 @@ async def test_measure_text_rejects_text_over_character_limit() -> None:
     assert data["code"] == "limit_exceeded"
     assert str(MAX_MEASURE_TEXT_CHARACTERS) in data["message"]
     assert text not in data["message"]
+
+
+async def test_measure_text_echoes_bounded_revision_series() -> None:
+    data = await _measure(
+        text="字" * 4000,
+        min_words=2800,
+        max_words=3200,
+        revision_series="chapter-3-revision",
+    )
+
+    assert data["revision_series"] == "chapter-3-revision"
+    assert data["content_sha256"] == hashlib.sha256(
+        ("字" * 4000).encode("utf-8")
+    ).hexdigest()
+
+
+async def test_measure_text_rejects_revision_series_over_limit() -> None:
+    data = await _measure(text="正文", revision_series="系" * 81)
+
+    assert data["type"] == "fail"
+    assert data["code"] == "validation_error"
 
 
 async def test_measure_text_rejects_inverted_range() -> None:

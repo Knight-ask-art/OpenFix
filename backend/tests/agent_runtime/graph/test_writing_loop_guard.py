@@ -20,6 +20,7 @@ from app.agent_runtime.graph.writing_loop_guard import writing_loop_stop_reason
 from app.agent_runtime.persistence import MessagePersister, load_history
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.runner.subagent_runner import _last_assistant_content
+from app.agent_runtime.tools.impls.chapter.measure_text import MeasureTextTool
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 
 
@@ -549,3 +550,253 @@ async def test_stop_notice_is_readable_from_session_history(db_engine):
 
     assert [message.content for message in history] == [notice]
     assert isinstance(history[0], AIMessage)
+
+
+# ---------------------------------------------------------------------------
+# 哈希感知的修订进展守卫（使用 measure_text 的真实输出）
+# ---------------------------------------------------------------------------
+
+
+async def _actual_round(
+    index: int,
+    text: str,
+    *,
+    min_words: int | None = None,
+    max_words: int | None = None,
+    revision_series: str | None = None,
+    call_overrides: dict | None = None,
+    mutate_result=None,
+) -> list[BaseMessage]:
+    """Run the real tool once, then optionally tamper call args or result."""
+    args: dict = {"text": text}
+    if min_words is not None:
+        args["min_words"] = min_words
+    if max_words is not None:
+        args["max_words"] = max_words
+    if revision_series is not None:
+        args["revision_series"] = revision_series
+    output = await MeasureTextTool(_state={}).ainvoke(args)
+    if mutate_result is not None:
+        data = json.loads(output)
+        mutate_result(data)
+        output = json.dumps(data)
+    call_args = dict(args)
+    if call_overrides:
+        call_args.update(call_overrides)
+    call_id = f"actual-{index}"
+    return [
+        AIMessage(
+            content="",
+            tool_calls=[{"id": call_id, "name": "measure_text", "args": call_args}],
+        ),
+        ToolMessage(tool_call_id=call_id, name="measure_text", content=output),
+    ]
+
+
+async def _actual_rounds(texts, **kwargs) -> list[BaseMessage]:
+    messages: list[BaseMessage] = []
+    for index, text in enumerate(texts):
+        messages.extend(await _actual_round(index, text, **kwargs))
+    return messages
+
+
+@pytest.mark.asyncio
+async def test_repeated_identical_text_stops_without_a_series():
+    text = "甲" * 4000
+    messages: list[BaseMessage] = []
+    for index in range(3):
+        messages.extend(
+            await _actual_round(
+                index, text, min_words=5000, max_words=6000
+            )
+        )
+
+    assert writing_loop_stop_reason(messages[:-2]) is None
+    reason = writing_loop_stop_reason(messages)
+    assert reason is not None
+    assert "测量文本" in reason
+    assert "本次停止不会自动保存、截断或删除正文" in reason
+    # 不能声称候选从未被保存过，旧写入可能已经发生。
+    assert "没有被保存为正文" not in reason
+
+
+@pytest.mark.asyncio
+async def test_distinct_texts_with_same_target_do_not_form_a_series():
+    texts = ["甲" * 4000, "乙" * 4000, "丙" * 4000, "丁" * 4000, "戊" * 4000]
+    messages = await _actual_rounds(texts, min_words=5000, max_words=6000)
+
+    # 不同章节共用目标不是同一修订系列，不能仅凭未改善的距离提前停止。
+    assert writing_loop_stop_reason(messages) is None
+    messages.extend(
+        await _actual_round(99, "己" * 4000, min_words=5000, max_words=6000)
+    )
+    reason = writing_loop_stop_reason(messages)
+    # 仍受原有同目标六次上限约束。
+    assert reason is not None
+    assert "6 次相同目标范围" in reason
+
+
+@pytest.mark.asyncio
+async def test_explicit_series_stops_after_three_non_improving_measurements():
+    texts = ["甲" * 4000, "乙" * 3900, "丙" * 3800]
+    messages = await _actual_rounds(
+        texts, min_words=5000, max_words=6000, revision_series="draft-7"
+    )
+
+    assert writing_loop_stop_reason(messages[:-2]) is None
+    reason = writing_loop_stop_reason(messages)
+    assert reason is not None
+    assert "测量文本" in reason
+
+
+@pytest.mark.asyncio
+async def test_changing_series_resets_the_non_improving_streak():
+    first = await _actual_rounds(
+        ["甲" * 4000, "乙" * 3900],
+        min_words=5000,
+        max_words=6000,
+        revision_series="draft-a",
+    )
+    other = await _actual_round(
+        10,
+        "丙" * 3800,
+        min_words=5000,
+        max_words=6000,
+        revision_series="draft-b",
+    )
+    assert writing_loop_stop_reason([*first, *other]) is None
+
+    continued = [*first, *other]
+    for index, length in enumerate((3700, 3600), start=11):
+        continued.extend(
+            await _actual_round(
+                index,
+                "丁" * length,
+                min_words=5000,
+                max_words=6000,
+                revision_series="draft-b",
+            )
+        )
+    assert writing_loop_stop_reason(continued) is not None
+
+
+@pytest.mark.asyncio
+async def test_progressing_draft_has_no_early_stop_but_keeps_six_attempt_ceiling():
+    lengths = (3000, 3200, 3400, 3600, 3800, 4000)
+    messages: list[BaseMessage] = []
+    for index, length in enumerate(lengths):
+        messages.extend(
+            await _actual_round(
+                index,
+                "甲" * length,
+                min_words=5000,
+                max_words=6000,
+                revision_series="draft-progress",
+            )
+        )
+        if index < 5:
+            assert writing_loop_stop_reason(messages) is None
+
+    reason = writing_loop_stop_reason(messages)
+    assert reason is not None
+    assert "6 次相同目标范围" in reason
+
+
+@pytest.mark.asyncio
+async def test_inconsistent_metadata_never_causes_a_false_early_stop():
+    text = "甲" * 4000
+    rounds: list[list[BaseMessage]] = []
+
+    # 结果范围与配对调用参数不一致。
+    rounds.append(
+        await _actual_round(
+            0,
+            text,
+            min_words=5000,
+            max_words=6000,
+            call_overrides={"min_words": 4000, "max_words": 5000},
+        )
+    )
+    # 结果哈希描述的文本与配对调用参数不一致。
+    rounds.append(
+        await _actual_round(
+            1, text, min_words=5000, max_words=6000, call_overrides={"text": "乙" * 4000}
+        )
+    )
+    # 自报 word_count 与确定性计数器不一致。
+    rounds.append(
+        await _actual_round(
+            2,
+            text,
+            min_words=5000,
+            max_words=6000,
+            mutate_result=lambda data: data.update(
+                {"word_count": data["word_count"] + 1}
+            ),
+        )
+    )
+    # 布尔值不能冒充字符数。
+    rounds.append(
+        await _actual_round(
+            3,
+            text,
+            min_words=5000,
+            max_words=6000,
+            mutate_result=lambda data: data.update({"character_count": True}),
+        )
+    )
+    # 反转的目标范围不是有效范围。
+    rounds.append(
+        await _actual_round(
+            4,
+            text,
+            min_words=5000,
+            max_words=6000,
+            mutate_result=lambda data: data.update(
+                {"range": {"min_words": 6000, "max_words": 5000}}
+            ),
+        )
+    )
+    # 结果系列与配对调用参数不一致。
+    rounds.append(
+        await _actual_round(
+            5,
+            text,
+            min_words=5000,
+            max_words=6000,
+            revision_series="draft-a",
+            call_overrides={"revision_series": "draft-b"},
+        )
+    )
+
+    for messages in rounds:
+        repeated = [
+            message for _ in range(3) for message in messages
+        ]
+        assert writing_loop_stop_reason(repeated) is None
+
+
+@pytest.mark.asyncio
+async def test_actual_success_and_unbounded_measurement_reset_no_progress():
+    text = "甲" * 4000
+    failures = [
+        message
+        for index in range(2)
+        for message in await _actual_round(
+            index, text, min_words=5000, max_words=6000
+        )
+    ]
+    within = await _actual_round(10, "乙" * 5500, min_words=5000, max_words=6000)
+    unbounded = await _actual_round(11, text)
+
+    assert writing_loop_stop_reason([*failures, *within]) is None
+    assert writing_loop_stop_reason([*failures, *unbounded]) is None
+    # 重置后重新计数，两次相同哈希仍不足以提前停止。
+    tail = [
+        message
+        for index in range(20, 22)
+        for message in await _actual_round(
+            index, text, min_words=5000, max_words=6000
+        )
+    ]
+    assert writing_loop_stop_reason([*failures, *within, *tail]) is None

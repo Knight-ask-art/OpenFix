@@ -129,6 +129,14 @@ entries:
       格式遵循 prose-format，
       已有短卡时不重读完整文风样本。
       写入遵守原有审批、Diff 和 Revision；候选未接受不能声称正文已修改。
+      正式修改已保存正文前，用 read_chapter 取得当前正文与 content_sha256，
+      调用 edit_chapter 时把该哈希作为 expected_base_sha256；
+      old_content 只覆盖本次 issue 所需的最小原文 span，不用整章或过时草稿当锚点。
+      工具返回 stale_base 或 constraint_failed 时重新读取当前正文再修订，
+      不忽略错误、不删除重建章节、不改用其它工具绕过。
+      作者或 Reviewer 明确要求字面保留且能在原文核实时，传 preserve_exact；只放确实要求原样保留的片段；
+      它只校验片段字面仍在，不证明 fact、认知、关系或声线语义未变，
+      语义仍需自行核对。expected_result_sha256 仅在确实测量过预期完整正文时传，不猜哈希。
       字数类 issue 以 Reviewer 的 measure_text 实测结果为准，
       改完用 measure_text 复核实际字数，不复述估算或自报字数；
       局部质量问题仍按 minimum effective edit；字数超出要求时按 measure_text 返回的 strategy

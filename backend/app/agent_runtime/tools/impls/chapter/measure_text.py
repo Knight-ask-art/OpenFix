@@ -1,5 +1,6 @@
 """确定性文本字数测量工具。"""
 
+import hashlib
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -32,6 +33,15 @@ class MeasureTextInput(BaseModel):
         ge=0,
         description="可选的字数上限（非负整数），不得小于 min_words",
     )
+    revision_series: str | None = Field(
+        default=None,
+        max_length=80,
+        description=(
+            "可选。同一轮连续修订的稳定系列标识（最长 80 字符），会原样回显。"
+            "只有同一系列、同一目标范围的连续测量才用于判断修订是否有进展；"
+            "改变系列即重新计数。它只用于配对统计，不代表版本内容或批准状态"
+        ),
+    )
 
 
 class MeasureTextRange(BaseModel):
@@ -49,10 +59,18 @@ class MeasureTextRevision(BaseModel):
 
 class MeasureTextOutput(BaseModel):
     word_count: int
+    character_count: int
+    content_sha256: str
     range: MeasureTextRange | None
     within_range: bool | None
     counting_method: str
     revision: MeasureTextRevision | None = None
+    revision_series: str | None = None
+
+
+def content_sha256(text: str) -> str:
+    """Exact input UTF-8 SHA256; no normalization before hashing."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 @ToolRegistry.register
@@ -66,6 +84,9 @@ class MeasureTextTool(AgentTool):
         "估算字数、其他 Agent 的自报字数都不能作为证据。"
         "未传 min_words / max_words 时只返回字数，within_range 为 null；"
         "本工具不设默认字数门槛，不判断章节合格与否。"
+        "content_sha256 与 character_count 对应本次传入的精确文本（不做规范化），"
+        "可用于证明后续 edit_chapter 的基线或结果就是被测量过的同一文本；"
+        "哈希只标识文本版本，不代表内容质量或已获批准。"
     )
     access_level: str = "readonly"
     args_schema: type[BaseModel] = MeasureTextInput
@@ -75,6 +96,7 @@ class MeasureTextTool(AgentTool):
         text: str,
         min_words: int | None = None,
         max_words: int | None = None,
+        revision_series: str | None = None,
     ) -> str:
         if len(text) > MAX_MEASURE_TEXT_CHARACTERS:
             raise ToolExecutionError(
@@ -137,6 +159,8 @@ class MeasureTextTool(AgentTool):
 
         return MeasureTextOutput(
             word_count=word_count,
+            character_count=len(text),
+            content_sha256=content_sha256(text),
             range=(
                 MeasureTextRange(min_words=min_words, max_words=max_words)
                 if has_range
@@ -145,4 +169,5 @@ class MeasureTextTool(AgentTool):
             within_range=within_range,
             counting_method=COUNTING_METHOD,
             revision=revision,
+            revision_series=revision_series,
         ).model_dump_json(exclude={"revision"} if revision is None else set())

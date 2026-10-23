@@ -126,3 +126,35 @@ def test_narrative_skill_preserves_relationship_and_information_boundaries():
     assert "重要关系不能只靠身份说明代替" in text
     assert "不为藏信息删除当前必需事实" in text
     assert "scene_function" in text
+
+
+def test_writer_binds_delivery_to_the_exact_measured_candidate():
+    text = prompt("writer")
+    assert "content_sha256 对应你传入的精确全文（不做规范化）" in text
+    assert "正文有任何改动都要重新测量，旧哈希与旧字数不能证明新稿达标" in text
+    assert "测量对象只能是完整候选" in text
+    assert "其它 Agent 的自报字数都不能当作证据" in text
+
+
+def test_reviewer_binds_candidate_source_and_marks_missing_evidence_unverified():
+    text = prompt("reviewer")
+    assert "审查候选时绑定来源" in text
+    assert "写清审查范围是完整正文、片段还是未保存候选" in text
+    assert "哈希一致也不等于审查通过" in text
+    assert "缺实测证据写未验证" in text
+    # 预览/哈希只证明来源版本，不证明质量或批准。
+    assert "未保存候选" in text
+
+
+def test_reviewer_routes_plot_changes_back_to_plot_design():
+    text = prompt("reviewer")
+    assert "requires_plot_change=true 的问题只确认是否已交回剧情设计" in text
+
+
+def test_actor_keeps_local_repair_and_routes_plot_changes():
+    text = prompt("actor")
+    assert "minimum effective edit" in text
+    assert "局部能解决不重写整章" in text
+    assert "requires_plot_change=true 时给出未处理原因并交回剧情设计/用户" in text
+    # 声线与 POV 约束不因字数或局部修订被移除。
+    assert "POV / 人物声线 / 当前场景功能" in text

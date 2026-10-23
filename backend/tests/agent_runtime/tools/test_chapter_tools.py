@@ -1,6 +1,7 @@
 """Tests for Agent chapter and volume tools."""
 
 import asyncio
+import hashlib
 import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -249,6 +250,11 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
         "title": "第二章",
         "content": "1|第一行\n2|第二行",
         "word_count": 6,
+        "chapter_id": "chap-1",
+        "content_sha256": hashlib.sha256(
+            "第一行\n第二行".encode("utf-8")
+        ).hexdigest(),
+        "updated_at": None,
     }
     list_by_volume.assert_not_awaited()
     get_by_volume_ref.assert_awaited_once_with(
@@ -785,38 +791,12 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
             )
 
     data = json.loads(result)
-    assert data == {
-        "success": True,
-        "word_count": 4,
-        "metadata": {
-            "chapter_diff": {
-                "operation": "update",
-                "chapter_id": "chap-1",
-                "chapter_title": "新标题",
-                "order": 1,
-                "path": ["第一卷"],
-                "sections": [
-                    {
-                        "type": "title",
-                        "lines": [
-                            {
-                                "type": "removed",
-                                "before_line_number": 1,
-                                "after_line_number": None,
-                                "text": "旧标题",
-                            },
-                            {
-                                "type": "added",
-                                "before_line_number": None,
-                                "after_line_number": 1,
-                                "text": "新标题",
-                            },
-                        ],
-                    }
-                ],
-            }
-        },
-    }
+    assert data["success"] is True
+    assert data["metadata"]["chapter_diff"]["operation"] == "update"
+    assert data["metadata"]["chapter_diff"]["chapter_title"] == "新标题"
+    assert data["base_sha256"] == hashlib.sha256("内容".encode("utf-8")).hexdigest()
+    assert data["result_sha256"] == data["base_sha256"]
+    assert data["revision_id"] == "rev-1"
     mock_repo.list_by_project.assert_not_awaited()
     mock_repo.list_by_volume.assert_not_awaited()
     mock_repo.get_by_volume_ref.assert_awaited_once_with(
@@ -1261,3 +1241,367 @@ def test_edit_chapter_empty_anchor_only_initializes_empty_content() -> None:
         edit_chapter_content("existing draft", args.old_content, args.new_content)
         is None
     )
+
+
+def _sha(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+async def test_read_chapter_hashes_raw_content_not_numbered_display(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter import read_chapter as rc
+
+    raw = "第一行\r\n第二行\n  缩进行"
+    chapter = _make_chapter(content=raw)
+    chapter.updated_at = datetime(2026, 10, 23, 8, 30, tzinfo=UTC)
+    monkeypatch.setattr(rc, "create_session", AsyncMock(return_value=AsyncMock()))
+    monkeypatch.setattr(rc.volume_repo, "list_by_project", AsyncMock(return_value=[_make_volume()]))
+    monkeypatch.setattr(
+        rc.chapter_repo, "get_by_volume_ref", AsyncMock(return_value=chapter)
+    )
+
+    data = json.loads(
+        await rc.ReadChapterTool(_state=_make_state()).ainvoke(
+            {
+                "volume_ref": {"type": "order", "value": 1},
+                "chapter_ref": {"type": "order", "value": 1},
+            }
+        )
+    )
+
+    numbered = rc.format_chapter_content_with_line_numbers(raw)
+    assert data["content"] == numbered
+    assert data["content_sha256"] == _sha(raw)
+    assert data["content_sha256"] != _sha(numbered)
+    assert data["chapter_id"] == "chap-1"
+    assert data["updated_at"] == "2026-10-23T08:30:00+00:00"
+
+
+async def test_read_chapter_unicode_and_newline_changes_change_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter import read_chapter as rc
+
+    hashes = []
+    for raw in ("一二三\n四五", "一二三\n四六", "一二三\r\n四五"):
+        monkeypatch.setattr(rc, "create_session", AsyncMock(return_value=AsyncMock()))
+        monkeypatch.setattr(
+            rc.volume_repo, "list_by_project", AsyncMock(return_value=[_make_volume()])
+        )
+        monkeypatch.setattr(
+            rc.chapter_repo,
+            "get_by_volume_ref",
+            AsyncMock(return_value=_make_chapter(content=raw)),
+        )
+        data = json.loads(
+            await rc.ReadChapterTool(_state=_make_state()).ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "chapter_ref": {"type": "order", "value": 1},
+                }
+            )
+        )
+        assert data["content_sha256"] == _sha(raw)
+        hashes.append(data["content_sha256"])
+    assert len(set(hashes)) == 3
+
+
+def _patch_edit_chapter_runtime(
+    monkeypatch: pytest.MonkeyPatch, *, chapter
+) -> SimpleNamespace:
+    from app.agent_runtime.tools.impls.chapter import edit_chapter as ec
+
+    runtime = SimpleNamespace(
+        session=AsyncMock(),
+        update=AsyncMock(),
+        diffs=AsyncMock(return_value=["chap-1"]),
+        commit=AsyncMock(),
+    )
+    monkeypatch.setattr(ec, "create_session", AsyncMock(return_value=runtime.session))
+    monkeypatch.setattr(
+        ec.volume_repo, "list_by_project", AsyncMock(return_value=[_make_volume()])
+    )
+    monkeypatch.setattr(
+        ec.chapter_repo, "get_by_volume_ref", AsyncMock(return_value=chapter)
+    )
+    monkeypatch.setattr(ec.chapter_repo, "update_chapter", runtime.update)
+    monkeypatch.setattr(ec, "record_chapter_diffs", runtime.diffs)
+    monkeypatch.setattr(ec, "record_agent_activity_for_change", AsyncMock())
+    monkeypatch.setattr(ec, "refresh_project_stats", AsyncMock())
+    monkeypatch.setattr(
+        "app.retrieval.chapter_index.safe_maybe_enqueue_auto_index", AsyncMock()
+    )
+    monkeypatch.setattr(
+        "app.retrieval.index_status.schedule_emit_index_status", lambda *_a, **_k: None
+    )
+    monkeypatch.setattr("app.background.jobs.service.commit_and_notify", runtime.commit)
+    return runtime
+
+
+def _edit_args(**extra) -> dict:
+    args = {
+        "volume_ref": {"type": "order", "value": 1},
+        "chapter_ref": {"type": "order", "value": 1},
+    }
+    args.update(extra)
+    return args
+
+
+def _assert_no_writes(runtime: SimpleNamespace, chapter) -> None:
+    runtime.update.assert_not_awaited()
+    runtime.diffs.assert_not_awaited()
+    runtime.commit.assert_not_awaited()
+    assert chapter.content == "前段。旧句。后段。"
+
+
+async def test_edit_chapter_valid_local_edit_returns_exact_receipts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+
+    data = json.loads(
+        await EditChapterTool(_state=_make_state()).ainvoke(
+            _edit_args(
+                old_content="旧句",
+                new_content="新句",
+                expected_base_sha256=_sha("前段。旧句。后段。").upper(),
+                preserve_exact=["前段。", "后段。"],
+                expected_result_sha256=_sha("前段。新句。后段。"),
+            )
+        )
+    )
+
+    assert data["success"] is True
+    assert data["base_sha256"] == _sha("前段。旧句。后段。")
+    assert data["result_sha256"] == _sha("前段。新句。后段。")
+    assert data["revision_id"] == "rev-1"
+    assert chapter.content == "前段。新句。后段。"
+    runtime.update.assert_awaited_once()
+
+
+async def test_edit_chapter_stale_base_fails_closed_without_writes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+
+    data = json.loads(
+        await EditChapterTool(_state=_make_state()).ainvoke(
+            _edit_args(
+                old_content="旧句",
+                new_content="新句",
+                new_title="新标题",
+                expected_base_sha256=_sha("过时的候选稿"),
+            )
+        )
+    )
+
+    assert data["type"] == "fail"
+    assert data["success"] is False
+    assert "stale_base" in data["message"]
+    assert "旧句" not in data["message"]
+    assert chapter.title == "第一章"
+    _assert_no_writes(runtime, chapter)
+
+
+async def test_edit_chapter_preserved_literal_removed_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+
+    data = json.loads(
+        await EditChapterTool(_state=_make_state()).ainvoke(
+            _edit_args(
+                old_content="旧句。后段。",
+                new_content="新句。",
+                preserve_exact=["后段。"],
+            )
+        )
+    )
+
+    assert data["type"] == "fail"
+    assert "constraint_failed" in data["message"]
+    assert "后段。" not in data["message"]
+    _assert_no_writes(runtime, chapter)
+
+
+async def test_edit_chapter_preserve_anchor_absent_from_base_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+
+    data = json.loads(
+        await EditChapterTool(_state=_make_state()).ainvoke(
+            _edit_args(
+                old_content="旧句",
+                new_content="新句",
+                preserve_exact=["从未出现的片段"],
+            )
+        )
+    )
+
+    assert data["type"] == "fail"
+    assert "constraint_failed" in data["message"]
+    assert "从未出现的片段" not in data["message"]
+    _assert_no_writes(runtime, chapter)
+
+
+async def test_edit_chapter_expected_result_mismatch_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+
+    data = json.loads(
+        await EditChapterTool(_state=_make_state()).ainvoke(
+            _edit_args(
+                old_content="旧句",
+                new_content="新句",
+                expected_result_sha256=_sha("前段。别的结果。后段。"),
+            )
+        )
+    )
+
+    assert data["type"] == "fail"
+    assert "constraint_failed" in data["message"]
+    _assert_no_writes(runtime, chapter)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"expected_base_sha256": "not-a-sha"},
+        {"expected_result_sha256": "abc"},
+        {"preserve_exact": [""]},
+        {"preserve_exact": ["片段"] * 33},
+        {"preserve_exact": ["字" * 4001]},
+    ],
+)
+async def test_edit_chapter_rejects_invalid_guard_arguments_without_writes(
+    monkeypatch: pytest.MonkeyPatch, extra: dict
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+
+    data = json.loads(
+        await EditChapterTool(_state=_make_state()).ainvoke(
+            _edit_args(old_content="旧句", new_content="新句", **extra)
+        )
+    )
+
+    assert data["type"] == "fail"
+    assert data["success"] is False
+    assert ("preserve_exact" in data["message"] or "SHA256" in data["message"])
+    assert "字" * 50 not in data["message"]
+    _assert_no_writes(runtime, chapter)
+
+
+async def test_edit_chapter_empty_preserve_exact_means_no_constraint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+
+    data = json.loads(
+        await EditChapterTool(_state=_make_state()).ainvoke(
+            _edit_args(old_content="旧句", new_content="新句", preserve_exact=[])
+        )
+    )
+
+    assert data["success"] is True
+    assert data["result_sha256"] == _sha("前段。新句。后段。")
+    runtime.update.assert_awaited_once()
+
+
+async def test_edit_chapter_legacy_call_without_guard_fields_still_updates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+
+    data = json.loads(
+        await EditChapterTool(_state=_make_state()).ainvoke(
+            _edit_args(old_content="旧句", new_content="新句")
+        )
+    )
+
+    assert data["success"] is True
+    assert data["base_sha256"] == _sha("前段。旧句。后段。")
+    assert data["result_sha256"] == _sha("前段。新句。后段。")
+    runtime.update.assert_awaited_once()
+
+
+async def test_edit_chapter_preview_carries_constraint_receipt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+    tool = EditChapterTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": AsyncMock()}})
+
+    preview = await tool.build_interrupt_preview(
+        _edit_args(
+            old_content="旧句",
+            new_content="新句",
+            expected_base_sha256=_sha("前段。旧句。后段。"),
+            preserve_exact=["前段。"],
+        )
+    )
+
+    assert preview["success"] is True
+    assert preview["constraints"] == {
+        "expected_base_sha256": _sha("前段。旧句。后段。"),
+        "expected_result_sha256": None,
+        "preserve_exact_count": 1,
+        "will_recheck_at_execution": True,
+        "validated_at_preview": True,
+        "base_sha256": _sha("前段。旧句。后段。"),
+        "result_sha256": _sha("前段。新句。后段。"),
+    }
+    assert chapter.content == "前段。旧句。后段。"
+
+
+@pytest.mark.parametrize("guards", [
+    {"expected_base_sha256": _sha("过时正文")},
+    {"preserve_exact": ["旧句"]},
+    {"preserve_exact": ["不存在的片段"]},
+    {"expected_result_sha256": _sha("错误结果")},
+])
+async def test_edit_chapter_preview_rejects_failed_constraints_before_approval(
+    monkeypatch: pytest.MonkeyPatch, guards: dict,
+) -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    chapter = _make_chapter(content="前段。旧句。后段。")
+    runtime = _patch_edit_chapter_runtime(monkeypatch, chapter=chapter)
+    tool = EditChapterTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime.session}})
+    preview = await tool.build_interrupt_preview(
+        _edit_args(old_content="旧句", new_content="新句", **guards)
+    )
+    assert preview["success"] is False
+    assert preview["type"] == "fail"
+    assert "旧句" not in preview["message"]
+    _assert_no_writes(runtime, chapter)

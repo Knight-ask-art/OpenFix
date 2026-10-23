@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Any, cast
@@ -160,6 +161,7 @@ async def build_edit_chapter_tool_result_preview(
     old_content: str | None = None,
     new_content: str | None = None,
     replace_all: bool = False,
+    validate_change: Callable[[str, str], None] | None = None,
 ) -> dict[str, Any] | None:
     volume = await _resolve_volume(session, project_id, volume_ref)
     match = await _resolve_chapter(session, volume.id, chapter_ref)
@@ -183,6 +185,9 @@ async def build_edit_chapter_tool_result_preview(
                 "message": "原文锚点与当前章节不匹配，无法生成有效修改预览。请拒绝本次修改，重新读取当前正文后再修订；不要删除重建章节。",
             }
         updated_content = edited_content
+
+    if validate_change is not None:
+        validate_change(before.content, updated_content)
 
     after = ChapterPreviewData(
         id=before.id,
