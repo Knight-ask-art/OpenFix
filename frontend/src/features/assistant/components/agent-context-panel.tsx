@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 
 import type {
   AgentContextCategory,
+  AgentContextRuntime,
+  AgentContextRuntimeSkipReason,
   AgentContextSource,
   AgentContextSourceType,
 } from "../lib/agent-context-sources";
@@ -10,6 +12,7 @@ import "./agent-context-panel.css";
 
 interface AgentContextPanelProps {
   sources: AgentContextSource[];
+  runtime?: AgentContextRuntime | null;
 }
 
 const CATEGORY_ORDER: AgentContextCategory[] = [
@@ -55,6 +58,17 @@ const SOURCE_LABELS: Record<AgentContextSourceType, string> = {
   agentRules: "assistant.contextSources.sources.agentRules",
 };
 
+const RUNTIME_REASON_LABELS: Record<AgentContextRuntimeSkipReason, string> = {
+  no_project: "assistant.contextSources.runtime.reasons.no_project",
+  agent_unavailable: "assistant.contextSources.runtime.reasons.agent_unavailable",
+  agent_disabled: "assistant.contextSources.runtime.reasons.agent_disabled",
+  note_read_disabled: "assistant.contextSources.runtime.reasons.note_read_disabled",
+  skill_disabled: "assistant.contextSources.runtime.reasons.skill_disabled",
+  no_valid_confirmed_card: "assistant.contextSources.runtime.reasons.no_valid_confirmed_card",
+  token_budget: "assistant.contextSources.runtime.reasons.token_budget",
+  dropped: "assistant.contextSources.runtime.reasons.dropped",
+};
+
 function getSourceTitle(
   source: AgentContextSource,
   t: (key: string, options?: Record<string, unknown>) => string,
@@ -85,12 +99,28 @@ function getSourceTitle(
   return source.title;
 }
 
-export function AgentContextPanel({ sources }: AgentContextPanelProps) {
+function RuntimeRow({ label, value }: { label: string; value: string }) {
+  return (
+    <li className="agent-context-item">
+      <span className="agent-context-item__title">{label}</span>
+      <span className="agent-context-item__sources">
+        <span className="agent-context-source-tag">{value}</span>
+      </span>
+    </li>
+  );
+}
+
+export function AgentContextPanel({ sources, runtime }: AgentContextPanelProps) {
   const { t } = useTranslation();
   const sections = CATEGORY_ORDER.map((category) => ({
     category,
     items: sources.filter((source) => source.category === category),
   })).filter((section) => section.items.length > 0);
+  const runtimeTitle = runtime?.style
+    ? runtime.style.status === "loaded"
+      ? t("assistant.contextSources.runtime.styleLoaded")
+      : t("assistant.contextSources.runtime.styleSkipped")
+    : t("assistant.contextSources.runtime.modelId");
 
   return (
     <div
@@ -150,6 +180,73 @@ export function AgentContextPanel({ sources }: AgentContextPanelProps) {
           {t("assistant.contextSources.empty")}
         </p>
       )}
+
+      {runtime ? (
+        <section
+          className="agent-context-section"
+          aria-labelledby="agent-context-runtime"
+        >
+          <h3
+            className="agent-context-section__title"
+            id="agent-context-runtime"
+          >
+            {runtimeTitle}
+          </h3>
+          <ul className="agent-context-section__list">
+            {runtime.model ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.modelId")}
+                value={runtime.model.id ?? t("assistant.contextSources.runtime.unknown")}
+              />
+            ) : null}
+            {runtime.model ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.recordId")}
+                value={runtime.model.recordId ?? t("assistant.contextSources.runtime.unknown")}
+              />
+            ) : null}
+            {runtime.style?.status === "loaded" ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.noteId")}
+                value={runtime.style.noteId}
+              />
+            ) : null}
+            {runtime.style?.status === "loaded" ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.hash")}
+                value={runtime.style.sha256}
+              />
+            ) : null}
+            {runtime.style?.status === "loaded" ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.tokens")}
+                value={`${runtime.style.tokens} / ${runtime.style.budget}`}
+              />
+            ) : null}
+            {runtime.style?.status === "skipped" ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.styleSkipped")}
+                value={t(RUNTIME_REASON_LABELS[runtime.style.reason])}
+              />
+            ) : null}
+            {runtime.style?.status === "skipped" &&
+            runtime.style.reason === "token_budget" &&
+            runtime.style.tokens !== undefined &&
+            runtime.style.budget !== undefined ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.tokens")}
+                value={`${runtime.style.tokens} / ${runtime.style.budget}`}
+              />
+            ) : null}
+          </ul>
+        </section>
+      ) : null}
+
+      {runtime ? (
+        <p className="agent-context-panel__scope-note">
+          {t("assistant.contextSources.runtime.skillsNotice")}
+        </p>
+      ) : null}
 
       <p className="agent-context-panel__scope-note">{t("assistant.contextSources.scopeNotice")}</p>
     </div>

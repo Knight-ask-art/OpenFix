@@ -1,6 +1,7 @@
 import i18n from "@/i18n";
 import type { AgentEvent } from "@/lib/agent.types";
 
+import { sanitizeAgentContextRuntime } from "./agent-context-sources";
 import { getString, isRecord, normalizeToolResult } from "./tool-result-normalization";
 
 export const AGENT_SOCKET_EVENTS = [
@@ -113,6 +114,7 @@ export function toAgentEvent(
 
   if (eventName === "agent:context_snapshot") {
     const id = `context-snapshot-${eventId("snapshot", data)}`;
+    const contextRuntime = sanitizeAgentContextRuntime(data.context_runtime);
     return {
       id,
       correlation_id: id,
@@ -125,6 +127,7 @@ export function toAgentEvent(
       payload: {
         kind: "context_snapshot",
         context_sources: Array.isArray(data.context_sources) ? data.context_sources : [],
+        ...(contextRuntime ? { context_runtime: contextRuntime } : {}),
       },
     };
   }

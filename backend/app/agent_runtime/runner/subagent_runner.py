@@ -186,6 +186,7 @@ async def _build_model_config_from_record(session: Any, record_id: str) -> dict[
         "provider_type": provider.provider_type,
         "base_url": provider.url,
         "api_key": api_key,
+        "model_record_id": model.id,
         "model_id": model.model_id,
         **({"custom_headers": custom_headers} if custom_headers else {}),
         "max_context_tokens": model.context_length,

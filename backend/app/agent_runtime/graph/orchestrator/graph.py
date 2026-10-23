@@ -34,7 +34,12 @@ from app.agent_runtime.tools.hooks.dispatch_description import (
 )
 from app.agent_runtime.tools.hooks.note_refresh import note_refresh_post_hook
 from app.agent_runtime.tools.hooks.world_entry_refresh import world_entry_refresh_post_hook
-from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
+from app.agent_runtime.types import (
+    DEFAULT_AGENT_MAX_ITERATIONS,
+    ReactAgentConfig,
+    TerminationCondition,
+    normalize_max_iterations,
+)
 from app.models.clients.model_factory import ModelConfig, create_chat_model
 
 DEFAULT_PRIMARY_TOOL_CATEGORIES = (
@@ -138,6 +143,24 @@ async def _primary_messages(state: OrchestratorState) -> list[BaseMessage]:
     return messages
 
 
+def _primary_max_iterations(
+    state: OrchestratorState,
+    configurable: dict,
+) -> int:
+    """Resolve the per-turn ReAct cap without resetting an existing session.
+
+    The cap is persisted in the orchestrator checkpoint. Runtime config is a
+    fallback for sessions/runners that have not materialized it yet; legacy
+    sessions without either value keep the historical default.
+    """
+
+    for candidate in (state.get("max_iterations"), configurable.get("max_iterations")):
+        normalized = normalize_max_iterations(candidate)
+        if normalized is not None:
+            return normalized
+    return DEFAULT_AGENT_MAX_ITERATIONS
+
+
 async def primary_node(
     state: OrchestratorState,
     config: RunnableConfig | None = None,
@@ -149,6 +172,10 @@ async def primary_node(
     )
     if not isinstance(runtime_model_config, dict):
         raise ValueError("Agent 运行时模型配置不可用")
+    max_iterations = _primary_max_iterations(
+        state,
+        configurable if isinstance(configurable, dict) else {},
+    )
     model_config = ModelConfig(**to_client_model_config(runtime_model_config))
     model = create_chat_model(model_config)
     agent_key = state.get("agent_key", "build")
@@ -182,6 +209,7 @@ async def primary_node(
             ),
         ),
         termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=max_iterations,
     )
     react_graph = create_react_agent(
         agent_config,
@@ -193,17 +221,30 @@ async def primary_node(
     effective_state["model_config"] = dict(runtime_model_config)
     effective_state["active_agent"] = agent_key
     effective_state["referenced_skill_ids"] = list(referenced_skill_ids)
-    await react_graph.ainvoke(
+    react_result = await react_graph.ainvoke(
         {
             "messages": await _primary_messages(state),
             "iteration_count": 0,
             "is_done": False,
             "final_output": None,
+            "termination_reason": None,
         },
         config=build_child_config(config, effective_state),
     )
 
-    return {"is_completed": True, "active_agent": agent_key}
+    termination_reason = (
+        react_result.get("termination_reason")
+        if isinstance(react_result, dict)
+        else None
+    )
+    return {
+        "is_completed": True,
+        "active_agent": agent_key,
+        "max_iterations": max_iterations,
+        "termination_reason": (
+            termination_reason if isinstance(termination_reason, str) else None
+        ),
+    }
 
 
 def build_orchestrator_graph(checkpointer=None) -> CompiledStateGraph:

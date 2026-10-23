@@ -11,7 +11,10 @@ from langgraph.errors import GraphInterrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.content_blocks import extract_reasoning_content, extract_text_content
-from app.agent_runtime.context.source_snapshot import sanitize_agent_context_sources
+from app.agent_runtime.context.source_snapshot import (
+    sanitize_agent_context_runtime,
+    sanitize_agent_context_sources,
+)
 from app.agent_runtime.persistence import repo
 from app.agent_runtime.persistence.child_runs import (
     get_child_run_agent_number,
@@ -348,6 +351,16 @@ class MessagePersister:
         context_sources = sanitize_agent_context_sources(
             payload.get("context_sources")
         )
+        context_runtime = sanitize_agent_context_runtime(
+            payload.get("context_runtime")
+        )
+        metadata: dict = {
+            "kind": "agent_context_snapshot",
+            "version": 1,
+            "context_sources": context_sources,
+        }
+        if context_runtime is not None:
+            metadata["context_runtime"] = context_runtime
         await self._write(
             role="system",
             status="complete",
@@ -356,11 +369,7 @@ class MessagePersister:
             message_type="context_snapshot",
             display_channel="hidden",
             llm_visibility="hidden",
-            metadata={
-                "kind": "agent_context_snapshot",
-                "version": 1,
-                "context_sources": context_sources,
-            },
+            metadata=metadata,
         )
 
     @staticmethod

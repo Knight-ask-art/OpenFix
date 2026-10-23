@@ -136,6 +136,7 @@ async def test_resolve_agent_model_config_prefers_configured_default_setting(
             },
         )
 
+    assert resolved["model_record_id"] == "model-default"
     assert resolved["model_id"] == "deepseek-v4-pro"
     assert resolved["provider_type"] == "openai"
     assert resolved["base_url"] == "https://default.example.com"

@@ -20,6 +20,25 @@ MAX_CONTEXT_SOURCES = 500
 MAX_SOURCE_LABEL_LENGTH = 160
 MAX_SOURCE_ID_LENGTH = 256
 
+MAX_RUNTIME_LABEL_LENGTH = 160
+MAX_RUNTIME_NOTE_ID_LENGTH = 128
+MAX_RUNTIME_TOKEN_VALUE = 2_000_000
+# Fixed reasons only: the observation must never carry a free-form diagnostic.
+RUNTIME_STYLE_SKIP_REASONS = frozenset(
+    {
+        "no_project",
+        "agent_unavailable",
+        "agent_disabled",
+        "note_read_disabled",
+        "skill_disabled",
+        "no_valid_confirmed_card",
+        "token_budget",
+        "dropped",
+    }
+)
+_RUNTIME_STYLE_STATUSES = frozenset({"loaded", "skipped"})
+_SHA256_HEX_RE = re.compile(r"\A[0-9a-f]{64}\Z")
+
 _SOURCE_TYPES_BY_CATEGORY: dict[str, set[str]] = {
     "chapter": {
         "chapterBody",
@@ -160,6 +179,90 @@ def sanitize_agent_context_sources(value: Any) -> list[dict[str, Any]]:
         seen.add(source_id)
         if len(sanitized) >= MAX_CONTEXT_SOURCES:
             break
+    return sanitized
+
+
+def _runtime_text(value: Any, *, limit: int) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = " ".join(value.split())
+    return normalized[:limit] if normalized else None
+
+
+def _runtime_count(value: Any) -> int | None:
+    if (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 0 <= value <= MAX_RUNTIME_TOKEN_VALUE
+    ):
+        return value
+    return None
+
+
+def _sanitize_runtime_model(value: Any) -> dict[str, Any] | None:
+    record = _record(value)
+    if record is None:
+        return None
+    model_id = _runtime_text(record.get("id"), limit=MAX_RUNTIME_LABEL_LENGTH)
+    record_id = _runtime_text(record.get("recordId"), limit=MAX_RUNTIME_LABEL_LENGTH)
+    if model_id is None and record_id is None:
+        return None
+    return {"id": model_id, "recordId": record_id}
+
+
+def _sanitize_runtime_style(value: Any) -> dict[str, Any] | None:
+    record = _record(value)
+    if record is None:
+        return None
+    status = record.get("status")
+    if not isinstance(status, str) or status not in _RUNTIME_STYLE_STATUSES:
+        return None
+
+    if status == "skipped":
+        reason = record.get("reason")
+        if not isinstance(reason, str) or reason not in RUNTIME_STYLE_SKIP_REASONS:
+            return None
+        style: dict[str, Any] = {"status": "skipped", "reason": reason}
+        if reason == "token_budget":
+            tokens = _runtime_count(record.get("tokens"))
+            budget = _runtime_count(record.get("budget"))
+            if tokens is not None:
+                style["tokens"] = tokens
+            if budget is not None:
+                style["budget"] = budget
+        return style
+
+    note_id = _runtime_text(record.get("noteId"), limit=MAX_RUNTIME_NOTE_ID_LENGTH)
+    sha256 = record.get("sha256")
+    if not isinstance(sha256, str) or not _SHA256_HEX_RE.match(sha256):
+        return None
+    tokens = _runtime_count(record.get("tokens"))
+    budget = _runtime_count(record.get("budget"))
+    if note_id is None or tokens is None or budget is None:
+        return None
+    return {
+        "status": "loaded",
+        "noteId": note_id,
+        "sha256": sha256,
+        "tokens": tokens,
+        "budget": budget,
+    }
+
+
+def sanitize_agent_context_runtime(value: Any) -> dict[str, Any] | None:
+    """Keep only bounded, content-free runtime observation fields."""
+    record = _record(value)
+    if record is None:
+        return None
+    model = _sanitize_runtime_model(record.get("model"))
+    style = _sanitize_runtime_style(record.get("style"))
+    if model is None and style is None:
+        return None
+    sanitized: dict[str, Any] = {}
+    if model is not None:
+        sanitized["model"] = model
+    if style is not None:
+        sanitized["style"] = style
     return sanitized
 
 

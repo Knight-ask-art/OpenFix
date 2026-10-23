@@ -13,7 +13,10 @@ from app.agent_runtime.persistence.child_runs import (
     get_child_run_agent_number,
     list_child_runs_for_parent,
 )
-from app.agent_runtime.context.source_snapshot import sanitize_agent_context_sources
+from app.agent_runtime.context.source_snapshot import (
+    sanitize_agent_context_runtime,
+    sanitize_agent_context_sources,
+)
 from app.agent_runtime.persistence.types import PersistedMessage
 from app.api.schemas.task import TaskMessage
 
@@ -288,18 +291,24 @@ def _project_rows(
             continue
 
         if row.message_type == "context_snapshot":
+            payload: dict[str, Any] = {
+                "kind": "context_snapshot",
+                "context_sources": sanitize_agent_context_sources(
+                    row.metadata.get("context_sources")
+                ),
+            }
+            context_runtime = sanitize_agent_context_runtime(
+                row.metadata.get("context_runtime")
+            )
+            if context_runtime is not None:
+                payload["context_runtime"] = context_runtime
             projected.append(
                 _base_message(
                     row,
                     content="",
                     message_type="context_snapshot",
                     display_channel="hidden",
-                    payload={
-                        "kind": "context_snapshot",
-                        "context_sources": sanitize_agent_context_sources(
-                            row.metadata.get("context_sources")
-                        ),
-                    },
+                    payload=payload,
                     tool_calls=[],
                 )
             )

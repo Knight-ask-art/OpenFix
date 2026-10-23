@@ -23,6 +23,7 @@ interface TaskMessagePayload {
   payload?: {
     kind?: unknown;
     context_sources?: unknown;
+    context_runtime?: unknown;
   };
 }
 
@@ -122,8 +123,40 @@ const GUARD_CONTEXT_SOURCES = [
   VALID_CONTEXT_SOURCES[1],
 ];
 
+const VALID_CONTEXT_RUNTIME = {
+  model: { id: "guard-model", recordId: "guard-model-record" },
+  style: {
+    status: "loaded",
+    noteId: "guard-note-1",
+    sha256: "a".repeat(64),
+    tokens: 120,
+    budget: 800,
+  },
+};
+
+/** 合法运行时字段外夹带任意内容，面板只能显示白名单字段。 */
+const HOSTILE_CONTEXT_RUNTIME = {
+  model: {
+    ...VALID_CONTEXT_RUNTIME.model,
+    api_key: "sk-must-not-leak",
+    prompt: "PROMPT_MUST_NOT_LEAK",
+  },
+  style: {
+    ...VALID_CONTEXT_RUNTIME.style,
+    content: "PROMPT_MUST_NOT_LEAK",
+    text: "PROMPT_MUST_NOT_LEAK",
+  },
+  text: "PROMPT_MUST_NOT_LEAK",
+  content: "PROMPT_MUST_NOT_LEAK",
+  prompt: "PROMPT_MUST_NOT_LEAK",
+  api_key: "sk-must-not-leak",
+  base_url: "https://provider.invalid",
+  endpoint: "/v1/chat/completions",
+  custom: { nested: "PROMPT_MUST_NOT_LEAK" },
+};
+
 /** 用固定任务替代项目任务列表与任务详情，使畸形 context_snapshot 进入侧边栏。 */
-async function mockGuardedContextTask(page: Page): Promise<void> {
+async function mockGuardedContextTask(page: Page, contextRuntime?: unknown): Promise<void> {
   const taskListItem = {
     id: GUARD_TASK_ID,
     project_id: LARGE_PROJECT_ID,
@@ -150,7 +183,11 @@ async function mockGuardedContextTask(page: Page): Promise<void> {
         message_type: "context_snapshot",
         message_status: "completed",
         display_channel: "hidden",
-        payload: { kind: "context_snapshot", context_sources: GUARD_CONTEXT_SOURCES },
+        payload: {
+          kind: "context_snapshot",
+          context_sources: GUARD_CONTEXT_SOURCES,
+          ...(contextRuntime !== undefined ? { context_runtime: contextRuntime } : {}),
+        },
         created_at: TIMESTAMP,
         updated_at: TIMESTAMP,
       },
@@ -261,7 +298,7 @@ test.describe("Agent 上下文来源面板", () => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
 
-    await mockGuardedContextTask(page);
+    await mockGuardedContextTask(page, HOSTILE_CONTEXT_RUNTIME);
     await openProject(page, LARGE_PROJECT_URL);
     await startNewTask(page);
 
@@ -280,11 +317,51 @@ test.describe("Agent 上下文来源面板", () => {
     await expect(
       panel.locator(".agent-context-item__title", { hasText: "主角" }).first(),
     ).toBeVisible();
-    await expect(panel.locator(".agent-context-item")).toHaveCount(VALID_CONTEXT_SOURCES.length);
+    // 两个合法来源，加上模型 id/记录与已加载文风卡片的笔记、哈希、Tokens。
+    await expect(panel.locator(".agent-context-item")).toHaveCount(
+      VALID_CONTEXT_SOURCES.length + 5,
+    );
 
     for (const source of MALFORMED_CONTEXT_SOURCES) {
       await expect(panel).not.toContainText(source.title);
     }
+
+    await expect(page.locator("#agent-context-runtime")).toBeVisible();
+    await expect(panel).toContainText("guard-model");
+    await expect(panel).toContainText("guard-model-record");
+    await expect(panel).toContainText("guard-note-1");
+    await expect(panel).toContainText(VALID_CONTEXT_RUNTIME.style.sha256);
+    for (const marker of [
+      "PROMPT_MUST_NOT_LEAK",
+      "sk-must-not-leak",
+      "provider.invalid",
+      "/v1/chat/completions",
+    ]) {
+      await expect(panel).not.toContainText(marker);
+    }
+    await expect(panel).not.toContainText("assistant.contextSources.");
+    expect(pageErrors.filter(isContextSourceSanitizerError)).toEqual([]);
+  });
+
+  test("旧快照缺少运行时字段时仍安全渲染来源", async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+
+    await mockGuardedContextTask(page);
+    await openProject(page, LARGE_PROJECT_URL);
+    await startNewTask(page);
+
+    const guardedTask = page.locator(".task-list-item", { hasText: GUARD_TASK_TITLE });
+    await expect(guardedTask).toBeVisible({ timeout: 30000 });
+    await guardedTask.click();
+
+    await openContextPanel(page);
+
+    const panel = page.locator(PANEL);
+    await expect(panel.locator(".agent-context-item")).toHaveCount(
+      VALID_CONTEXT_SOURCES.length,
+    );
+    await expect(page.locator("#agent-context-runtime")).toHaveCount(0);
     await expect(panel).not.toContainText("assistant.contextSources.");
     expect(pageErrors.filter(isContextSourceSanitizerError)).toEqual([]);
   });

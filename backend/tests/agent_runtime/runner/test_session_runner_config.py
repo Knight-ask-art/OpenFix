@@ -1,7 +1,7 @@
 import asyncio
 import weakref
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -41,6 +41,101 @@ def test_valid_config_constructs_ok() -> None:
         project_id="p1",
     )
     assert runner.session_id == "s1"
+
+
+def test_max_iterations_is_carried_into_runtime_config() -> None:
+    runner = SessionRunner(
+        session_id="s1",
+        task_id="task_test",
+        model_config={"max_context_tokens": 8000},
+        project_id="p1",
+        max_iterations=3,
+    )
+
+    config = runner._build_runtime_config(
+        runtime_session=object(),  # type: ignore[arg-type]
+        runtime_context={},
+        audit_context=object(),  # type: ignore[arg-type]
+    )
+
+    assert runner.max_iterations == 3
+    assert config["configurable"]["max_iterations"] == 3
+
+
+def test_legacy_and_invalid_max_iterations_fall_back_to_default() -> None:
+    legacy = SessionRunner(
+        session_id="s1",
+        task_id="task_test",
+        model_config={"max_context_tokens": 8000},
+        project_id="p1",
+    )
+    invalid = SessionRunner(
+        session_id="s2",
+        task_id="task_test",
+        model_config={"max_context_tokens": 8000},
+        project_id="p1",
+        max_iterations=0,
+    )
+
+    # None means "no requested cap"; the orchestrator then uses its legacy
+    # default instead of writing an arbitrary value into the checkpoint.
+    assert legacy.max_iterations is None
+    assert invalid.max_iterations is None
+
+
+def test_termination_payload_reports_structured_stop_reason() -> None:
+    state = SimpleNamespace(
+        values={
+            "termination_reason": "max_iterations",
+            "max_iterations": 4,
+        }
+    )
+
+    assert SessionRunner._termination_payload(state) == {
+        "termination_reason": "max_iterations",
+        "max_iterations": 4,
+    }
+    assert SessionRunner._termination_payload(
+        SimpleNamespace(values={"max_iterations": 4})
+    ) == {}
+
+
+@pytest.mark.asyncio
+async def test_resume_restores_persisted_max_iterations() -> None:
+    runner = SessionRunner(
+        session_id="s1",
+        task_id="task_test",
+        model_config={"max_context_tokens": 8000},
+        project_id="p1",
+    )
+    fake_graph = SimpleNamespace(
+        aget_state=AsyncMock(
+            return_value=SimpleNamespace(
+                values={"max_iterations": 7, "current_revision_id": None}
+            )
+        )
+    )
+    fake_session = MagicMock(close=AsyncMock())
+    fake_registry = SimpleNamespace(is_cancelled=AsyncMock(return_value=True))
+
+    with (
+        patch.object(runner, "_get_graph", AsyncMock(return_value=fake_graph)),
+        patch.object(runner, "_make_persister", MagicMock()),
+        patch(
+            "app.agent_runtime.runner.session_runner.create_session",
+            AsyncMock(return_value=fake_session),
+        ),
+        patch(
+            "app.agent_runtime.runner.session_runner.get_agent_run_registry",
+            return_value=fake_registry,
+        ),
+    ):
+        # The cancellation guard returns early, after the checkpoint values
+        # (including the cap) have been restored onto the runner.
+        await runner.resume({"action_type": "tool_approval", "approved": True})
+
+    assert runner.max_iterations == 7
+    fake_session.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio

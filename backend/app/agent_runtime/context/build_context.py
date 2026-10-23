@@ -1,3 +1,5 @@
+from typing import Any
+
 from langchain_core.messages import BaseMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,8 +47,11 @@ async def build_context_parts(
     agent_name: str,
     node_messages: list[dict],
     db_session: AsyncSession,
+    runtime_receipt: dict[str, Any] | None = None,
 ) -> list[ContextMessage]:
     """组装经过清洗和 compaction overlay 的 ContextMessage 列表。"""
+    if runtime_receipt is not None:
+        runtime_receipt.clear()
     if state["model_config"].get("max_context_tokens") is None:
         raise ContextBuildError("config", "missing max_context_tokens in model_config")
 
@@ -56,7 +61,12 @@ async def build_context_parts(
     if (m := await build_rules(db_session, state.get("project_id"))) is not None:
         parts.append(m)
     if (
-        m := await build_style_profile(db_session, state.get("project_id"), agent_name)
+        m := await build_style_profile(
+            db_session,
+            state.get("project_id"),
+            agent_name,
+            receipt=runtime_receipt,
+        )
     ) is not None:
         parts.append(m)
     if (
@@ -84,7 +94,24 @@ async def build_context_parts(
         overlaid_history = prune_obsolete_measurement_inputs(overlaid_history).messages
     result = static + overlaid_history
     result = await compress_system_prompts_if_enabled(result, db_session)
+    _finalize_style_receipt(runtime_receipt, result)
     return result
+
+
+def _finalize_style_receipt(
+    receipt: dict[str, Any] | None,
+    parts: list[ContextMessage],
+) -> None:
+    """Never report a loaded card that is absent from the final model input."""
+    if receipt is None or receipt.get("status") != "loaded":
+        return
+    if any(
+        message.role == "system" and "<runtime_style_card>" in message.content
+        for message in parts
+    ):
+        return
+    receipt.clear()
+    receipt.update({"status": "skipped", "reason": "dropped"})
 
 
 def _is_history(message: ContextMessage) -> bool:

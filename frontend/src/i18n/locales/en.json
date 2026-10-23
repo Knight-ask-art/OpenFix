@@ -2039,6 +2039,27 @@
         "availableSkill": "Available skill",
         "activatedSkill": "Activated skill",
         "agentRules": "Injected rules"
+      },
+      "runtime": {
+        "modelId": "Model",
+        "recordId": "Model record",
+        "unknown": "Unknown",
+        "styleLoaded": "Style card in context",
+        "styleSkipped": "Style card not in context",
+        "noteId": "Note ID",
+        "hash": "SHA-256",
+        "tokens": "Tokens",
+        "skillsNotice": "Available skills only describe what can be activated; activated skills are the ones actually added to this model input.",
+        "reasons": {
+          "no_project": "No project selected",
+          "agent_unavailable": "Agent unavailable",
+          "agent_disabled": "Agent disabled",
+          "note_read_disabled": "Note reading disabled for this agent",
+          "skill_disabled": "Style skill disabled",
+          "no_valid_confirmed_card": "No confirmed style profile",
+          "token_budget": "Style card exceeds the token budget",
+          "dropped": "Style card removed after context compression"
+        }
       }
     },
     "loadingTask": "Loading task...",

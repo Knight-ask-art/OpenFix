@@ -48,7 +48,10 @@ from app.agent_runtime.runner.checkpointer import (
 from app.agent_runtime.runner.event_translator import EventTranslator
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
-from app.agent_runtime.types import DEFAULT_AGENT_RECURSION_LIMIT
+from app.agent_runtime.types import (
+    DEFAULT_AGENT_RECURSION_LIMIT,
+    normalize_max_iterations,
+)
 from app.agent_runtime.usage_cost import (
     calculate_llm_call_cost,
     extract_cache_read_tokens,
@@ -131,6 +134,7 @@ class SessionRunner:
         model_config: dict,
         project_id: str = "",
         agent_key: str = "build",
+        max_iterations: int | None = None,
     ):
         self._validate_model_config(model_config)
         self.session_id = session_id
@@ -138,6 +142,9 @@ class SessionRunner:
         self.model_config = dict(model_config)
         self.project_id = project_id
         self.agent_key = agent_key
+        # None means the session predates the requested cap; the orchestrator
+        # then falls back to the historical default instead of inventing one.
+        self.max_iterations = normalize_max_iterations(max_iterations)
         self._graph: CompiledStateGraph | None = None
         self._inject_queue: asyncio.Queue[tuple[str | None, str, str]] = asyncio.Queue()
         self._queued_user_messages: dict[str, tuple[str, datetime]] = {}
@@ -631,8 +638,24 @@ class SessionRunner:
                 "inject_message_consumed_sink": self._mark_injected_user_message_sent,
                 "inject_message_attachments": self._get_injected_user_message_attachments,
                 "model_config": self.model_config,
+                "max_iterations": self.max_iterations,
             },
         }
+
+    @staticmethod
+    def _termination_payload(state: object) -> dict[str, Any]:
+        """Build the structured part of `agent:done` for non-natural stops."""
+
+        values = getattr(state, "values", None)
+        values = values if isinstance(values, dict) else {}
+        reason = values.get("termination_reason")
+        if not isinstance(reason, str) or not reason:
+            return {}
+        payload: dict[str, Any] = {"termination_reason": reason}
+        max_iterations = normalize_max_iterations(values.get("max_iterations"))
+        if max_iterations is not None:
+            payload["max_iterations"] = max_iterations
+        return payload
 
     async def _mark_injected_user_message_sent(self, message_id: str) -> bool:
         if not isinstance(message_id, str) or not message_id:
@@ -914,7 +937,7 @@ class SessionRunner:
 
             audit_context.set_revision_id(revision.id)
 
-            initial_state = {
+            initial_state: dict[str, Any] = {
                 "session_id": self.session_id,
                 "task_id": self.task_id,
                 "project_id": self.project_id,
@@ -928,8 +951,13 @@ class SessionRunner:
                 "user_attachments": attachments or [],
                 "current_revision_id": revision.id,
                 "referenced_skill_ids": list(referenced_skill_ids),
+                "termination_reason": None,
                 "messages": history_messages,
             }
+            if self.max_iterations is not None:
+                # Only overwrite when this runner knows the requested cap;
+                # legacy checkpoints keep whatever they already persisted.
+                initial_state["max_iterations"] = self.max_iterations
             async for event in graph.astream_events(
                 initial_state, config=config, version="v2"
             ):
@@ -1038,6 +1066,7 @@ class SessionRunner:
                 {
                     "session_id": self.session_id,
                     "created_at": datetime.now(UTC).isoformat(),
+                    **self._termination_payload(state),
                 },
                 room=self._room,
             )
@@ -1223,6 +1252,11 @@ class SessionRunner:
             if isinstance(getattr(snapshot, "values", None), dict)
             else {}
         )
+        restored_max_iterations = normalize_max_iterations(values.get("max_iterations"))
+        if restored_max_iterations is not None:
+            # Resume must reuse the cap persisted with the checkpoint, even
+            # when this runner instance was reconstructed without it.
+            self.max_iterations = restored_max_iterations
         revision_id = values.get("current_revision_id")
         revision_id = (
             revision_id if isinstance(revision_id, str) and revision_id else None
@@ -1426,6 +1460,7 @@ class SessionRunner:
                 {
                     "session_id": self.session_id,
                     "created_at": datetime.now(UTC).isoformat(),
+                    **self._termination_payload(state),
                 },
                 room=self._room,
             )

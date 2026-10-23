@@ -51,6 +51,7 @@ from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.runner.subagent_runner import SubagentRunner
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
+from app.agent_runtime.types import normalize_max_iterations
 from app.agent_runtime.tools import ToolRegistry
 from app.agent_runtime.tools.impls.orchestration.common import ensure_child_processing
 from app.api.schemas.agent import (
@@ -170,8 +171,9 @@ def _build_seed_state(
     model_config: dict,
     agent_key: str = "build",
     current_revision_id: str | None = None,
+    max_iterations: int | None = None,
 ) -> dict:
-    return {
+    state = {
         "session_id": session_id,
         "task_id": task_id,
         "project_id": project_id,
@@ -186,6 +188,34 @@ def _build_seed_state(
         "current_revision_id": current_revision_id,
         "messages": [],
     }
+    normalized_max_iterations = normalize_max_iterations(max_iterations)
+    if normalized_max_iterations is not None:
+        # Persisted with the session checkpoint so restarts and resumes reuse it.
+        state["max_iterations"] = normalized_max_iterations
+    return state
+
+
+async def _restore_checkpoint_max_iterations(session_id: str) -> int | None:
+    """Read the persisted iteration cap for a thread, if the checkpoint has one."""
+
+    try:
+        checkpointer = await get_checkpointer()
+        checkpoint = await checkpointer.aget_tuple(
+            {"configurable": {"thread_id": session_id}}
+        )
+    except Exception:
+        logger.bind(session_id=session_id).opt(exception=True).warning(
+            "读取会话 max_iterations 失败"
+        )
+        return None
+    channel_values = (
+        checkpoint.checkpoint.get("channel_values")
+        if checkpoint is not None and isinstance(checkpoint.checkpoint, dict)
+        else None
+    )
+    if not isinstance(channel_values, dict):
+        return None
+    return normalize_max_iterations(channel_values.get("max_iterations"))
 
 
 def _is_valid_model_config(model_config: object) -> TypeGuard[dict[str, object]]:
@@ -292,6 +322,7 @@ async def _get_runner(
     graph = await runner._get_graph()
     state = await graph.aget_state({"configurable": {"thread_id": session_id}})
     values = state.values if isinstance(getattr(state, "values", None), dict) else {}
+    runner.max_iterations = normalize_max_iterations(values.get("max_iterations"))
     restored_model_config = values.get("model_config")
     if not _is_valid_model_config(restored_model_config):
         raise NotFoundError(f"会话不存在: {session_id}")
@@ -854,6 +885,7 @@ async def create_agent_session(
             model_config=model_config,
             project_id=request.project_id,
             agent_key=request.agent_key,
+            max_iterations=request.max_iterations,
         )
         await runner.materialize_state(
             _build_seed_state(
@@ -862,6 +894,7 @@ async def create_agent_session(
                 project_id=request.project_id,
                 model_config=model_config,
                 agent_key=request.agent_key,
+                max_iterations=request.max_iterations,
             )
         )
         _SESSION_RUNNERS[session_id] = runner
@@ -1707,15 +1740,20 @@ async def fork_agent_session(
             source_revision_id=request.source_revision_id,
             model_config=model_config,
         )
+        source_max_iterations = await _restore_checkpoint_max_iterations(session_id)
         runner = SessionRunner(
             session_id=result.session_id,
             task_id=result.task.id,
             model_config=model_config,
             project_id=result.task.project_id,
+            max_iterations=source_max_iterations,
         )
         fork_session_id = result.session_id
         _SESSION_RUNNERS[result.session_id] = runner
-        await runner.materialize_state(result.state_values)
+        fork_state_values = dict(result.state_values)
+        if source_max_iterations is not None:
+            fork_state_values["max_iterations"] = source_max_iterations
+        await runner.materialize_state(fork_state_values)
         await session.commit()
         return AgentForkResponse(
             session_id=result.session_id,

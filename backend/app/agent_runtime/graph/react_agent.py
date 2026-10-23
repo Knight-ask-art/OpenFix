@@ -41,7 +41,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent_runtime.content_blocks import extract_text_content
 from app.agent_runtime.graph.writing_loop_guard import writing_loop_stop_reason
 from app.agent_runtime.attachments import build_image_content_blocks
-from app.agent_runtime.types import ReactAgentConfig
+from app.agent_runtime.types import (
+    TERMINATION_REASON_MAX_ITERATIONS,
+    ReactAgentConfig,
+)
 from app.agent_runtime.context import build_context, build_context_parts
 from app.agent_runtime.context.processors.filter import (
     filter_tool_result_metadata_content,
@@ -60,7 +63,10 @@ from app.agent_runtime.context.compaction.window import (
 )
 from app.agent_runtime.context.processors.to_langchain import to_langchain_messages
 from app.agent_runtime.context.metrics import measure_context_parts
-from app.agent_runtime.context.source_snapshot import build_agent_context_sources
+from app.agent_runtime.context.source_snapshot import (
+    build_agent_context_sources,
+    sanitize_agent_context_runtime,
+)
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.llm_invoke import (
     EmptyResponseError,
@@ -116,6 +122,7 @@ class ReactState(TypedDict, total=False):
     tool_phase: Literal["prepare", "execute"]
     tool_outcomes: Annotated[list[dict[str, Any]], _add_messages]
     tool_prepared_outcomes: Annotated[list[dict[str, Any]], _add_messages]
+    termination_reason: str | None
 
 
 # ---------------------------------------------------------------------------
@@ -829,6 +836,7 @@ def create_react_agent(
         context_parts: list[ContextMessage] | None = None
         effective_runtime_state: dict[str, Any] | None = None
         injected_user_contents: list[str] = []
+        runtime_receipt: dict[str, Any] = {}
 
         if isinstance(runtime_state, Mapping) and db_session is not None:
             node_messages = [_to_history_dict(m) for m in state["messages"]]
@@ -846,6 +854,7 @@ def create_react_agent(
                     agent_name=react_config.name,
                     node_messages=node_messages,
                     db_session=db_session,
+                    runtime_receipt=runtime_receipt,
                 )
                 messages: list[BaseMessage] = []
             else:
@@ -1015,6 +1024,7 @@ def create_react_agent(
                     agent_name=react_config.name,
                     node_messages=node_messages,
                     db_session=runtime_db_session,
+                    runtime_receipt=runtime_receipt,
                 )
                 candidate_parts = [*context_parts, *transient_parts]
             messages = to_langchain_messages(candidate_parts)
@@ -1042,11 +1052,30 @@ def create_react_agent(
                 else None
             )
         if isinstance(context_session_id, str) and context_session_id:
-            snapshot_payload = {
+            resolved_model_config: Mapping[str, Any] | None = None
+            if isinstance(effective_runtime_state, Mapping):
+                candidate = effective_runtime_state.get("model_config")
+                if isinstance(candidate, Mapping):
+                    resolved_model_config = candidate
+            if resolved_model_config is None:
+                resolved_model_config = runtime_model_config
+            runtime_observation: dict[str, Any] | None = None
+            if resolved_model_config is not None:
+                runtime_observation = {
+                    "model": {
+                        "id": resolved_model_config.get("model_id"),
+                        "recordId": resolved_model_config.get("model_record_id"),
+                    },
+                    "style": runtime_receipt or None,
+                }
+            context_runtime = sanitize_agent_context_runtime(runtime_observation)
+            snapshot_payload: dict[str, Any] = {
                 "session_id": context_session_id,
                 "agent_id": react_config.name,
                 "context_sources": context_sources,
             }
+            if context_runtime is not None:
+                snapshot_payload["context_runtime"] = context_runtime
             if context_snapshot_sink is not None:
                 await context_snapshot_sink(snapshot_payload)
             if agent_event_sink is not None:
@@ -1570,41 +1599,62 @@ def create_react_agent(
             )
         return sends
 
+    async def budget_exhausted(
+        state: ReactState, config: Optional[RunnableConfig] = None
+    ) -> dict:
+        """Terminal node reached when no iteration budget remains.
+
+        It performs no model call and dispatches no tools; it only records the
+        structured stop reason so callers and resumed runs can distinguish a
+        budget stop from a natural completion.
+        """
+        update: dict[str, Any] = {
+            "termination_reason": TERMINATION_REASON_MAX_ITERATIONS,
+        }
+        if termination.mode == "no_tool_call":
+            update["is_done"] = True
+        return update
+
     async def route_after_llm(
         state: ReactState,
-    ) -> Literal["dispatch_tools", "llm_call", "__end__"]:
+    ) -> Literal["dispatch_tools", "llm_call", "budget_exhausted", "__end__"]:
         """Route after LLM call."""
         last_message = state["messages"][-1]
+        # Tool calls produced by this allowed model call still execute; the
+        # budget only prevents another model call (and thus another dispatch).
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
             return "dispatch_tools"
 
-        if inject_queue is not None and not inject_queue.empty():
+        inject_pending = inject_queue is not None and not inject_queue.empty()
+
+        if termination.mode == "no_tool_call" and not inject_pending:
+            return "__end__"
+
+        # Stop before draining injected messages: a new model call could
+        # dispatch more tools after the budget is already spent.
+        if state["iteration_count"] >= max_iterations:
+            return "budget_exhausted"
+
+        if inject_pending:
             return "llm_call"
 
         if state.get("is_done"):
-            return "__end__"
-
-        if termination.mode == "no_tool_call":
-            return "__end__"
-
-        if state["iteration_count"] >= max_iterations:
             return "__end__"
 
         return "llm_call"
 
     async def route_after_tools(
         state: ReactState,
-    ) -> Literal["dispatch_tools", "llm_call", "__end__"]:
+    ) -> Literal["dispatch_tools", "llm_call", "budget_exhausted", "__end__"]:
         if state.get("tool_phase") == "execute":
             return "dispatch_tools"
-        if inject_queue is not None and not inject_queue.empty():
-            return "llm_call"
-        if state.get("is_done") and inject_queue is None:
+        inject_pending = inject_queue is not None and not inject_queue.empty()
+        if state.get("is_done") and not inject_pending:
             return "__end__"
-        if state.get("is_done") and inject_queue is not None and inject_queue.empty():
-            return "__end__"
+        # The iteration budget is checked before injected messages are drained
+        # so a completed budget cannot be extended by queued input.
         if state["iteration_count"] >= max_iterations:
-            return "__end__"
+            return "budget_exhausted"
         return "llm_call"
 
     # ------------------------------------------------------------------
@@ -1622,6 +1672,7 @@ def create_react_agent(
     for slot in range(TOOL_BATCH_SIZE):
         graph.add_node(f"tool_exec_{slot}", tool_exec)
     graph.add_node("tools_join", tools_join)
+    graph.add_node("budget_exhausted", budget_exhausted)
 
     graph.add_edge(START, "llm_call")
     graph.add_conditional_edges(
@@ -1630,6 +1681,7 @@ def create_react_agent(
         {
             "llm_call": "llm_call",
             "dispatch_tools": "dispatch_tools",
+            "budget_exhausted": "budget_exhausted",
             "__end__": END,
         },
     )
@@ -1644,9 +1696,11 @@ def create_react_agent(
         {
             "llm_call": "llm_call",
             "dispatch_tools": "dispatch_tools",
+            "budget_exhausted": "budget_exhausted",
             "__end__": END,
         },
     )
+    graph.add_edge("budget_exhausted", END)
 
     compiled = graph.compile(checkpointer=checkpointer)
 

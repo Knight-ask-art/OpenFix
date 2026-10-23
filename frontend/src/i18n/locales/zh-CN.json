@@ -2102,6 +2102,27 @@
         "availableSkill": "可用技能",
         "activatedSkill": "已激活技能",
         "agentRules": "规则注入"
+      },
+      "runtime": {
+        "modelId": "模型",
+        "recordId": "模型记录",
+        "unknown": "未知",
+        "styleLoaded": "文风卡片已加入上下文",
+        "styleSkipped": "文风卡片未加入上下文",
+        "noteId": "笔记 ID",
+        "hash": "SHA-256",
+        "tokens": "Tokens",
+        "skillsNotice": "「可用技能」只说明可以激活哪些技能；真正加入本次模型输入的是「已激活技能」。",
+        "reasons": {
+          "no_project": "未选择项目",
+          "agent_unavailable": "Agent 不可用",
+          "agent_disabled": "Agent 已禁用",
+          "note_read_disabled": "该 Agent 未开启笔记读取",
+          "skill_disabled": "文风技能已禁用",
+          "no_valid_confirmed_card": "没有已确认的文风档案",
+          "token_budget": "文风卡片超出 Token 预算",
+          "dropped": "上下文压缩后文风卡片被移除"
+        }
       }
     },
     "loadingTask": "加载任务中...",

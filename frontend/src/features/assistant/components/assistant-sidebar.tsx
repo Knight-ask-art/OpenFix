@@ -57,7 +57,10 @@ import "./assistant-sidebar.css";
 
 import { useSubagentSession } from "../hooks/use-subagent-session";
 import { useTasks, useUpdateTask } from "../hooks/use-tasks";
-import { buildAgentContextSources } from "../lib/agent-context-sources";
+import {
+  buildAgentContextRuntime,
+  buildAgentContextSources,
+} from "../lib/agent-context-sources";
 import {
   createRestoredPendingAgentAttachments,
   type PendingAgentImageAttachment,
@@ -723,6 +726,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     const contextMessages = isViewingSubagent ? subagentSession.messages : agentSidebar.messages;
     const contextSources = useMemo(
       () => buildAgentContextSources(contextMessages),
+      [contextMessages],
+    );
+    const contextRuntime = useMemo(
+      () => buildAgentContextRuntime(contextMessages),
       [contextMessages],
     );
 
@@ -1734,7 +1741,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               ) : agentContentView === "suggestions" ? (
                 <AgentSuggestionsPanel projectId={projectId} />
               ) : hasActiveTask && agentContentView === "context" ? (
-                <AgentContextPanel sources={contextSources} />
+                <AgentContextPanel
+                  sources={contextSources}
+                  runtime={contextRuntime}
+                />
               ) : shouldShowSubagentConversation ? (
                 <AgentMessages
                   messages={subagentSession.messages}

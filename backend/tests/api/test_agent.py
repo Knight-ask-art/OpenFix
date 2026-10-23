@@ -2755,6 +2755,36 @@ class TestAgentAPI:
         assert data["state"]["model_config"]["model_id"] == "gpt-3.5-turbo"
         assert session_id not in _SESSION_RUNNERS
 
+    async def test_create_session_persists_requested_max_iterations(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 3,
+            },
+        )
+        assert session_response.status_code == status.HTTP_200_OK
+        session_id = session_response.json()["session_id"]
+
+        checkpointer = await get_checkpointer()
+        checkpoint = await checkpointer.aget_tuple(
+            {"configurable": {"thread_id": session_id}}
+        )
+
+        assert checkpoint is not None
+        assert checkpoint.checkpoint["channel_values"]["max_iterations"] == 3
+
+        _SESSION_RUNNERS.clear()
+        response = await client.get(f"/api/v1/agent/sessions/{session_id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["state"]["max_iterations"] == 3
+
     async def test_get_session_state_allows_deleted_model_without_runner(
         self,
         client: AsyncClient,
