@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-10-23-longform-reliability-release",
-  "currentTodo": "Publish validated 0.12.5 Windows assets and verify public update discovery",
+  "currentTodo": "Completed verified Windows reliability release; no business work pending",
   "completedTodos": [
-    "LF01-LF07 minimum reliability slices; source reviews; full2843 tests; app ty and ruff; frontend/desktop builds; dual Windows packages and channel validation"
+    "LF01-LF07 bounded slices, independent reviews, full2843 tests, builds, packages, nine public assets, three manifests and isolated old-version updater discovery"
   ],
-  "activeSlice": "Release publication",
+  "activeSlice": "Completed publication evidence",
   "evidenceRefs": [
     "docs/qa-0.12.5.md"
   ],
   "blockedOn": null,
-  "nextStep": "Commit version and QA preparation, push source, create draft release before tag publication, upload nine validated Windows assets",
+  "nextStep": "Report release URL, test scope and known limits",
   "updatedAt": "2026-10-23"
 }

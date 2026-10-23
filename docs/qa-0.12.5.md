@@ -71,3 +71,18 @@ SHA-512/size、wheel 版本与前端功能资产。首轮校验误选同目录 0
 4. stale 检索来源完整展示、父子共享预算、永久作者约束压缩保留、全部语义约束结构化仍待后续。
 5. 章节基线哈希是显式可选 guard；并未给所有写入口建立原子 CAS，不能宣称全局并发编辑保护。
 6. Aegis 结构检查在开始时已有两个旧 work Markdown 未索引；这是已有过程文档问题，不冒称软件测试失败。
+
+## 公开发布回读
+
+- Release：https://github.com/Knight-ask-art/OpenFix/releases/tag/v0.12.5
+- GitHub latest 为 `v0.12.5`，`draft=false`、`prerelease=false`，九项资产均为 `uploaded`。
+- 九项远端资产的大小和 GitHub SHA-256 digest 与本地逐一一致。
+- 重新下载 `latest.yml`、`latest-win-x86_64.yml`、`latest-win-aarch64.yml`，均与本地逐字节一致；
+  本地验证已核对它们指向安装包的 SHA-512 与 size。
+- 远端 tag 指向 `f5d424041a6029ef9a987a1aa4df06188bb42da0`；源码与版本提交均已推送。
+- 用项目实际 `electron-updater` 6.8.9、隔离 `AppAdapter`（当前版本0.12.3）及 Node HTTP executor
+  检查 `latest-win-x86_64`：`foundVersion=0.12.5`、`available=true`，指向182675315字节的正确安装包。
+  自动下载关闭。该验证不等于用户现有 Electron 网络栈/系统代理完整实测，也没有替换本机用户安装。
+- Windows 两架构手工构建发布；没有用未执行的 GitHub Actions 结果冒充 CI 通过。
+- 原先未跟踪的 `next-release-narration-quality.md` 经逐行阅读后，按用户此前“所有未提交内容一起提交”
+  的授权以独立文档提交保留，仍明确属于待办，不冒充本版新检测器。
