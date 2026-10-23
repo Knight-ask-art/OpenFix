@@ -23,6 +23,11 @@ import {
 } from "./openfic-commands.js";
 import type { StartupProgressTracker, ProgressUpdate } from "../startup-progress.js";
 import { appendLog, createLogStream } from "../logging.js";
+import {
+  createFreshAppUvCacheDir,
+  isUvCacheFailure,
+  runUvInstallWithCacheRecovery,
+} from "./uv-cache.js";
 
 export type OpenFicRuntimeStep = "create-venv" | "install-uv" | "install-openfic";
 
@@ -268,6 +273,7 @@ function run(
   cwd: string,
   onOutputLine?: (line: string) => void,
   environment?: NodeJS.ProcessEnv,
+  onFailureOutput?: (output: string) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     appendLog("runtime", `执行命令：${command} ${args.join(" ")}`);
@@ -288,6 +294,7 @@ function run(
     forwardLines(child.stderr, createLogStream("runtime"), handleOutput);
     child.on("error", (error) => {
       appendLog("runtime", `命令启动失败：${error.message}`);
+      onFailureOutput?.(error.message);
       reject(error);
     });
     child.on("exit", (code) => {
@@ -297,6 +304,7 @@ function run(
         return;
       }
       const outputDetail = outputLines.length ? `：${outputLines.join("\n")}` : "";
+      onFailureOutput?.(outputLines.join("\n"));
       const error = new Error(`${command} ${args.join(" ")} exited with code ${code}${outputDetail}`);
       appendLog("runtime", `命令执行失败：${error.message}`);
       reject(error);
@@ -365,9 +373,17 @@ async function runUvInstallWithSystemCertsRetry(
   cwd: string,
   onProgress: (step: OpenFicRuntimeStep, message: string) => void,
   environment?: NodeJS.ProcessEnv,
+  onFailureOutput?: (output: string) => void,
 ): Promise<void> {
   try {
-    await run(uvPath, args, cwd, (line) => onProgress("install-openfic", describeInstallProgress(line)), environment);
+    await run(
+      uvPath,
+      args,
+      cwd,
+      (line) => onProgress("install-openfic", describeInstallProgress(line)),
+      environment,
+      onFailureOutput,
+    );
   } catch (error) {
     if (error instanceof Error && error.message.includes(UV_SYSTEM_CERTS_HINT)) {
       appendLog("runtime", "检测到 TLS 证书错误，使用 --system-certs 重试");
@@ -377,11 +393,30 @@ async function runUvInstallWithSystemCertsRetry(
         cwd,
         (line) => onProgress("install-openfic", describeInstallProgress(line)),
         environment,
+        onFailureOutput,
       );
       return;
     }
     throw error;
   }
+}
+
+/** uv 安装隔离缓存；保留旧目录，缓存失败时只换新目录重试一次。 */
+function runUvInstallWithCacheIsolation(
+  runtimeDir: string,
+  runInstall: (environment: NodeJS.ProcessEnv, onFailureOutput: (output: string) => void) => Promise<void>,
+  environment: NodeJS.ProcessEnv,
+  onProgress: (step: OpenFicRuntimeStep, message: string) => void,
+): Promise<void> {
+  return runUvInstallWithCacheRecovery(runInstall, {
+    environment,
+    runtimeDir,
+    processEnvironment: process.env,
+    isFailure: isUvCacheFailure,
+    createFreshCacheDir: (appCacheDir) => createFreshAppUvCacheDir(runtimeDir, appCacheDir),
+    onRecover: () => onProgress("install-openfic", "缓存异常，正在使用独立缓存重试安装"),
+    log: (message) => appendLog("runtime", message),
+  });
 }
 
 async function runInstallWithIndexFallback(
@@ -560,7 +595,20 @@ export async function ensureOpenFicRuntime(
           const args = createBundledWheelUvInstallCommand(venvPythonPath, bundledWheel, forceReinstall);
           const uvPathForInstall = temporaryUvPath;
           await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
-            runUvInstallWithSystemCertsRetry(uvPathForInstall, args, runtimeDir, onProgress, environment),
+            runUvInstallWithCacheIsolation(
+              runtimeDir,
+              (uvEnvironment, onFailureOutput) =>
+                runUvInstallWithSystemCertsRetry(
+                  uvPathForInstall,
+                  args,
+                  runtimeDir,
+                  onProgress,
+                  uvEnvironment,
+                  onFailureOutput,
+                ),
+              environment,
+              onProgress,
+            ),
           );
         } else {
           await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
@@ -590,7 +638,20 @@ export async function ensureOpenFicRuntime(
         forceReinstall,
       );
       await runInstallWithIndexFallback(packageIndexEnvironments, (environment) =>
-        runUvInstallWithSystemCertsRetry(uvPath, installCommand.args, runtimeDir, onProgress, environment),
+        runUvInstallWithCacheIsolation(
+          runtimeDir,
+          (uvEnvironment, onFailureOutput) =>
+            runUvInstallWithSystemCertsRetry(
+              uvPath,
+              installCommand.args,
+              runtimeDir,
+              onProgress,
+              uvEnvironment,
+              onFailureOutput,
+            ),
+          environment,
+          onProgress,
+        ),
       );
     }
     if (bundledBackendIdentity) {

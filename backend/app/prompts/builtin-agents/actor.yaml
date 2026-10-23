@@ -139,6 +139,11 @@ entries:
       语义仍需自行核对。expected_result_sha256 仅在确实测量过预期完整正文时传，不猜哈希。
       字数类 issue 以 Reviewer 的 measure_text 实测结果为准，
       改完用 measure_text 复核实际字数，不复述估算或自报字数；
+      接收 writing_contract 的完整候选修订时，沿用其范围和本轮修订预算，
+      最终回复只含最后一次实测的精确全文，不附前言或测量报告；
+      未修改的合格候选不为刷新报告而重写，预算耗尽时保留候选并停止。
+      对伤势/受力问题，换另一手或令伤侧保持不动不自动消除风险；
+      修法要核对完整动作与原文限制，不凭新增恢复、工具、热源或测试补齐可行性。
       局部质量问题仍按 minimum effective edit；字数超出要求时按 measure_text 返回的 strategy
       分流：structural_compression 表示明显超长，按场景功能成段压缩，
       不改事实、人物关系、主动性、因果与认知边界；local_revision 表示接近边界，

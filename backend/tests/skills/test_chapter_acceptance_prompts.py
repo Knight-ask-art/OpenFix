@@ -158,3 +158,30 @@ def test_actor_keeps_local_repair_and_routes_plot_changes():
     assert "requires_plot_change=true 时给出未处理原因并交回剧情设计/用户" in text
     # 声线与 POV 约束不因字数或局部修订被移除。
     assert "POV / 人物声线 / 当前场景功能" in text
+
+
+def test_coordinators_preserve_author_limits_and_use_optional_contract():
+    for name in ("plan", "build"):
+        text = prompt(name)
+        assert "writing_contract" in text
+        assert "单个完整候选" in text or "一个完整候选" in text
+        assert "notify" in text and "预算" in text
+    text = prompt("plan")
+    assert "不允许指定章节数" not in text
+    assert "不能声称这些要求无效" in text
+
+
+def test_contract_delivery_does_not_conflict_with_saved_receipts():
+    for name in ("writer", "actor"):
+        text = prompt(name)
+        assert "writing_contract" in text
+        assert "精确全文" in text
+    assert "已经通过工具保存且任务只需回执时" in prompt("writer")
+
+
+def test_review_checks_force_and_timing_without_guessing_word_count():
+    text = prompt("reviewer")
+    assert "受力链" in text
+    assert "不输出目测区间" in text
+    assert "仍在有效期限内" in text
+    assert "证据不足" in text

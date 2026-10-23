@@ -144,7 +144,7 @@ function makeConfig() {
 async function createHarness({ config, devMode = false, devBackendUrl = null } = {}) {
   assert.equal(typeof vm.SourceTextModule, "function", "Use --experimental-vm-modules");
   const ts = require("typescript");
-  const [ipcCode, autoBackupCode, sharedIpcCode, sharedConfigCode, portsCode, openficCode, devBackendCode, commandsCode] =
+  const [ipcCode, autoBackupCode, sharedIpcCode, sharedConfigCode, portsCode, openficCode, devBackendCode, commandsCode, uvCacheCode] =
     await Promise.all([
       fs.readFile(path.join(distMainDir, "ipc.js"), "utf8"),
       fs.readFile(path.join(distMainDir, "auto-backup.js"), "utf8"),
@@ -154,6 +154,7 @@ async function createHarness({ config, devMode = false, devBackendUrl = null } =
       fs.readFile(path.join(distMainDir, "runtime/openfic.js"), "utf8"),
       fs.readFile(path.join(distMainDir, "runtime/dev-backend.js"), "utf8"),
       fs.readFile(path.join(distMainDir, "runtime/openfic-commands.js"), "utf8"),
+      fs.readFile(path.join(distMainDir, "runtime/uv-cache.js"), "utf8"),
     ]);
 
   const env = {
@@ -337,7 +338,11 @@ async function createHarness({ config, devMode = false, devBackendUrl = null } =
     "node:path": synthetic("synthetic:path", { default: path }),
     "node:net": synthetic("synthetic:net", net.module),
     "node:child_process": synthetic("synthetic:child-process", { spawn: () => deny("spawn") }),
-    "node:crypto": synthetic("synthetic:crypto", { createHash: () => deny("createHash") }),
+    "node:crypto": synthetic("synthetic:crypto", {
+      createHash: () => deny("createHash"),
+      randomUUID: () => deny("randomUUID"),
+    }),
+    "node:zlib": synthetic("synthetic:zlib", { gunzip: () => deny("gunzip") }),
     "node:fs/promises": synthetic("synthetic:fs-promises", {
       // 运行时只允许两个已知路径：dev 数据目录的 mkdir，以及合成备份目录的 readdir。
       // 本套件不创建任何真实文件，因此 lstat/unlink 一律拒绝，未知路径也立即失败。
@@ -357,6 +362,7 @@ async function createHarness({ config, devMode = false, devBackendUrl = null } =
       writeFile: () => deny("fs.writeFile"),
       rm: () => deny("fs.rm"),
       access: () => deny("fs.access"),
+      mkdtemp: () => deny("fs.mkdtemp"),
     }),
     "./protocol.js": synthetic("synthetic:protocol-local", {
       setRuntimeConfig: (runtimeConfig) => {
@@ -476,6 +482,14 @@ async function createHarness({ config, devMode = false, devBackendUrl = null } =
   await commandsModule.link(denyLink);
   await commandsModule.evaluate();
   linked.set("./openfic-commands.js", commandsModule);
+
+  const uvCacheModule = new vm.SourceTextModule(uvCacheCode, {
+    context, identifier: path.join(distMainDir, "runtime/uv-cache.js"),
+    importModuleDynamically: () => deny("uv-cache dynamic import"),
+  });
+  await uvCacheModule.link(linkDependency);
+  await uvCacheModule.evaluate();
+  linked.set("./uv-cache.js", uvCacheModule);
 
   const portsModule = new vm.SourceTextModule(portsCode, {
     context, identifier: path.join(distMainDir, "ports.js"),

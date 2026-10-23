@@ -40,6 +40,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.content_blocks import extract_text_content
 from app.agent_runtime.graph.writing_loop_guard import writing_loop_stop_reason
+from app.agent_runtime.writing_contract import (
+    contract_budget_exceeded,
+    contract_failure_notice,
+    contract_system_prompt,
+    measurement_ordinals,
+)
 from app.agent_runtime.attachments import build_image_content_blocks
 from app.agent_runtime.types import (
     TERMINATION_REASON_MAX_ITERATIONS,
@@ -119,6 +125,7 @@ class ReactState(TypedDict, total=False):
     tool_call: ToolCall
     tool_batch_offset: int
     tool_dispatch_denied: bool
+    writing_measure_ordinal: int
     tool_phase: Literal["prepare", "execute"]
     tool_outcomes: Annotated[list[dict[str, Any]], _add_messages]
     tool_prepared_outcomes: Annotated[list[dict[str, Any]], _add_messages]
@@ -786,6 +793,25 @@ def create_react_agent(
             (config or {}).get("configurable", {}) if config else {},
         )
         writing_loop_start = _writing_loop_start(state, configurable)
+        contract = react_config.writing_contract
+        if (
+            contract is not None
+            and (inject_queue is None or inject_queue.empty())
+            and contract_budget_exceeded(state["messages"], contract)
+        ):
+            stop_reason = contract_failure_notice("measurement_budget_exhausted", contract)
+            _publish_writing_loop_stop(configurable, stop_reason)
+            return {
+                "messages": [AIMessage(
+                    content=stop_reason,
+                    additional_kwargs={WRITING_LOOP_STOP_MARKER: True},
+                )],
+                "is_done": True,
+                "final_output": stop_reason,
+                "tool_outcomes": Overwrite([]),
+                "tool_prepared_outcomes": Overwrite([]),
+                "tool_phase": "prepare",
+            }
         # Finish only after tool results exist, preserving every protocol pair.
         # Pending human input gets consumed below and starts a fresh allowance.
         if (
@@ -885,6 +911,10 @@ def create_react_agent(
 
         transient_parts: list[ContextMessage] = []
         transient_messages: list[BaseMessage] = []
+        if contract is not None:
+            contract_prompt = contract_system_prompt(contract)
+            transient_parts.append(ContextMessage(role="system", content=contract_prompt))
+            transient_messages.append(SystemMessage(content=contract_prompt))
 
         # Drain inject_queue for user messages
         if inject_queue is not None:
@@ -1190,6 +1220,18 @@ def create_react_agent(
                 "success": False,
                 "latency_ms": int((time.perf_counter() - started_at) * 1000),
             }
+
+        if (
+            react_config.writing_contract is not None
+            and tool_name == "measure_text"
+            and state.get("writing_measure_ordinal", 0)
+            > react_config.writing_contract.measurement_limit
+        ):
+            return outcome_update(failure_outcome(ToolFailure(
+                code="limit_exceeded",
+                message="writing_contract measurement budget exhausted",
+                trace={"source": "writing_contract"},
+            )))
 
         if state.get("tool_dispatch_denied"):
             failure = ToolFailure(
@@ -1560,6 +1602,10 @@ def create_react_agent(
         return {"tool_outcomes": excess_outcomes}
 
     def route_tool_batch(state: ReactState) -> list[Send]:
+        measure_ordinals = (
+            measurement_ordinals(state["messages"])
+            if react_config.writing_contract is not None else {}
+        )
         last_message = next(
             (
                 message
@@ -1590,6 +1636,10 @@ def create_react_agent(
                         "tool_index": index,
                         "tool_call": tool_call,
                         "tool_dispatch_denied": denied,
+                        "writing_measure_ordinal": (
+                            measure_ordinals.get(str(tool_call.get("id") or ""), 0)
+                            if tool_call is not None else 0
+                        ),
                         "tool_phase": state.get("tool_phase", "prepare"),
                         "tool_prepared_outcomes": state.get(
                             "tool_prepared_outcomes", []

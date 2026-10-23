@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from langchain_core.tools import BaseTool
+
+if TYPE_CHECKING:
+    from app.agent_runtime.writing_contract import WritingContract
 
 DEFAULT_AGENT_MAX_ITERATIONS = 1000
 DEFAULT_AGENT_RECURSION_LIMIT = 1000
@@ -40,3 +45,5 @@ class ReactAgentConfig:
     max_iterations: int = DEFAULT_AGENT_MAX_ITERATIONS
     # Zero disables this narrow safeguard for a deliberately extended workflow.
     max_writing_repetitions: int = 6
+    # dispatch 传入的可选写作合同；None 时与本字段引入前的行为完全一致。
+    writing_contract: WritingContract | None = None

@@ -53,6 +53,7 @@ from app.agent_runtime.tools.impls.orchestration.saved_writes import (
     collect_saved_chapter_writes,
 )
 from app.agent_runtime.tools.registry import ToolRegistry
+from app.agent_runtime.writing_contract import CONTRACT_AGENT_KEYS, WritingContract
 from app.core.ids import generate_id
 
 
@@ -60,6 +61,10 @@ MAX_DISPATCHES_PER_TURN = 10
 
 
 class DispatchSubagentInput(BaseModel):
+    writing_contract: WritingContract | None = Field(
+        default=None,
+        description="可选，仅 writer/actor 的单个完整候选：目标、字数范围与修订预算；最终须交付最后实测全文。",
+    )
     agent_type: str = Field(
         description="委派用于处理当前任务的专用Agent类型",
     )
@@ -366,7 +371,16 @@ class DispatchSubagentTool(AgentTool):
         description: str,
         prompt: str,
         source_dispatch_ids: list[str] | None = None,
+        writing_contract: WritingContract | dict[str, Any] | None = None,
     ) -> str:
+        contract = None
+        if writing_contract is not None:
+            if agent_type not in CONTRACT_AGENT_KEYS:
+                raise ToolExecutionError("writing_contract only supports writer/actor")
+            try:
+                contract = WritingContract.model_validate(writing_contract)
+            except ValueError as exc:
+                raise ToolExecutionError("invalid writing_contract") from exc
         configurable = get_configurable(self.config)
         await self._validate_dispatch(agent_type, configurable)
         tool_call_id = self.tool_call_id or generate_id()
@@ -388,6 +402,8 @@ class DispatchSubagentTool(AgentTool):
                 source_dispatch_ids=handoff_ids,
                 configurable=configurable,
             )
+            if contract is not None:
+                request["writing_contract"] = contract.model_dump()
             row = await self._create_child_run(
                 agent_key=agent_type,
                 request=request,

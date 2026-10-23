@@ -18,6 +18,7 @@ const repoRoot = path.resolve(fileURLToPath(new URL("../../../", import.meta.url
 const tmpDir = path.join(repoRoot, "tmp");
 const distPath = path.join(repoRoot, "desktop/dist/main/runtime/openfic.js");
 const commandDistPath = path.join(repoRoot, "desktop/dist/main/runtime/openfic-commands.js");
+const cacheDistPath = path.join(repoRoot, "desktop/dist/main/runtime/uv-cache.js");
 const indexes = ["https://pypi.org/simple/", "https://pypi.tuna.tsinghua.edu.cn/simple/"];
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const markerFor = (bytes) => `${VERSION}:sha256:${digest(bytes)}\n`;
@@ -53,8 +54,8 @@ async function withRuntimeFixture(
   { bundled = true, packaged = true, bundledUv = true, bundledUvCorrupt = false } = {},
 ) {
   assert.equal(typeof vm.SourceTextModule, "function", "Use --experimental-vm-modules");
-  const [runtimeCode, commandCode] = await Promise.all([
-    fs.readFile(distPath, "utf8"), fs.readFile(commandDistPath, "utf8"),
+  const [runtimeCode, commandCode, cacheCode] = await Promise.all([
+    fs.readFile(distPath, "utf8"), fs.readFile(commandDistPath, "utf8"), fs.readFile(cacheDistPath, "utf8"),
   ]);
   assert.ok((await requireUnlinked(repoRoot)).isDirectory());
   try {
@@ -95,7 +96,7 @@ async function withRuntimeFixture(
 
     const state = {
       installedVersion: VERSION, cliUsable: true,
-      wheelReadFails: false, installFails: false, markerWriteFails: false,
+      wheelReadFails: false, installFails: false, markerWriteFails: false, cacheFailures: 0,
     };
     const installs = [];
     const spawns = [];
@@ -128,6 +129,11 @@ async function withRuntimeFixture(
       });
     }
     const safeFs = {
+      mkdtemp: async (prefix) => checked(async () => {
+        assert.equal(prefix, path.join(runtimeDir, "uv-cache-recovery-"));
+        await requireUnlinked(runtimeDir);
+        return fs.mkdtemp(prefix);
+      }),
       access: async (target) => {
         await allowPath(target, [pythonPath, cliPath, uvPath, ...bundledUvPaths]);
         if (!samePath(target, uvPath)) await requireUnlinked(target);
@@ -225,13 +231,18 @@ async function withRuntimeFixture(
             PIP_INDEX_URL: indexUrl, UV_INDEX_URL: indexUrl,
             pip_index_url: indexUrl, uv_index_url: indexUrl,
           });
-          installs.push({ command, args: argv, kind });
+          if (kind.endsWith("uv")) expectedEnv.UV_CACHE_DIR = options.env.UV_CACHE_DIR;
+          installs.push({ command, args: argv, kind, cacheDir: options.env.UV_CACHE_DIR });
           exitCode = state.installFails ? 1 : 0;
+          const cacheFailure = kind.endsWith("uv") && state.cacheFailures > 0;
+          if (cacheFailure) { state.cacheFailures -= 1; exitCode = 2; }
           if (exitCode === 0) {
             state.installedVersion = VERSION;
             state.cliUsable = true;
           }
-          output = exitCode === 0 ? "Synthetic install succeeded\n" : "Synthetic install failed\n";
+          output = cacheFailure
+            ? "too many temporary files exist at synthetic/uv/cache\n"
+            : exitCode === 0 ? "Synthetic install succeeded\n" : "Synthetic install failed\n";
         }
         assert.equal(JSON.stringify(options.env), JSON.stringify(expectedEnv));
         spawns.push({ command, args: argv });
@@ -292,13 +303,17 @@ async function withRuntimeFixture(
     const commands = new vm.SourceTextModule(commandCode, {
       context, identifier: commandDistPath, importModuleDynamically: () => deny("commands dynamic import"),
     });
+    const cache = new vm.SourceTextModule(cacheCode, {
+      context, identifier: cacheDistPath, importModuleDynamically: () => deny("cache dynamic import"),
+    });
     const modules = new Map();
     const runtime = new vm.SourceTextModule(runtimeCode, {
       context, identifier: distPath, importModuleDynamically: () => deny("runtime dynamic import"),
     });
     await runtime.link((specifier, referencingModule) => {
-      if (referencingModule.identifier !== distPath) deny(`import from ${referencingModule.identifier}`);
+      if (![distPath, cacheDistPath].includes(referencingModule.identifier)) deny(`import from ${referencingModule.identifier}`);
       if (specifier === "./openfic-commands.js") return commands;
+      if (specifier === "./uv-cache.js") return cache;
       if (!fakeExports.has(specifier)) deny(`import ${specifier}`);
       if (!modules.has(specifier)) {
         const exports = fakeExports.get(specifier);
@@ -537,3 +552,20 @@ test("corrupt bundled uv archive falls back to venv pip and keeps runtime setup 
     assert.ok(fixture.logs.some((line) => line.includes("安装包内置 uv 解压或校验失败")));
   }, { bundled: true, packaged: true, bundledUv: true, bundledUvCorrupt: true });
 });
+
+for (const bundled of [true, false]) {
+  test(`uv cache recovery reaches the actual installer without changing args or wheel identity (${bundled})`, async () => {
+    await withRuntimeFixture(async (fixture) => {
+      if (!bundled) fixture.state.installedVersion = "0.11.0";
+      fixture.state.cacheFailures = 1;
+      await fixture.ensure();
+      assert.equal(fixture.installs.length, 2);
+      assert.deepEqual(fixture.installs[1].args, fixture.installs[0].args);
+      assert.equal(path.basename(fixture.installs[0].cacheDir), "uv-cache");
+      assert.match(path.basename(fixture.installs[1].cacheDir), /^uv-cache-recovery-/);
+      assert.notEqual(fixture.installs[0].cacheDir, fixture.installs[1].cacheDir);
+      assert.equal((await fixture.inspect()).complete, true);
+      if (bundled) assert.equal(await fixture.readMarker(), markerFor(WHEEL_A));
+    }, { bundled });
+  });
+}

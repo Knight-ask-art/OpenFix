@@ -59,6 +59,12 @@ from app.agent_runtime.usage_cost import (
     extract_cache_read_tokens,
     extract_cache_write_tokens,
 )
+from app.agent_runtime.writing_contract import (
+    CONTRACT_AGENT_KEYS,
+    contract_failure_notice,
+    contract_from_request_json,
+    delivery_violation,
+)
 from app.core.encryption import EncryptionService
 from app.models.clients.model_factory import ModelConfig, create_chat_model
 from app.models.repos import model_provider_repo, model_repo
@@ -273,7 +279,9 @@ def _interrupt_resume_id(payload: dict[str, Any]) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-def _last_assistant_content(messages: list[BaseMessage]) -> str | None:
+def _last_assistant_content(
+    messages: list[BaseMessage], *, preserve_whitespace: bool = False
+) -> str | None:
     """Return the latest AI answer produced after the current ``HumanMessage``.
 
     Only the most recent AI message of the current turn may supply the final
@@ -292,8 +300,8 @@ def _last_assistant_content(messages: list[BaseMessage]) -> str | None:
             return None
         if is_writing_loop_stop_message(message):
             return None
-        content = str(message.text).strip()
-        return content or None
+        content = str(message.text)
+        return content if preserve_whitespace and content.strip() else content.strip() or None
     return None
 
 
@@ -429,6 +437,7 @@ class SubagentRunner:
             name=row.agent_key,
             tools=await self._build_tools(definition, runtime_state),
             termination=TerminationCondition(mode="no_tool_call"),
+            writing_contract=contract_from_request_json(row.request_json),
         )
         model_config = dict(self.model_config)
         session = await _open_session(self.session_factory)
@@ -1022,6 +1031,18 @@ class SubagentRunner:
                 request_kind=request_row.request_kind,
             )
 
+        try:
+            contract = contract_from_request_json(row.request_json)
+            if contract is not None and row.agent_key not in CONTRACT_AGENT_KEYS:
+                raise ValueError("unsupported contract agent")
+        except ValueError:
+            error = "invalid persisted writing_contract"
+            refreshed = await self._complete_request(row, request_row, error=error)
+            await self._publish_parent_subagent_status_row(
+                refreshed, request_kind=request_row.request_kind
+            )
+            return {"error": error}
+
         definition = await self._load_agent_definition(row.agent_key)
         history = await self._load_history(row.child_thread_id)
         runtime_state = await self._build_runtime_state(
@@ -1083,7 +1104,9 @@ class SubagentRunner:
             return {"error": "subagent interrupt payload missing"}
 
         messages = result_state.get("messages") or []
-        assistant_content = _last_assistant_content(messages)
+        assistant_content = _last_assistant_content(
+            messages, preserve_whitespace=contract is not None
+        )
         if assistant_content is None:
             # 保护性停止的提示原文不是交付物：终止本轮并把原因交回主 Agent，
             # 避免停止提示被登记为交付物后作为交接来源引用。
@@ -1097,6 +1120,16 @@ class SubagentRunner:
                 request_kind=request_row.request_kind,
             )
             return {"error": error}
+
+        if contract is not None:
+            violation = delivery_violation(assistant_content, messages, contract)
+            if violation is not None:
+                error = contract_failure_notice(violation, contract)
+                refreshed = await self._complete_request(row, request_row, error=error)
+                await self._publish_parent_subagent_status_row(
+                    refreshed, request_kind=request_row.request_kind
+                )
+                return {"error": error}
 
         refreshed = await self._complete_request(
             row,
