@@ -72,4 +72,19 @@ Windows x64/ARM64的NSIS和ZIP构建成功；ZIP CRC、PE架构、内置wheel、
 
 普通`verify-release.mjs`与`--prepared-update-assets`全部通过，生成双架构安装版/便携版/blockmap及三份更新清单，共9个资产。Authenticode实查两架构程序和安装包均为NotSigned，不能以构建日志的signing文字宣称已签名。ARM64无真机验收，未覆盖安装用户当前实例。
 
-提交推送、公开Release与自动更新发现回执在发布后追加。本节目前证明本地发布候选通过，不提前声明已公开。
+## 公开发布回执
+
+- 修复提交及release tag：`5afc256b5d39d0e612ce78204413a3ab180fa161`，`v0.12.6`。
+- Release：https://github.com/Knight-ask-art/OpenFix/releases/tag/v0.12.6 ，已公开且Latest指向0.12.6。
+- GitHub端9个资产的大小及SHA-256全部与本地清单一致；tag精确指向上述修复提交。
+- Git直连Schannel/OpenSSL均遇TLS错误，通过本机现有代理正常push成功。曾尝试Git Database API但未更新任何ref，最终未使用替代提交。
+- 公开资产HTTP下载与真实GitHub provider更新探针遇TLS EOF/握手断连；Python、Node、curl及受限环境外只读复测均未完成联网验证。不能声称在线更新端到端验收通过。
+- 使用实际electron-updater、0.12.5隔离AppAdapter和本次精确清单，经本地HTTP feed核验x86_64/aarch64均发现0.12.6并选对架构安装包；不下载/安装。该证据只证明清单兼容和版本发现，不证明公网连接。
+
+## 用户追加的旧资产清理
+
+按明确授权，逐项盘点并删除7处0.12.4/0.12.5旧安装包、便携包、blockmap、解包目录和旧wheel；删除前均核无Git跟踪文件、数据库、密钥、reparse point或进程引用。删除文件合计5,952,727,582字节，磁盘可用空间实测增加5,962,018,816字节，逐项目标已不存在。
+
+最初包含本轮0.12.6作废目录的更大清单被自动审批拒绝，原因是`package-final-*`被判定可能是当前最终包；该操作没有执行。随后缩小到明确旧版本资产才执行清理，所有0.12.6目录、当前安装、源码、作品数据、配置和验收日志保留。清理后Git状态干净，正式服务healthy，59章hash再次全部一致。
+
+任务边界：已完成本轮代码修复、实际回归、提交推送、双架构打包、公开发布及旧版本资产清理。尚未证明模型篇幅/文学质量稳定性，也未完成公网更新探针、覆盖安装、ARM64真机或新取回面板的交互验收。撤去graph后置预算装饰，MeasureTextTool为反馈单一生成位置；旧无合同测量与旧快照原因兼容保留。没有第二套候选库或RAG，没有Canon变更。
