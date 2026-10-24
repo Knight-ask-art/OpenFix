@@ -43,6 +43,7 @@ from app.agent_runtime.graph.writing_loop_guard import writing_loop_stop_reason
 from app.agent_runtime.writing_contract import (
     contract_budget_exceeded,
     contract_failure_notice,
+    contract_measurement_args,
     contract_system_prompt,
     measurement_ordinals,
 )
@@ -1259,6 +1260,9 @@ def create_react_agent(
                 }
             )
 
+        if tool_name == "measure_text" and react_config.writing_contract is not None:
+            tool_args = contract_measurement_args(tool_args, react_config.writing_contract)
+
         if is_malformed_tool_call(tool_call):
             malformed_payload = build_malformed_tool_call_error(tool_call)
             failure = ToolFailure(
@@ -1370,6 +1374,9 @@ def create_react_agent(
             metadata["tool_call_id"] = tool_id
             metadata["tool_call"] = tool_call
             metadata["openfic_phase"] = phase
+            if tool_name == "measure_text" and react_config.writing_contract is not None:
+                metadata["openfic_writing_contract"] = react_config.writing_contract.model_dump()
+                metadata["openfic_measure_ordinal"] = state.get("writing_measure_ordinal", 0)
             if phase == "execute":
                 metadata["openfic_skip_pre_hooks"] = True
             invoke_config["metadata"] = metadata

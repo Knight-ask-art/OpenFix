@@ -1998,6 +1998,18 @@
     "cachedTokens": "Cached Tokens: {{count}}",
     "totalCost": "Total Cost: $ {{cost}}",
     "contextUsage": "Context Usage",
+    "writingRecovery": {
+      "title": "Unaccepted writing candidate",
+      "load": "Retrieve unaccepted candidate",
+      "loading": "Verifying retained draft…",
+      "notice": "This task failed. The retained draft is for inspection or an explicitly requested revision. It has not been saved, approved, or accepted for quality.",
+      "copy": "Copy candidate",
+      "copied": "Copied; manuscript unchanged",
+      "copyError": "Copy failed. Select the text and copy it manually.",
+      "error": "Could not retrieve the candidate. Check that the task has stopped and try again.",
+      "empty": "No verifiable retained measurement was found for the current request.",
+      "wordCount": "Measured length: {{count}}; not accepted"
+    },
     "contextSources": {
       "viewLabel": "Agent sidebar content view",
       "conversationTab": "Conversation",
@@ -2049,6 +2061,8 @@
         "noteId": "Note ID",
         "hash": "SHA-256",
         "tokens": "Tokens",
+        "budget": "Token budget",
+        "nextStep": "Suggested",
         "skillsNotice": "Available skills only describe what can be activated; activated skills are the ones actually added to this model input.",
         "reasons": {
           "no_project": "No project selected",
@@ -2056,9 +2070,24 @@
           "agent_disabled": "Agent disabled",
           "note_read_disabled": "Note reading disabled for this agent",
           "skill_disabled": "Style skill disabled",
+          "profile_missing": "No “项目文风档案” note found",
+          "profile_ambiguous": "Multiple “项目文风档案” notes exist; none can be chosen",
+          "profile_unconfirmed": "“项目文风档案” is not marked as confirmed",
+          "profile_invalid": "“项目文风档案” has an invalid format",
+          "profile_budget": "“项目文风档案” exceeds the size or token budget",
           "no_valid_confirmed_card": "No confirmed style profile",
           "token_budget": "Style card exceeds the token budget",
           "dropped": "Style card removed after context compression"
+        },
+        "notes": {
+          "default": "No style card was loaded; check the reason above and the matching setting.",
+          "profile_missing": "Create a note titled “项目文风档案” at the project root.",
+          "profile_ambiguous": "Keep only one “项目文风档案” note at the project root, or rename the others.",
+          "profile_unconfirmed": "Set status to confirmed in the “项目文风档案” note after checking it.",
+          "profile_invalid": "Check that the note is valid JSON with schema_version 1 and short text fields.",
+          "profile_budget": "Shorten the “项目文风档案” note so it stays within 800 tokens.",
+          "profile_legacy": "Prepare a valid “项目文风档案” note in the note editor.",
+          "token_budget": "The framed card exceeded the budget; shorten the “项目文风档案” note."
         }
       }
     },

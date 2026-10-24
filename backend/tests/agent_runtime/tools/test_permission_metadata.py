@@ -12,6 +12,7 @@ def test_runtime_tool_permissions_match_registered_user_tools() -> None:
     assert get_default_agent_tool_permissions() == [
         {"tool_name": "activate_skill", "mode": "allow"},
         {"tool_name": "ask_user", "mode": "allow"},
+        {"tool_name": "compare_revision", "mode": "allow"},
         {"tool_name": "create_character", "mode": "ask"},
         {"tool_name": "create_note_category", "mode": "ask"},
         {"tool_name": "create_volume", "mode": "ask"},

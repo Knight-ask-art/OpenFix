@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
 from loguru import logger
+from pydantic import ValidationError
 
 ToolErrorCode = Literal[
     "validation_error",
@@ -109,6 +110,12 @@ def tool_failure_from_exception(
     code: ToolErrorCode | None = None,
     source: str,
 ) -> ToolFailure:
+    if isinstance(error, ValidationError):
+        return ToolFailure(
+            code="validation_error",
+            message="工具参数验证失败，请检查必填字段、类型与范围。",
+            trace={"source": source, "exception_type": "ValidationError"},
+        )
     message = _error_message(error)
     return ToolFailure(
         code=_error_code(code or getattr(error, "code", None)),
@@ -220,6 +227,9 @@ def log_tool_failure(
         error_code=failure.code,
         **failure.trace,
     )
+    if isinstance(exception, ValidationError):
+        logger_context.warning("Agent 工具参数验证失败")
+        return
     if exception is not None:
         logger_context.opt(exception=exception).error("Agent 工具执行失败")
         return

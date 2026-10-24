@@ -122,6 +122,12 @@ export const AGENT_CONTEXT_RUNTIME_SKIP_REASONS = [
   "agent_disabled",
   "note_read_disabled",
   "skill_disabled",
+  "profile_missing",
+  "profile_ambiguous",
+  "profile_unconfirmed",
+  "profile_invalid",
+  "profile_budget",
+  // Legacy snapshots predate the fixed profile reasons above.
   "no_valid_confirmed_card",
   "token_budget",
   "dropped",
@@ -201,6 +207,10 @@ function sanitizeRuntimeStyle(value: unknown): AgentContextRuntimeStyle | null {
       const tokens = runtimeCount(record.tokens);
       const budget = runtimeCount(record.budget);
       if (tokens !== null) style.tokens = tokens;
+      if (budget !== null) style.budget = budget;
+    }
+    if (reason === "profile_budget") {
+      const budget = runtimeCount(record.budget);
       if (budget !== null) style.budget = budget;
     }
     return style;

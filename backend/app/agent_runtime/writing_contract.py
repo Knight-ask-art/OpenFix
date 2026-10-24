@@ -102,7 +102,7 @@ def contract_budget_exceeded(
     )
 
 
-def _paired_text(call: Mapping[str, object], result: object) -> str | None:
+def verified_measurement_text(call: Mapping[str, object], result: object) -> str | None:
     args = call.get("args")
     text = args.get("text") if isinstance(args, Mapping) else None
     if not isinstance(text, str):
@@ -112,7 +112,11 @@ def _paired_text(call: Mapping[str, object], result: object) -> str | None:
             result = json.loads(result)
         except (ValueError, RecursionError):
             return None
-    if not isinstance(result, Mapping) or result.get("success") is False:
+    if (
+        not isinstance(result, Mapping)
+        or result.get("success") is False
+        or result.get("type") == "fail"
+    ):
         return None
     word_count = result.get("word_count")
     char_count = result.get("character_count")
@@ -144,7 +148,7 @@ def delivery_violation(
                     call = candidate
         elif isinstance(message, ToolMessage) and message.tool_call_id == last_id:
             result = message.content if message.status != "error" else None
-    measured = _paired_text(call, result) if call is not None else None
+    measured = verified_measurement_text(call, result) if call is not None else None
     if measured is None:
         return "unverified_measurement"
     if measured != content:
@@ -155,6 +159,16 @@ def delivery_violation(
 
 
 def contract_system_prompt(contract: WritingContract) -> str:
+    target = (
+        (contract.min_words + contract.max_words) // 2
+        if contract.min_words is not None and contract.max_words is not None
+        else contract.max_words or contract.min_words
+    )
+    planning = (
+        f"动笔前在内部把已有beat分配到总计约{target}字的篇幅，标题也计入；"
+        "不增加场景来填预算，不先写成两倍长稿再压缩。"
+        if target is not None else ""
+    )
     return (
         "本轮完整候选的可执行写作约束："
         + contract.model_dump_json()
@@ -162,7 +176,40 @@ def contract_system_prompt(contract: WritingContract) -> str:
         "只测完整候选；最终回复须与最后一次 measure_text 的 text 逐字一致，"
         "包括标题、空白和标点，不另加说明或统计报告。字数门槛以本合同为准。"
         "失败会保留草稿并停止有效交付，不自动保存、截断或修改正文。"
+        + planning
     )
+
+
+def contract_measurement_args(
+    args: Mapping[str, object], contract: WritingContract
+) -> dict[str, object]:
+    """The trusted contract owns feedback bounds as well as final validation."""
+    return {
+        **args,
+        "min_words": contract.min_words,
+        "max_words": contract.max_words,
+    }
+
+
+def contract_measurement_feedback(
+    result: str, args: Mapping[str, object], contract: WritingContract, ordinal: int
+) -> str:
+    """Attach remaining attempts only to a verified, paired measurement."""
+    if verified_measurement_text({"args": args}, result) is None:
+        return result
+    payload = json.loads(result)
+    remaining = max(0, contract.measurement_limit - ordinal)
+    payload["writing_budget"] = {
+        "attempt": ordinal,
+        "measurement_limit": contract.measurement_limit,
+        "remaining_measurements": remaining,
+        "next_action": (
+            "deliver_exact_measured_text" if contract.in_range(payload["word_count"])
+            else "stop_and_retain_candidate" if remaining == 0
+            else "revise_complete_candidate"
+        ),
+    }
+    return json.dumps(payload, ensure_ascii=False)
 
 
 def contract_failure_notice(code: str, contract: WritingContract) -> str:

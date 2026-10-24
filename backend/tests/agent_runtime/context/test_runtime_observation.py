@@ -144,6 +144,44 @@ async def test_style_skips_report_fixed_reason_without_fake_message(
         assert set(receipt) == {"status", "reason"}
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "loader_reason",
+    [
+        "profile_missing",
+        "profile_ambiguous",
+        "profile_unconfirmed",
+        "profile_invalid",
+        "profile_budget",
+    ],
+)
+async def test_style_profile_rejection_reason_flows_into_receipt(
+    monkeypatch, loader_reason
+):
+    _patch_style_dependencies(monkeypatch, card=None)
+    loader = AsyncMock(
+        side_effect=lambda session, project_id, receipt: (
+            receipt.update({"status": "skipped", "reason": loader_reason, "budget": 800})
+        )
+    )
+    monkeypatch.setattr(
+        f"{_STYLE_PROFILE_PATCHES}.style_profile_service.load_runtime_style_card",
+        loader,
+    )
+
+    receipt: dict[str, object] = {"status": "loaded", "sha256": "stale"}
+    message = await build_style_profile(AsyncMock(), "project-1", "writer", receipt)
+
+    assert message is None
+    assert loader_reason in RUNTIME_STYLE_SKIP_REASONS
+    assert receipt["status"] == "skipped" and receipt["reason"] == loader_reason
+    if loader_reason == "profile_budget":
+        assert receipt["budget"] == MAX_RUNTIME_STYLE_TOKENS
+        assert set(receipt) == {"status", "reason", "budget"}
+    else:
+        assert set(receipt) == {"status", "reason"}
+
+
 def test_dropped_style_receipt_is_fixed_reason_and_clears_loaded_fields():
     receipt = {
         "status": "loaded",
@@ -243,11 +281,37 @@ def test_skip_reason_contract_is_fixed_and_budget_counts_are_bounded():
         expected_style = {"status": "skipped", "reason": reason}
         if reason == "token_budget":
             expected_style.update(tokens=900, budget=800)
+        if reason == "profile_budget":
+            expected_style.update(budget=800)
         assert sanitized == {"style": expected_style}
 
     assert (
         sanitize_agent_context_runtime(
             {"style": {"status": "skipped", "reason": "free_form_reason"}}
+        )
+        is None
+    )
+    # A fixed reason never carries free-form text or stray fields through.
+    sanitized = sanitize_agent_context_runtime(
+        {
+            "style": {
+                "status": "skipped",
+                "reason": "profile_unconfirmed",
+                "text": "SECRET_PROMPT_TEXT",
+                "budget": 800,
+                "noteId": "note-1",
+            }
+        }
+    )
+    assert sanitized == {"style": {"status": "skipped", "reason": "profile_unconfirmed"}}
+    assert (
+        sanitize_agent_context_runtime(
+            {
+                "style": {
+                    "status": "skipped",
+                    "reason": "profile_invalid JSONDecodeError: line 3 SECRET_PROMPT_TEXT",
+                }
+            }
         )
         is None
     )

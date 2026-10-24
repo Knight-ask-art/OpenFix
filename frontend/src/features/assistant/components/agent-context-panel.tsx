@@ -64,13 +64,35 @@ const RUNTIME_REASON_LABELS: Record<AgentContextRuntimeSkipReason, string> = {
   agent_disabled: "assistant.contextSources.runtime.reasons.agent_disabled",
   note_read_disabled: "assistant.contextSources.runtime.reasons.note_read_disabled",
   skill_disabled: "assistant.contextSources.runtime.reasons.skill_disabled",
+  profile_missing: "assistant.contextSources.runtime.reasons.profile_missing",
+  profile_ambiguous: "assistant.contextSources.runtime.reasons.profile_ambiguous",
+  profile_unconfirmed: "assistant.contextSources.runtime.reasons.profile_unconfirmed",
+  profile_invalid: "assistant.contextSources.runtime.reasons.profile_invalid",
+  profile_budget: "assistant.contextSources.runtime.reasons.profile_budget",
   no_valid_confirmed_card: "assistant.contextSources.runtime.reasons.no_valid_confirmed_card",
   token_budget: "assistant.contextSources.runtime.reasons.token_budget",
   dropped: "assistant.contextSources.runtime.reasons.dropped",
 };
 
-function getSourceTitle(
-  source: AgentContextSource,
+// Guidance shown under the runtime section. profile_* notes explain how to
+// prepare the note in the note editor; none of them claim a card is confirmed.
+const RUNTIME_REASON_NOTES: Record<AgentContextRuntimeSkipReason, string> = {
+  no_project: "assistant.contextSources.runtime.notes.default",
+  agent_unavailable: "assistant.contextSources.runtime.notes.default",
+  agent_disabled: "assistant.contextSources.runtime.notes.default",
+  note_read_disabled: "assistant.contextSources.runtime.notes.default",
+  skill_disabled: "assistant.contextSources.runtime.notes.default",
+  profile_missing: "assistant.contextSources.runtime.notes.profile_missing",
+  profile_ambiguous: "assistant.contextSources.runtime.notes.profile_ambiguous",
+  profile_unconfirmed: "assistant.contextSources.runtime.notes.profile_unconfirmed",
+  profile_invalid: "assistant.contextSources.runtime.notes.profile_invalid",
+  profile_budget: "assistant.contextSources.runtime.notes.profile_budget",
+  no_valid_confirmed_card: "assistant.contextSources.runtime.notes.profile_legacy",
+  token_budget: "assistant.contextSources.runtime.notes.token_budget",
+  dropped: "assistant.contextSources.runtime.notes.default",
+};
+
+function getSourceTitle(  source: AgentContextSource,
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {
   if (source.category === "rule") {
@@ -121,6 +143,9 @@ export function AgentContextPanel({ sources, runtime }: AgentContextPanelProps) 
       ? t("assistant.contextSources.runtime.styleLoaded")
       : t("assistant.contextSources.runtime.styleSkipped")
     : t("assistant.contextSources.runtime.modelId");
+  // Status notes derive from the fixed reason only; snapshot text is never shown.
+  const styleNote =
+    runtime?.style?.status === "skipped" ? t(RUNTIME_REASON_NOTES[runtime.style.reason]) : null;
 
   return (
     <div
@@ -227,6 +252,20 @@ export function AgentContextPanel({ sources, runtime }: AgentContextPanelProps) 
               <RuntimeRow
                 label={t("assistant.contextSources.runtime.styleSkipped")}
                 value={t(RUNTIME_REASON_LABELS[runtime.style.reason])}
+              />
+            ) : null}
+            {styleNote ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.nextStep")}
+                value={styleNote}
+              />
+            ) : null}
+            {runtime.style?.status === "skipped" &&
+            runtime.style.reason === "profile_budget" &&
+            runtime.style.budget !== undefined ? (
+              <RuntimeRow
+                label={t("assistant.contextSources.runtime.budget")}
+                value={String(runtime.style.budget)}
               />
             ) : null}
             {runtime.style?.status === "skipped" &&

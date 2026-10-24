@@ -106,6 +106,7 @@ async def test_list_agent_tool_categories(client: AsyncClient):
         "list_chapters",
         "read_chapter",
         "measure_text",
+        "compare_revision",
         "search_chapters",
         "update_index",
     ]

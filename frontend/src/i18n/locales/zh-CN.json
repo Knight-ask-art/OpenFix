@@ -2061,6 +2061,18 @@
     "cachedTokens": "缓存 Tokens：{{count}}",
     "totalCost": "累计费用：$ {{cost}}",
     "contextUsage": "上下文占用",
+    "writingRecovery": {
+      "title": "未通过的写作候选",
+      "load": "取回未通过候选",
+      "loading": "正在核验保留稿…",
+      "notice": "任务未通过。保留稿只供检查或明确发起续修，不代表正文已保存、质量通过或获得批准。",
+      "copy": "复制候选",
+      "copied": "已复制，未保存到正文",
+      "copyError": "复制失败，可在文本框中选择并手动复制。",
+      "error": "暂时无法取回，请确认任务已停止后重试。",
+      "empty": "没有找到当前请求中可验证的保留测量稿。",
+      "wordCount": "保留稿实测 {{count}} 字；仍未通过验收"
+    },
     "contextSources": {
       "viewLabel": "Agent 侧边栏内容视图",
       "conversationTab": "对话",
@@ -2112,6 +2124,8 @@
         "noteId": "笔记 ID",
         "hash": "SHA-256",
         "tokens": "Tokens",
+        "budget": "Token 预算",
+        "nextStep": "建议",
         "skillsNotice": "「可用技能」只说明可以激活哪些技能；真正加入本次模型输入的是「已激活技能」。",
         "reasons": {
           "no_project": "未选择项目",
@@ -2119,9 +2133,24 @@
           "agent_disabled": "Agent 已禁用",
           "note_read_disabled": "该 Agent 未开启笔记读取",
           "skill_disabled": "文风技能已禁用",
+          "profile_missing": "未找到“项目文风档案”笔记",
+          "profile_ambiguous": "存在多篇“项目文风档案”笔记，无法确定使用哪一篇",
+          "profile_unconfirmed": "“项目文风档案”尚未确认",
+          "profile_invalid": "“项目文风档案”格式无效",
+          "profile_budget": "“项目文风档案”超出大小或 Token 预算",
           "no_valid_confirmed_card": "没有已确认的文风档案",
           "token_budget": "文风卡片超出 Token 预算",
           "dropped": "上下文压缩后文风卡片被移除"
+        },
+        "notes": {
+          "default": "未加载文风卡片；可检查上方的原因与对应设置。",
+          "profile_missing": "可在项目根目录的笔记中新建一篇标题为“项目文风档案”的笔记。",
+          "profile_ambiguous": "请只保留一篇位于项目根目录、标题为“项目文风档案”的笔记，或重命名其余同名笔记。",
+          "profile_unconfirmed": "请在“项目文风档案”笔记中将 status 写为 confirmed，确认内容无误后再运行 Agent。",
+          "profile_invalid": "请检查笔记内容是否为有效 JSON，且 schema_version 为 1、各字段为简短文本。",
+          "profile_budget": "请精简“项目文风档案”的内容，使其不超过 800 Token。",
+          "profile_legacy": "请在笔记中准备“项目文风档案”，并确认其内容有效。",
+          "token_budget": "加入上下文后超出预算，请精简“项目文风档案”的内容。"
         }
       }
     },

@@ -4,6 +4,7 @@ Notes remain the only persistence owner. Manuscripts and raw samples never
 enter this context through the profile path.
 """
 
+from collections.abc import MutableMapping
 from dataclasses import dataclass
 import html
 import json
@@ -19,6 +20,16 @@ STYLE_PROFILE_NOTE_TITLE = "项目文风档案"
 STYLE_PROFILE_SKILL_ID = "builtin-skill--style-profile"
 MAX_RUNTIME_STYLE_TOKENS = 800
 MAX_PROFILE_CHARS = 32_000
+# Fixed, content-free reasons why no style card reaches the context. They let
+# the panel tell a missing note from a duplicate, a draft, damaged JSON and an
+# oversized profile without ever exposing note text.
+STYLE_PROFILE_RECEIPT_REASONS = (
+    "profile_missing",
+    "profile_ambiguous",
+    "profile_unconfirmed",
+    "profile_invalid",
+    "profile_budget",
+)
 # The note editor keeps the profile as rich text and re-serializes it as
 # Markdown, escaping a wider punctuation set than JSON does. Undo exactly those
 # escapes (including the backslash that introduces them) so the round-trip
@@ -183,20 +194,65 @@ def compile_runtime_style_card(content: str) -> str | None:
         return None
 
 
+_REASON_BY_STAGE = {
+    "status": "profile_unconfirmed",
+    "budget": "profile_budget",
+}
+
+
+def _receipt_reason(rejected: _ProfileRejected) -> str:
+    # Every parse/schema/field/size rejection is reported as one fixed
+    # "invalid" reason; the finer stage stays in the log only.
+    return _REASON_BY_STAGE.get(rejected.stage, "profile_invalid")
+
+
+def _deliver_receipt(
+    receipt: MutableMapping[str, Any] | None, reason: str
+) -> None:
+    if receipt is None:
+        return
+    receipt.clear()
+    payload: dict[str, Any] = {"status": "skipped", "reason": reason}
+    if reason == "profile_budget":
+        payload["budget"] = MAX_RUNTIME_STYLE_TOKENS
+    receipt.update(payload)
+
+
 async def load_runtime_style_card(
-    session: AsyncSession, project_id: str
+    session: AsyncSession,
+    project_id: str,
+    receipt: MutableMapping[str, Any] | None = None,
 ) -> RuntimeStyleCard | None:
+    """Load the single confirmed profile note; optionally report a fixed reason.
+
+    The receipt is always cleared first and replaced with either
+    ``{"status": "loaded"}`` or a fixed skip reason, so stale fields never
+    survive a later call. Note content, JSON error text and arbitrary
+    exception messages never enter it.
+    """
+    if receipt is not None:
+        receipt.clear()
     notes = await note_repo.list_visible_root_by_title(
         session, project_id, STYLE_PROFILE_NOTE_TITLE, limit=2
     )
-    if len(notes) != 1:
-        if notes:
-            logger.warning("Ambiguous project style profile: project_id={}", project_id)
+    if not notes:
+        _deliver_receipt(receipt, "profile_missing")
+        return None
+    if len(notes) > 1:
+        logger.warning("Ambiguous project style profile: project_id={}", project_id)
+        _deliver_receipt(receipt, "profile_ambiguous")
         return None
     note = notes[0]
+    card_content: str
     try:
-        card = _compile_runtime_style_card(note.content)
+        card_content = _compile_runtime_style_card(note.content)
     except _ProfileRejected as rejected:
         _log_rejection(rejected.stage, note.id)
+        _deliver_receipt(receipt, _receipt_reason(rejected))
         return None
-    return RuntimeStyleCard(note_id=note.id, content=card, tokens=count_tokens(card))
+    card = RuntimeStyleCard(
+        note_id=note.id, content=card_content, tokens=count_tokens(card_content)
+    )
+    if receipt is not None:
+        receipt.update({"status": "loaded", "noteId": card.note_id})
+    return card

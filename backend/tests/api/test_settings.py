@@ -20,6 +20,7 @@ from app.storage.repos import setting_repo
 EXPECTED_AGENT_TOOL_PERMISSIONS = [
     {"tool_name": "activate_skill", "mode": "allow"},
     {"tool_name": "ask_user", "mode": "allow"},
+    {"tool_name": "compare_revision", "mode": "allow"},
     {"tool_name": "create_character", "mode": "ask"},
     {"tool_name": "create_note_category", "mode": "ask"},
     {"tool_name": "create_volume", "mode": "ask"},

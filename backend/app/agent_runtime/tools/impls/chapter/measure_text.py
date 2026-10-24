@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.registry import ToolRegistry
+from app.agent_runtime.writing_contract import WritingContract, contract_measurement_feedback
 from app.core.word_count import count_words
 
 # 单次测量的输入上限，避免把整本书正文一次塞进工具调用。
@@ -55,6 +56,9 @@ class MeasureTextRevision(BaseModel):
     minimum_change_words: int
     strategy: Literal["structural_compression", "local_revision"]
     guidance: str
+    change_min_words: int
+    change_max_words: int | None
+    retain_ratio: float | None
 
 
 class MeasureTextOutput(BaseModel):
@@ -122,7 +126,11 @@ class MeasureTextTool(AgentTool):
         revision = None
         if within_range is False:
             if min_words is not None and max_words is not None:
-                target = (min_words + max_words) // 2
+                margin = (max_words - min_words) // 4
+                target = (
+                    min_words + margin if word_count < min_words
+                    else max_words - margin
+                )
             else:
                 target = min_words if min_words is not None else max_words
             assert target is not None
@@ -137,6 +145,10 @@ class MeasureTextTool(AgentTool):
                 and max_words > 0
                 and word_count > max_words * 1.15
             )
+            if structural and min_words is not None and max_words is not None:
+                target = (min_words + max_words) // 2
+            shrinking = max_words is not None and word_count > max_words
+            opposite = min_words if shrinking else max_words
             strategy_guidance = (
                 "超长超过上限15%，先给必要场景分配篇幅，合并重复功能的议论、反应和描写；"
                 "一次向目标字数调整，不逐句零碎删改，不删除必要人物选择与因果。"
@@ -148,16 +160,22 @@ class MeasureTextTool(AgentTool):
                 word_delta=target - word_count,
                 minimum_change_words=abs(boundary - word_count),
                 strategy="structural_compression" if structural else "local_revision",
+                change_min_words=abs(boundary - word_count),
+                change_max_words=(abs(opposite - word_count) if opposite is not None else None),
+                retain_ratio=round(target / word_count, 4) if shrinking else None,
                 guidance=(
                     "word_delta 为达到目标需要增减的实测字数（负数表示删减）。"
                     "按差额集中修订，避免每次只改几字反复调用；"
                     "保留事实、认知边界、声线与必要因果，不能机械截断。"
                     "修订后测量完整候选，片段达标不代表整章达标。"
+                    "change_min_words/change_max_words是进入合格区间允许增减的字数范围；"
+                    "retain_ratio是删减时应保留的篇幅比例，不是删去的比例。"
+                    "不要求精确命中target_words，落在作者区间即可停止；先核删减清单的总量，避免过度压缩。"
                     + strategy_guidance
                 ),
             )
 
-        return MeasureTextOutput(
+        result = MeasureTextOutput(
             word_count=word_count,
             character_count=len(text),
             content_sha256=content_sha256(text),
@@ -171,3 +189,15 @@ class MeasureTextTool(AgentTool):
             revision=revision,
             revision_series=revision_series,
         ).model_dump_json(exclude={"revision"} if revision is None else set())
+        metadata = (self.config or {}).get("metadata") or {}
+        contract_data = metadata.get("openfic_writing_contract")
+        if contract_data is not None:
+            contract = WritingContract.model_validate(contract_data)
+            ordinal = metadata.get("openfic_measure_ordinal")
+            if type(ordinal) is not int or not 1 <= ordinal <= contract.measurement_limit:
+                raise ToolExecutionError("无效的可信测量序号", code="validation_error")
+            result = contract_measurement_feedback(
+                result, {"text": text}, contract,
+                ordinal,
+            )
+        return result

@@ -11,10 +11,12 @@ from app.agent_runtime.tools.impls.chapter.move_chapter_to_volume import (
     MoveChapterToVolumeTool,
 )
 from app.agent_runtime.tools.impls.chapter.measure_text import MeasureTextTool
+from app.agent_runtime.tools.impls.chapter.compare_revision import CompareRevisionTool
 
 __all__ = [
     "ReadChapterTool",
     "MeasureTextTool",
+    "CompareRevisionTool",
     "WriteChapterTool",
     "EditChapterTool",
     "DeleteChapterTool",

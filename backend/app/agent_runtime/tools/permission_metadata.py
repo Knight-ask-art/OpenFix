@@ -17,6 +17,7 @@ SETTING_KEY_AGENT_BYPASS_TOOL_APPROVAL = "agent_bypass_tool_approval"
 _PERMISSION_METADATA_BY_TOOL_NAME = {
     "activate_skill": ToolPermissionMetadata("activate_skill", "allow"),
     "ask_user": ToolPermissionMetadata("ask_user", "allow"),
+    "compare_revision": ToolPermissionMetadata("compare_revision", "allow"),
     "create_character": ToolPermissionMetadata("create_character", "ask"),
     "create_note_category": ToolPermissionMetadata("create_note_category", "ask"),
     "create_volume": ToolPermissionMetadata("create_volume", "ask"),

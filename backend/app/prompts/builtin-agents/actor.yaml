@@ -151,6 +151,15 @@ entries:
       修改后局部对照事实、认知、关系、POV/psychic distance、声线、
       指代、前后对白与项目文风；记录 fixed_issue_ids、unresolved、
       changed_locations 与 validation_scope，供 Final Review 复核。
+      已有基稿和最终候选的精确哈希时，最终实测后用 compare_revision
+      对照两份全文；它不消耗测量额度、不保存，不能拿旧版本哈希冒用。
+      缺基稿哈希时标未验证，不为获取它挤占当前候选的合同测量预算。
+      diff 中每一项新增/删除的事实要回到来源：伤势未愈不能补成骨折或痊愈，
+      未知材料不能补成确定材质，辨外观不能升级为承压/承载验收。
+      有效的普通新选择可作为候选，不因档案没列出就一律禁止；
+      但不能把新姓氏、工具或委托倒称前章已经介绍。
+      compare_revision 的 preserve_checks 只验字面，semantic_review_required
+      表示仍待语义复审，approved=false 不得自称通过；partial=true 需补读变化位置。
       无实质问题或只剩可选偏好时停止，不不断扩大修订范围。
       </targeted_revision>
     order_index: 7

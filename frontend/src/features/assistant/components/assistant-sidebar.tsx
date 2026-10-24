@@ -83,6 +83,7 @@ import { joinSubagentStatusStream, subscribeSubagentStatusEvents } from "../lib/
 import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-mapping";
 import { AgentInput, AgentMessages, useAgentSidebar } from "./agent";
 import { AgentContextPanel } from "./agent-context-panel";
+import { WritingRecoveryPanel } from "./writing-recovery-panel";
 import { AgentSuggestionsPanel } from "./agent-suggestions-panel";
 import { ActiveSubagentList } from "./agent/active-subagent-list";
 import { AgentSessionChangesDialog } from "./agent/agent-changes";
@@ -1746,6 +1747,11 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   runtime={contextRuntime}
                 />
               ) : shouldShowSubagentConversation ? (
+                <>
+                {currentConversation?.kind === "subagent" && subagentStatusValue === "error" &&
+                  ["writer", "actor"].includes(subagentSession.session?.agentKey ?? "") && !subagentSession.isRunning ? (
+                  <WritingRecoveryPanel key={currentConversation.childRunId} childRunId={currentConversation.childRunId} />
+                ) : null}
                 <AgentMessages
                   messages={subagentSession.messages}
                   isRunning={subagentSession.isRunning}
@@ -1764,6 +1770,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   onAtBottomChange={setIsMessagesAtBottom}
                   scrollToBottomFnRef={scrollToBottomFnRef}
                 />
+                </>
               ) : !hasActiveTask ? (
                 <RecentTasksCard
                   tasks={recentTasks}

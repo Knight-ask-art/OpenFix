@@ -39,6 +39,7 @@ from app.agent_runtime.persistence.task_projection import (
     load_task_messages_for_agent_session,
 )
 from app.agent_runtime.persistence.model import AgentChildRun
+from app.agent_runtime.persistence.errors import PersistenceLoadError
 from app.agent_runtime.revisions import finalize_revision_status, rollback_revision_for_session
 from app.agent_runtime.fork import fork_agent_session_at_revision
 from app.agent_runtime.model_config import without_api_key
@@ -51,6 +52,11 @@ from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.runner.subagent_runner import SubagentRunner
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
+from app.agent_runtime.writing_recovery import (
+    WritingRecoveryConflict,
+    WritingRecoveryUnavailable,
+    load_writing_candidate,
+)
 from app.agent_runtime.types import normalize_max_iterations
 from app.agent_runtime.tools import ToolRegistry
 from app.agent_runtime.tools.impls.orchestration.common import ensure_child_processing
@@ -77,6 +83,7 @@ from app.api.schemas.agent import (
     SubagentSessionResponse,
     AgentToolApprovalRequest,
     AgentToolMetadataResponse,
+    AgentWritingCandidateResponse,
 )
 from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
@@ -112,6 +119,7 @@ TOOL_DISPLAY_ORDER = {
     "list_chapters": 7,
     "read_chapter": 8,
     "measure_text": 8.5,
+    "compare_revision": 8.6,
     "search_chapters": 9,
     "search_story_memory": 9.5,
     "read_narrative_state": 9.6,
@@ -1538,6 +1546,40 @@ async def get_subagent_session(
         created_at=row.created_at,
         updated_at=row.updated_at,
         messages=messages,
+    )
+
+
+@router.get(
+    "/subagents/{child_run_id}/writing-candidate",
+    response_model=AgentWritingCandidateResponse,
+)
+async def get_subagent_writing_candidate(
+    child_run_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> AgentWritingCandidateResponse:
+    """只读取回失败写作合同中保留的已测量候选；不写章、不续跑。"""
+    try:
+        candidate = await load_writing_candidate(session, child_run_id=child_run_id)
+    except WritingRecoveryConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except (WritingRecoveryUnavailable, PersistenceLoadError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "writing_candidate_not_found", "message": "没有可验证的保留测量稿"},
+        ) from exc
+    return AgentWritingCandidateResponse(
+        child_run_id=candidate.child_run_id,
+        content=candidate.content,
+        content_sha256=candidate.content_sha256,
+        word_count=candidate.word_count,
+        within_contract_range=candidate.within_contract_range,
+        measurement_attempt=candidate.measurement_attempt,
+        measurement_limit=candidate.measurement_limit,
+        failure_reason=candidate.failure_reason,
+        approved=candidate.approved,
     )
 
 

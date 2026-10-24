@@ -295,6 +295,10 @@ class TestAgentAPI:
                 "is_readonly": True,
             },
             {
+                "key": "compare_revision",
+                "is_readonly": True,
+            },
+            {
                 "key": "search_chapters",
                 "is_readonly": True,
             },

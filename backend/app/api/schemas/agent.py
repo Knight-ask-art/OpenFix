@@ -4,6 +4,7 @@ Agent API Schemas。
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -322,6 +323,20 @@ class SubagentSessionResponse(BaseModel):
         default_factory=list,
         description="子线程 transcript 消息",
     )
+
+
+class AgentWritingCandidateResponse(BaseModel):
+    """失败写作合同请求中保留的已测量候选（只读，未批准）。"""
+
+    child_run_id: str = Field(..., description="子运行ID")
+    content: str = Field(..., description="最后一次有效测量对应的精确正文")
+    content_sha256: str = Field(..., description="正文 UTF-8 SHA256")
+    word_count: int = Field(..., description="按项目口径实测字数")
+    within_contract_range: bool = Field(..., description="是否落在合同字数区间内")
+    measurement_attempt: int = Field(..., description="该候选的测量序号（从1开始）")
+    measurement_limit: int = Field(..., description="本轮合同测量上限")
+    failure_reason: str = Field(..., description="固定失败原因代码")
+    approved: Literal[False] = Field(default=False, description="恒为 false：未验收")
 
 
 class AgentRollbackRequest(BaseModel):

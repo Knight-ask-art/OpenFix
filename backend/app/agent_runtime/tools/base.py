@@ -29,19 +29,13 @@ _PYDANTIC_HELP_URL = re.compile(
 def _format_validation_error(error: object) -> str:
     if isinstance(error, ValidationError):
         details: list[str] = []
-        for item in error.errors():
+        for item in error.errors(include_input=False, include_context=False, include_url=False):
             location = ".".join(str(part) for part in item.get("loc", ())) or "<root>"
             message = " ".join(str(item.get("msg", "Validation error")).split())
             error_type = item.get("type")
             detail = f"{location}: {message}"
             if error_type:
                 detail += f" [type={error_type}"
-                if "input" in item:
-                    input_value = item["input"]
-                    detail += (
-                        f", input_value={input_value!r},"
-                        f" input_type={type(input_value).__name__}"
-                    )
                 detail += "]"
             details.append(detail)
         if details:

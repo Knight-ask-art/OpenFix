@@ -116,11 +116,14 @@ async def test_measure_text_counts_chinese_characters_without_range() -> None:
 
 async def test_measure_text_guides_one_bounded_length_revision() -> None:
     data = await _measure(text="字" * 3479, min_words=2800, max_words=3200)
-    assert data["revision"]["target_words"] == 3000
-    assert data["revision"]["word_delta"] == -479
+    assert data["revision"]["target_words"] == 3100
+    assert data["revision"]["word_delta"] == -379
     assert data["revision"]["minimum_change_words"] == 279
     assert "不能机械截断" in data["revision"]["guidance"]
     assert "片段达标不代表整章达标" in data["revision"]["guidance"]
+    assert data["revision"]["change_min_words"] == 279
+    assert data["revision"]["change_max_words"] == 679
+    assert 0 < data["revision"]["retain_ratio"] < 1
 
 
 async def test_measure_text_selects_structural_compression_only_for_large_excess() -> None:

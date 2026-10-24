@@ -455,12 +455,203 @@ async def test_disabled_or_unentitled_agents_do_not_read_notes(monkeypatch, over
         "app.agent_runtime.context.parts.style_profile.load_agent_definition",
         AsyncMock(return_value=definition),
     )
-    load = AsyncMock()
+    load = AsyncMock(return_value=None)
     monkeypatch.setattr(
         "app.storage.services.style_profile_service.load_runtime_style_card", load
     )
     assert await build_style_profile(AsyncMock(), "project", "writer") is None
     load.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_loader_is_called_with_a_private_receipt(monkeypatch):
+    monkeypatch.setattr(
+        "app.storage.services.skill_service.list_enabled_skills_by_ids",
+        AsyncMock(return_value=[object()]),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.context.parts.style_profile.load_agent_definition",
+        AsyncMock(return_value=get_default_agent_definition("writer")),
+    )
+    load = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        "app.storage.services.style_profile_service.load_runtime_style_card", load
+    )
+    receipt = {}
+    assert await build_style_profile(AsyncMock(), "project", "writer", receipt) is None
+    load.assert_awaited_once()
+    assert load.await_args.args[1] == "project"
+    assert isinstance(load.await_args.args[2], dict)
+    # An empty receipt from the loader keeps the legacy reason.
+    assert receipt == {"status": "skipped", "reason": "no_valid_confirmed_card"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "loader_receipt",
+    [
+        {"status": "skipped", "reason": "profile_missing"},
+        {"status": "skipped", "reason": "profile_ambiguous"},
+        {"status": "skipped", "reason": "profile_unconfirmed"},
+        {"status": "skipped", "reason": "profile_invalid"},
+        {"status": "skipped", "reason": "profile_budget", "budget": 800},
+        {"status": "skipped", "reason": "JSON decode error at line 3"},
+        {},
+    ],
+)
+async def test_build_style_profile_sanitizes_loader_receipt(
+    monkeypatch, loader_receipt
+):
+    monkeypatch.setattr(
+        "app.storage.services.skill_service.list_enabled_skills_by_ids",
+        AsyncMock(return_value=[object()]),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.context.parts.style_profile.load_agent_definition",
+        AsyncMock(return_value=get_default_agent_definition("writer")),
+    )
+    monkeypatch.setattr(
+        "app.storage.services.style_profile_service.load_runtime_style_card",
+        AsyncMock(return_value=None, side_effect=lambda s, p, r: r.update(loader_receipt)),
+    )
+    receipt = {"status": "loaded", "sha256": "stale", "tokens": 999}
+    assert await build_style_profile(AsyncMock(), "project", "writer", receipt) is None
+    expected = loader_receipt.get("reason")
+    if expected not in {
+        "profile_missing",
+        "profile_ambiguous",
+        "profile_unconfirmed",
+        "profile_invalid",
+        "profile_budget",
+    }:
+        expected = "no_valid_confirmed_card"
+    assert receipt["reason"] == expected
+    assert "sha256" not in receipt and "tokens" not in receipt
+    if expected == "profile_budget":
+        assert receipt["budget"] == MAX_RUNTIME_STYLE_TOKENS
+    else:
+        assert set(receipt) == {"status", "reason"}
+
+
+@pytest.mark.asyncio
+async def test_style_card_budget_skip_does_not_keep_profile_receipt(session):
+    from app.storage.services.style_profile_service import _FIELDS
+
+    overrides = {
+        category: {field: "<" * 64 for field in fields}
+        for category, fields in _FIELDS.items()
+    }
+    project, _ = await _setup(session, **overrides)
+    receipt = {}
+    assert (
+        await build_style_profile(session, project.id, "writer", receipt) is None
+    )
+    assert receipt["reason"] == "token_budget"
+    assert receipt["status"] == "skipped"
+    assert receipt["budget"] == MAX_RUNTIME_STYLE_TOKENS
+    assert "noteId" not in receipt
+
+
+@pytest.mark.asyncio
+async def test_valid_card_receipt_reports_loaded_without_profile_text(session):
+    project, note = await _setup(session)
+    receipt = {"status": "skipped", "reason": "profile_missing"}
+    msg = await build_style_profile(session, project.id, "writer", receipt)
+    assert msg is not None
+    assert receipt["status"] == "loaded" and receipt["noteId"] == note.id
+    assert "third_limited" not in json.dumps(receipt, ensure_ascii=False)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("content", "reason"),
+    [
+        (None, "profile_missing"),
+        ("SECRET_BODY", "profile_invalid"),
+        (
+            _encode(_profile(status="draft", anti_patterns=["SECRET_BODY"])),
+            "profile_unconfirmed",
+        ),
+        (
+            '{"schema_version":1,"status":"confirmed", SECRET_BODY',
+            "profile_invalid",
+        ),
+        ("x" * 32_001, "profile_invalid"),
+        (_encode(_profile()), None),
+    ],
+)
+async def test_loader_reports_fixed_reason_without_body(session, content, reason):
+    if content is None:
+        project = Project(title="无档案")
+        session.add(project)
+        await session.flush()
+        note = None
+    else:
+        project, note = await _setup_content(session, content)
+    receipt = {"status": "loaded", "sha256": "stale", "noteId": "stale"}
+    card = await load_runtime_style_card(session, project.id, receipt)
+    assert "SECRET_BODY" not in json.dumps(receipt, ensure_ascii=False)
+    if reason is None:
+        assert card is not None
+        assert receipt == {"status": "loaded", "noteId": note.id}
+        return
+    assert card is None
+    assert receipt["status"] == "skipped"
+    assert receipt["reason"] == reason
+    assert "sha256" not in receipt
+    if reason == "profile_budget":
+        assert receipt["budget"] == MAX_RUNTIME_STYLE_TOKENS
+        assert "noteId" not in receipt
+    elif reason == "profile_missing":
+        assert set(receipt) == {"status", "reason"}
+    else:
+        assert set(receipt) == {"status", "reason"}
+
+
+@pytest.mark.asyncio
+async def test_loader_oversized_card_reports_profile_budget(session):
+    from app.storage.services.style_profile_service import _FIELDS
+
+    profile = _profile()
+    for group, fields in _FIELDS.items():
+        profile[group] = {field: "叙述人物观点范围条件保留" * 5 for field in fields}
+    project, _ = await _setup_content(session, _encode(profile))
+    receipt = {"status": "loaded", "sha256": "stale"}
+    assert await load_runtime_style_card(session, project.id, receipt) is None
+    assert receipt == {
+        "status": "skipped",
+        "reason": "profile_budget",
+        "budget": MAX_RUNTIME_STYLE_TOKENS,
+    }
+
+
+@pytest.mark.asyncio
+async def test_loader_ambiguous_receipt(session):
+    project, _ = await _setup(session)
+    session.add(
+        Note(
+            project_id=project.id,
+            title=STYLE_PROFILE_NOTE_TITLE,
+            content=_encode(_profile()),
+        )
+    )
+    await session.flush()
+    receipt = {}
+    assert await load_runtime_style_card(session, project.id, receipt) is None
+    assert receipt == {"status": "skipped", "reason": "profile_ambiguous"}
+
+
+@pytest.mark.asyncio
+async def test_loader_valid_legacy_call_unchanged_and_without_receipt(session):
+    project, note = await _setup(session)
+    plain = await load_runtime_style_card(session, project.id)
+    receipt = {}
+    with_receipt = await load_runtime_style_card(session, project.id, receipt)
+    assert plain is not None and with_receipt is not None
+    assert plain == with_receipt
+    assert plain.note_id == note.id
+    assert plain.tokens == count_tokens(plain.content)
+    assert receipt == {"status": "loaded", "noteId": note.id}
 
 
 @pytest.mark.asyncio

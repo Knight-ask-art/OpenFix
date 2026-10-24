@@ -49,15 +49,24 @@ async def build_style_profile(
         if not await skill_service.list_enabled_skills_by_ids(db_session, [skill_id]):
             skipped("skill_disabled")
             return None
+        profile_receipt: dict[str, Any] = {}
         card = await style_profile_service.load_runtime_style_card(
-            db_session, project_id
+            db_session, project_id, profile_receipt
         )
     except Exception as exc:
         raise ContextBuildError(
             "style_profile", "failed to load project style profile", cause=exc
         ) from exc
     if card is None:
-        skipped("no_valid_confirmed_card")
+        # Only the loader's fixed reason crosses the boundary; anything else
+        # (missing, unknown or free-form) falls back to the legacy reason.
+        reason = profile_receipt.get("reason")
+        if reason not in style_profile_service.STYLE_PROFILE_RECEIPT_REASONS:
+            skipped("no_valid_confirmed_card")
+        elif reason == "profile_budget":
+            skipped("profile_budget", budget=style_profile_service.MAX_RUNTIME_STYLE_TOKENS)
+        else:
+            skipped(reason)
         return None
     content = (
         "<runtime_style_card>\n"

@@ -31,6 +31,12 @@ RUNTIME_STYLE_SKIP_REASONS = frozenset(
         "agent_disabled",
         "note_read_disabled",
         "skill_disabled",
+        "profile_missing",
+        "profile_ambiguous",
+        "profile_unconfirmed",
+        "profile_invalid",
+        "profile_budget",
+        # Legacy snapshots predate the fixed profile reasons above.
         "no_valid_confirmed_card",
         "token_budget",
         "dropped",
@@ -223,6 +229,10 @@ def _sanitize_runtime_style(value: Any) -> dict[str, Any] | None:
         if not isinstance(reason, str) or reason not in RUNTIME_STYLE_SKIP_REASONS:
             return None
         style: dict[str, Any] = {"status": "skipped", "reason": reason}
+        if reason == "profile_budget":
+            budget = _runtime_count(record.get("budget"))
+            if budget is not None:
+                style["budget"] = budget
         if reason == "token_budget":
             tokens = _runtime_count(record.get("tokens"))
             budget = _runtime_count(record.get("budget"))
